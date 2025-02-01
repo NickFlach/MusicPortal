@@ -4,11 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Layout } from "@/components/Layout";
 import { useToast } from "@/hooks/use-toast";
-import { useAccount } from 'wagmi';
+import { useAccount, useContractRead, useContractWrite } from 'wagmi';
 import { Coins, Send } from "lucide-react";
 import { useState } from "react";
-import { getTreasuryContract, getPFORKTokenContract } from "@/lib/contracts";
-import { config } from "@/config";
+import { TREASURY_ADDRESS, TREASURY_ABI, PFORK_TOKEN_ADDRESS, PFORK_TOKEN_ABI } from "@/lib/contracts";
 
 interface TreasuryData {
   address: string;
@@ -22,45 +21,39 @@ export default function Treasury() {
   const { address } = useAccount();
   const [newTreasuryAddress, setNewTreasuryAddress] = useState("");
 
-  // Get contract instances
-  const treasuryContract = getTreasuryContract();
-  const pforkContract = getPFORKTokenContract();
+  // Read contract data
+  const { data: ownerAddress } = useContractRead({
+    address: TREASURY_ADDRESS,
+    abi: TREASURY_ABI,
+    functionName: 'owner',
+  });
 
-  // Fetch treasury data
-  const { data: treasury } = useQuery<TreasuryData>({
-    queryKey: ["/api/treasury"],
-    queryFn: async () => {
-      if (!address) throw new Error("No wallet connected");
+  const { data: pforkBalance } = useContractRead({
+    address: PFORK_TOKEN_ADDRESS,
+    abi: PFORK_TOKEN_ABI,
+    functionName: 'balanceOf',
+    args: [TREASURY_ADDRESS],
+  });
 
-      const [pforkBalance, gasBalance, owner] = await Promise.all([
-        pforkContract.read.balanceOf([treasuryContract.address]),
-        config.publicClient.getBalance({ address: treasuryContract.address }),
-        treasuryContract.read.owner(),
-      ]);
-
-      return {
-        address: treasuryContract.address,
-        pforkBalance: (Number(pforkBalance) / 1e18).toString(),
-        gasBalance: (Number(gasBalance) / 1e18).toString(),
-        isCurrentManager: address === owner,
-      };
-    },
-    enabled: !!address,
+  // Contract write mutation
+  const { writeAsync: transferTreasury } = useContractWrite({
+    address: TREASURY_ADDRESS,
+    abi: TREASURY_ABI,
+    functionName: 'transferTreasury',
   });
 
   // Mutation for updating treasury address
   const updateTreasuryMutation = useMutation({
-    mutationFn: async (newAddress: string) => {
+    mutationFn: async () => {
       if (!address) throw new Error("No wallet connected");
-      const { request } = await treasuryContract.simulate.transferTreasury([newAddress], {
-        account: address,
+      return transferTreasury({
+        args: [newTreasuryAddress],
       });
-      return config.publicClient.writeContract(request);
     },
     onSuccess: () => {
       toast({
         title: "Success",
-        description: "Treasury address updated successfully",
+        description: "Treasury transfer initiated. Please wait for the transaction to be mined.",
       });
       setNewTreasuryAddress("");
     },
@@ -73,6 +66,13 @@ export default function Treasury() {
     },
   });
 
+  const treasury: TreasuryData = {
+    address: TREASURY_ADDRESS,
+    pforkBalance: pforkBalance ? (Number(pforkBalance) / 1e18).toString() : "0",
+    gasBalance: "0", // We'll get this from the chain directly
+    isCurrentManager: address === ownerAddress,
+  };
+
   return (
     <Layout>
       <div className="space-y-8">
@@ -84,7 +84,7 @@ export default function Treasury() {
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground break-all">
-                {treasury?.address || "Loading..."}
+                {treasury.address}
               </p>
             </CardContent>
           </Card>
@@ -96,7 +96,7 @@ export default function Treasury() {
             <CardContent>
               <div className="flex items-center gap-2">
                 <Coins className="h-4 w-4 text-primary" />
-                <p className="text-2xl font-bold">{treasury?.pforkBalance || "0"}</p>
+                <p className="text-2xl font-bold">{treasury.pforkBalance}</p>
               </div>
             </CardContent>
           </Card>
@@ -108,14 +108,14 @@ export default function Treasury() {
             <CardContent>
               <div className="flex items-center gap-2">
                 <Send className="h-4 w-4 text-primary" />
-                <p className="text-2xl font-bold">{treasury?.gasBalance || "0"}</p>
+                <p className="text-2xl font-bold">{treasury.gasBalance}</p>
               </div>
             </CardContent>
           </Card>
         </div>
 
         {/* Treasury Management - Only visible to current treasury manager */}
-        {treasury?.isCurrentManager && (
+        {treasury.isCurrentManager && (
           <Card>
             <CardHeader>
               <CardTitle>Treasury Management</CardTitle>
@@ -133,7 +133,7 @@ export default function Treasury() {
                 <Button
                   onClick={() => {
                     if (window.confirm("Are you sure you want to transfer treasury control?")) {
-                      updateTreasuryMutation.mutate(newTreasuryAddress);
+                      updateTreasuryMutation.mutate();
                     }
                   }}
                   disabled={!newTreasuryAddress || updateTreasuryMutation.isPending}

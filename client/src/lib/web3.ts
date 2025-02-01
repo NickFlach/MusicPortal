@@ -1,8 +1,15 @@
 import { createConfig, http } from 'wagmi';
 import { mainnet } from 'wagmi/chains';
 import { injected } from 'wagmi/connectors';
+import { createPublicClient, walletClient } from 'viem';
 
-// Create wagmi config with proper typing
+// Create a public client
+const publicClient = createPublicClient({
+  chain: mainnet,
+  transport: http(),
+});
+
+// Create wagmi config
 export const config = createConfig({
   chains: [mainnet],
   transports: {
@@ -13,6 +20,9 @@ export const config = createConfig({
       target: 'metaMask',
     }),
   ],
+  client: {
+    public: publicClient,
+  },
 });
 
 // Helper functions
@@ -34,5 +44,5 @@ export const getBalance = async (address: string) => {
   if (!connections.length) return BigInt(0);
   const [, connection] = connections[0];
   if (!connection) return BigInt(0);
-  return config.publicClient.getBalance({ address });
+  return publicClient.getBalance({ address });
 };
