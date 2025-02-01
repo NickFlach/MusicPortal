@@ -15,6 +15,7 @@ import { MusicPlayerProvider } from "@/contexts/MusicPlayerContext";
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
   const { address } = useAccount();
 
+  // Redirect to landing if no wallet connected
   if (!address) {
     return <Redirect to="/" />;
   }
@@ -23,6 +24,13 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
 }
 
 function Router() {
+  const { address } = useAccount();
+
+  // If on a protected route and wallet disconnects, redirect to landing
+  if (!address && window.location.pathname !== '/') {
+    return <Redirect to="/" />;
+  }
+
   return (
     <Switch>
       <Route path="/" component={Landing} />
