@@ -8,7 +8,16 @@ interface LayoutProps {
 
 export function Layout({ children }: LayoutProps) {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background relative">
+      {/* Background image with overlay */}
+      <div 
+        className="fixed inset-0 -z-10 bg-[url('/background.jpg')] bg-cover bg-center"
+        style={{
+          backgroundImage: "url('/neo_token_logo_flaukowski.png')",
+          opacity: 0.1
+        }}
+      />
+
       <header className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
         <div className="container mx-auto py-4 flex items-center justify-between">
           <div className="flex items-center">
