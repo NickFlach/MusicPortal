@@ -89,7 +89,7 @@ export function MusicPlayer({ currentSong, onNext, onPrevious }: MusicPlayerProp
   };
 
   return (
-    <Card className="fixed bottom-0 left-0 right-0 p-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <Card className="fixed bottom-0 left-0 right-0 p-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-t z-50">
       <div className="container mx-auto">
         <audio
           ref={audioRef}

@@ -26,7 +26,7 @@ export function Layout({ children }: LayoutProps) {
           <WalletConnect />
         </div>
       </header>
-      <main className="container mx-auto pt-24 pb-32">
+      <main className="container mx-auto pt-24 pb-40">
         {children}
       </main>
     </div>
