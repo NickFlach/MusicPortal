@@ -29,6 +29,12 @@ interface Playlist {
   createdAt: string | null;
 }
 
+interface PlaylistWithSongs extends Playlist {
+  playlistSongs: {
+    song: Song;
+  }[];
+}
+
 export default function Home() {
   const [currentSong, setCurrentSong] = useState<Song>();
   const { toast } = useToast();
@@ -46,7 +52,7 @@ export default function Home() {
     enabled: !!address, // Only fetch if user is connected
   });
 
-  const { data: playlists } = useQuery<Playlist[]>({
+  const { data: playlists } = useQuery<PlaylistWithSongs[]>({
     queryKey: ["/api/playlists"],
   });
 
@@ -117,6 +123,34 @@ export default function Home() {
       });
     },
   });
+  
+    const createPlaylistMutation = useMutation({
+    mutationFn: async (name: string) => {
+      const response = await apiRequest("POST", "/api/playlists", { name });
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/playlists"] });
+      toast({
+        title: "Success",
+        description: "Playlist created successfully!",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleCreatePlaylist = () => {
+    const name = prompt("Enter playlist name:");
+    if (name) {
+      createPlaylistMutation.mutate(name);
+    }
+  };
 
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -152,7 +186,7 @@ export default function Home() {
       <section className="mb-12">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-semibold">Your Playlists</h2>
-          <Button variant="outline">
+          <Button variant="outline" onClick={handleCreatePlaylist}>
             <ListMusic className="mr-2 h-4 w-4" />
             New Playlist
           </Button>
@@ -163,9 +197,16 @@ export default function Home() {
             <PlaylistCard
               key={playlist.id}
               title={playlist.name}
-              songCount={0}
-              onPlay={() => {}}
-              onAddSong={() => {}}
+              songCount={playlist.playlistSongs?.length || 0}
+              createdBy={playlist.createdBy}
+              onPlay={() => {
+                if (playlist.playlistSongs?.[0]) {
+                  handlePlaySong(playlist.playlistSongs[0].song);
+                }
+              }}
+              onAddSong={() => {
+                // This will be handled by the SongCard dropdown
+              }}
             />
           ))}
         </div>

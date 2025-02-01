@@ -49,27 +49,40 @@ export const playlistSongs = pgTable("playlist_songs", {
   position: integer("position").notNull(),
 });
 
-export const votes = pgTable("votes", {
-  id: serial("id").primaryKey(),
-  songId: integer("song_id").references(() => songs.id),
-  address: text("address").references(() => users.address),
-  createdAt: timestamp("created_at").defaultNow(),
-});
-
 // Relations
-export const songsRelations = relations(songs, ({ many }) => ({
+export const songsRelations = relations(songs, ({ many, one }) => ({
   recentPlays: many(recentlyPlayed),
-  votes: many(votes),
-  playlistSongs: many(playlistSongs)
+  playlistSongs: many(playlistSongs),
+  uploader: one(users, {
+    fields: [songs.uploadedBy],
+    references: [users.address],
+  }),
 }));
 
-export const playlistsRelations = relations(playlists, ({ many }) => ({
-  playlistSongs: many(playlistSongs)
+export const playlistsRelations = relations(playlists, ({ many, one }) => ({
+  playlistSongs: many(playlistSongs),
+  creator: one(users, {
+    fields: [playlists.createdBy],
+    references: [users.address],
+  }),
+}));
+
+export const playlistSongsRelations = relations(playlistSongs, ({ one }) => ({
+  playlist: one(playlists, {
+    fields: [playlistSongs.playlistId],
+    references: [playlists.id],
+  }),
+  song: one(songs, {
+    fields: [playlistSongs.songId],
+    references: [songs.id],
+  }),
 }));
 
 export const usersRelations = relations(users, ({ many }) => ({
-  followers: many(followers),
-  following: many(followers)
+  followers: many(followers, { relationName: "followers" }),
+  following: many(followers, { relationName: "following" }),
+  songs: many(songs, { relationName: "uploaded_songs" }),
+  playlists: many(playlists, { relationName: "created_playlists" }),
 }));
 
 export const recentlyPlayedRelations = relations(recentlyPlayed, ({ one }) => ({
