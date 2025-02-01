@@ -1,11 +1,9 @@
-import { create } from 'ipfs-http-client';
 import { Buffer } from 'buffer';
 
-const projectId = import.meta.env.VITE_INFURA_PROJECT_ID;
-const projectSecret = import.meta.env.VITE_INFURA_PROJECT_SECRET;
+const pinataJWT = import.meta.env.VITE_PINATA_JWT;
 
-if (!projectId || !projectSecret) {
-  throw new Error('IPFS credentials not found. Please check your environment variables.');
+if (!pinataJWT) {
+  throw new Error('Pinata JWT not found. Please check your environment variables.');
 }
 
 // Ensure Buffer is available in the browser environment
@@ -13,43 +11,51 @@ if (typeof window !== 'undefined') {
   window.Buffer = window.Buffer || Buffer;
 }
 
-const auth = 'Basic ' + Buffer.from(projectId + ':' + projectSecret).toString('base64');
-
-export const ipfs = create({
-  host: 'ipfs.infura.io',
-  port: 5001,
-  protocol: 'https',
-  headers: {
-    authorization: auth,
-  },
-});
-
 export async function uploadToIPFS(file: File): Promise<string> {
   try {
-    console.log('Starting IPFS upload...');
-    const buffer = await file.arrayBuffer();
-    const added = await ipfs.add(Buffer.from(buffer));
-    console.log('IPFS upload successful:', added.path);
-    return added.path;
-  } catch (error) {
-    console.error('Error uploading to IPFS:', error);
-    if (error instanceof Error) {
-      throw new Error(`IPFS Upload failed: ${error.message}`);
+    console.log('Starting Pinata upload...');
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const res = await fetch('https://api.pinata.cloud/pinning/pinFileToIPFS', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${pinataJWT}`,
+      },
+      body: formData,
+    });
+
+    if (!res.ok) {
+      const error = await res.text();
+      throw new Error(`Pinata upload failed: ${error}`);
     }
-    throw new Error('IPFS Upload failed: Unknown error');
+
+    const data = await res.json();
+    console.log('Pinata upload successful:', data.IpfsHash);
+    return data.IpfsHash;
+  } catch (error) {
+    console.error('Error uploading to Pinata:', error);
+    if (error instanceof Error) {
+      throw new Error(`Upload failed: ${error.message}`);
+    }
+    throw new Error('Upload failed: Unknown error');
   }
 }
 
 export async function getFromIPFS(hash: string): Promise<Uint8Array> {
   try {
-    console.log('Fetching from IPFS:', hash);
-    const chunks = [];
-    for await (const chunk of ipfs.cat(hash)) {
-      chunks.push(chunk);
+    console.log('Fetching from IPFS gateway:', hash);
+    const gateway = 'https://gateway.pinata.cloud/ipfs';
+    const response = await fetch(`${gateway}/${hash}`);
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
-    const result = new Uint8Array(Buffer.concat(chunks));
+
+    const buffer = await response.arrayBuffer();
     console.log('IPFS fetch successful');
-    return result;
+    return new Uint8Array(buffer);
   } catch (error) {
     console.error('Error getting file from IPFS:', error);
     if (error instanceof Error) {
