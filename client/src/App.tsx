@@ -16,7 +16,7 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
   const { address } = useAccount();
 
   if (!address) {
-    return <Redirect to="/landing" />;
+    return <Redirect to="/" />;
   }
 
   return <Component />;
@@ -25,8 +25,8 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
 function Router() {
   return (
     <Switch>
-      <Route path="/landing" component={Landing} />
-      <Route path="/">
+      <Route path="/" component={Landing} />
+      <Route path="/home">
         <ProtectedRoute component={Home} />
       </Route>
       <Route path="/treasury">

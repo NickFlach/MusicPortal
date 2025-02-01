@@ -13,7 +13,7 @@ export default function Landing() {
 
   useEffect(() => {
     if (address) {
-      setLocation("/");
+      setLocation("/home");
     }
   }, [address, setLocation]);
 
