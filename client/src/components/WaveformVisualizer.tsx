@@ -8,6 +8,19 @@ interface AudioFeatures {
   frequencies: Uint8Array;
   waveform: Uint8Array;
   volume: number;
+  bassLevel: number;
+  midLevel: number;
+  trebleLevel: number;
+  beatDetected: boolean;
+}
+
+interface Particle {
+  x: number;
+  y: number;
+  size: number;
+  angle: number;
+  speed: number;
+  life: number;
 }
 
 export function WaveformVisualizer() {
@@ -17,12 +30,19 @@ export function WaveformVisualizer() {
     frequencies: new Uint8Array(),
     waveform: new Uint8Array(),
     volume: 0,
+    bassLevel: 0,
+    midLevel: 0,
+    trebleLevel: 0,
+    beatDetected: false,
   });
+  const [particles, setParticles] = useState<Particle[]>([]);
   const [mood, setMood] = useState<MusicMood>("mysterious");
   const audioContextRef = useRef<AudioContext>();
   const analyserRef = useRef<AnalyserNode>();
   const sourceRef = useRef<MediaElementAudioSourceNode>();
   const animationFrameRef = useRef<number>();
+  const lastBeatTime = useRef(0);
+  const energyHistory = useRef<number[]>([]);
 
   // Initialize audio context and analyzers
   useEffect(() => {
@@ -30,27 +50,62 @@ export function WaveformVisualizer() {
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
-      setAudioFeatures(prev => ({ ...prev, volume: 0 }));
+      setAudioFeatures(prev => ({
+        ...prev,
+        volume: 0,
+        bassLevel: 0,
+        midLevel: 0,
+        trebleLevel: 0,
+        beatDetected: false
+      }));
       return;
     }
 
-    // Find the audio element
     const audioElements = document.getElementsByTagName('audio');
     if (!audioElements.length) return;
     const audio = audioElements[0];
 
-    // Initialize audio context if needed
     if (!audioContextRef.current) {
       audioContextRef.current = new AudioContext();
       analyserRef.current = audioContextRef.current.createAnalyser();
-      analyserRef.current.fftSize = 2048; // For detailed waveform
+      analyserRef.current.fftSize = 4096;
+      analyserRef.current.smoothingTimeConstant = 0.85;
     }
 
-    // Connect audio to analyzer if not already connected
     if (!sourceRef.current) {
       sourceRef.current = audioContextRef.current.createMediaElementSource(audio);
       sourceRef.current.connect(analyserRef.current!);
       analyserRef.current!.connect(audioContextRef.current.destination);
+    }
+
+    function detectBeat(frequencyData: Uint8Array): boolean {
+      const bassSum = frequencyData.slice(0, 10).reduce((sum, value) => sum + value, 0);
+      const currentEnergy = bassSum / 2550; // Normalize to 0-1
+      energyHistory.current.push(currentEnergy);
+
+      if (energyHistory.current.length > 30) {
+        energyHistory.current.shift();
+      }
+
+      const averageEnergy = energyHistory.current.reduce((sum, e) => sum + e, 0) / energyHistory.current.length;
+      const now = Date.now();
+
+      if (currentEnergy > averageEnergy * 1.5 && now - lastBeatTime.current > 250) {
+        lastBeatTime.current = now;
+        return true;
+      }
+      return false;
+    }
+
+    function createParticle(x: number, y: number): Particle {
+      return {
+        x,
+        y,
+        size: Math.random() * 3 + 2,
+        angle: Math.random() * Math.PI * 2,
+        speed: Math.random() * 2 + 1,
+        life: 1,
+      };
     }
 
     function updateVisualization() {
@@ -62,13 +117,41 @@ export function WaveformVisualizer() {
       analyserRef.current.getByteFrequencyData(frequencyData);
       analyserRef.current.getByteTimeDomainData(waveformData);
 
-      // Calculate average volume
+      // Calculate frequency band levels
+      const bassFreqs = frequencyData.slice(0, 60);
+      const midFreqs = frequencyData.slice(60, 500);
+      const trebleFreqs = frequencyData.slice(500);
+
+      const bassLevel = bassFreqs.reduce((sum, value) => sum + value, 0) / bassFreqs.length / 255;
+      const midLevel = midFreqs.reduce((sum, value) => sum + value, 0) / midFreqs.length / 255;
+      const trebleLevel = trebleFreqs.reduce((sum, value) => sum + value, 0) / trebleFreqs.length / 255;
+
       const volume = frequencyData.reduce((sum, value) => sum + value, 0) / frequencyData.length / 255;
+      const beatDetected = detectBeat(frequencyData);
+
+      // Update particles on beat
+      if (beatDetected && canvasRef.current) {
+        const canvas = canvasRef.current;
+        const newParticles = [...particles];
+
+        for (let i = 0; i < 5; i++) {
+          newParticles.push(createParticle(
+            Math.random() * canvas.width,
+            Math.random() * canvas.height
+          ));
+        }
+
+        setParticles(newParticles.slice(-50)); // Keep max 50 particles
+      }
 
       setAudioFeatures({
         frequencies: frequencyData,
         waveform: waveformData,
         volume,
+        bassLevel,
+        midLevel,
+        trebleLevel,
+        beatDetected,
       });
 
       animationFrameRef.current = requestAnimationFrame(updateVisualization);
@@ -81,7 +164,7 @@ export function WaveformVisualizer() {
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [isPlaying, currentSong]);
+  }, [isPlaying, currentSong, particles]);
 
   // Draw visualization on canvas
   useEffect(() => {
@@ -91,7 +174,7 @@ export function WaveformVisualizer() {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Set canvas size
+    // Set canvas size with higher resolution
     const updateSize = () => {
       canvas.width = canvas.offsetWidth * window.devicePixelRatio;
       canvas.height = canvas.offsetHeight * window.devicePixelRatio;
@@ -104,15 +187,46 @@ export function WaveformVisualizer() {
     // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+    // Create gradient based on frequency levels
+    const gradient = ctx.createLinearGradient(0, 0, canvas.width, 0);
+    gradient.addColorStop(0, `hsla(${audioFeatures.bassLevel * 360}, 80%, 60%, ${0.6 + audioFeatures.bassLevel * 0.4})`);
+    gradient.addColorStop(0.5, `hsla(${audioFeatures.midLevel * 360}, 80%, 60%, ${0.6 + audioFeatures.midLevel * 0.4})`);
+    gradient.addColorStop(1, `hsla(${audioFeatures.trebleLevel * 360}, 80%, 60%, ${0.6 + audioFeatures.trebleLevel * 0.4})`);
+
+    // Draw circular frequency visualization
+    const centerX = canvas.width / (2 * window.devicePixelRatio);
+    const centerY = canvas.height / (2 * window.devicePixelRatio);
+    const radius = Math.min(centerX, centerY) * 0.4;
+
+    ctx.save();
+    ctx.translate(centerX, centerY);
+
+    // Draw frequency bars in a circle
+    const barCount = 180;
+    const barWidth = (Math.PI * 2) / barCount;
+
+    for (let i = 0; i < barCount; i++) {
+      const amplitude = audioFeatures.frequencies[i] || 0;
+      const barHeight = (amplitude / 255) * radius * 0.5;
+
+      ctx.rotate(barWidth);
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, radius * 0.8, 2, barHeight);
+    }
+
+    ctx.restore();
+
     // Draw waveform
     const waveformPath = new Path2D();
     const step = Math.ceil(audioFeatures.waveform.length / canvas.width);
-    const amplitude = canvas.height / 4;
+    const amplitude = canvas.height / (4 * window.devicePixelRatio);
+    const yOffset = canvas.height / (2 * window.devicePixelRatio);
 
     audioFeatures.waveform.forEach((value, i) => {
       if (i % step !== 0) return;
       const x = (i / step) * (canvas.width / window.devicePixelRatio);
-      const y = (((value / 255) * 2) - 1) * amplitude + (canvas.height / (2 * window.devicePixelRatio));
+      const normalizedValue = ((value / 255) * 2) - 1;
+      const y = normalizedValue * amplitude + yOffset;
 
       if (i === 0) {
         waveformPath.moveTo(x, y);
@@ -121,13 +235,38 @@ export function WaveformVisualizer() {
       }
     });
 
-    // Style and stroke the path
-    ctx.strokeStyle = `hsla(${(audioFeatures.volume * 360)}, 80%, 60%, 0.8)`;
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = gradient;
+    ctx.lineWidth = 2 * (1 + audioFeatures.volume);
     ctx.stroke(waveformPath);
 
+    // Update and draw particles
+    setParticles(prevParticles => 
+      prevParticles
+        .map(particle => ({
+          ...particle,
+          x: particle.x + Math.cos(particle.angle) * particle.speed,
+          y: particle.y + Math.sin(particle.angle) * particle.speed,
+          life: particle.life - 0.02,
+        }))
+        .filter(particle => particle.life > 0)
+    );
+
+    particles.forEach(particle => {
+      const alpha = particle.life * 0.5;
+      ctx.fillStyle = `hsla(${audioFeatures.volume * 360}, 80%, 60%, ${alpha})`;
+      ctx.beginPath();
+      ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    // Add beat flash effect
+    if (audioFeatures.beatDetected) {
+      ctx.fillStyle = `rgba(255, 255, 255, ${audioFeatures.volume * 0.2})`;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+
     return () => window.removeEventListener('resize', updateSize);
-  }, [audioFeatures]);
+  }, [audioFeatures, particles]);
 
   // Update mood with OpenAI when song changes
   useEffect(() => {
@@ -135,7 +274,12 @@ export function WaveformVisualizer() {
 
     async function updateMood() {
       try {
-        const detectedMood = await analyzeMoodWithAI(currentSong);
+        const songInput = {
+          title: currentSong.title,
+          artist: currentSong.artist,
+          ipfsHash: currentSong.ipfsHash,
+        };
+        const detectedMood = await analyzeMoodWithAI(songInput);
         if (detectedMood) {
           setMood(detectedMood);
         }
