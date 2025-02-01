@@ -3,7 +3,7 @@ import { mainnet } from 'viem/chains';
 
 // Contract addresses
 export const PFORK_TOKEN_ADDRESS = '0x216490C8E6b33b4d8A2390dADcf9f433E30da60F';
-export const TREASURY_ADDRESS = '0xeB57D2e1D869AA4b70961ce3aD99582E84F4F0d4';
+export const TREASURY_ADDRESS = '0x5fe2434F5C5d614d8dc5362AA96a4d9aFFdC5A82';
 export const PLAYLIST_NFT_ADDRESS = '0x0177102d27753957EBD4221e1b0Cf4777c2A2Bf2';
 
 // Create a public client
