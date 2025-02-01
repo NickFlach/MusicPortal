@@ -1,7 +1,10 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Play, Plus } from "lucide-react";
+import { Play, Plus, Coins } from "lucide-react";
 import { ShareButton } from "@/components/ui/share-button";
+import { useMutation } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 
 interface PlaylistCardProps {
   title: string;
@@ -10,15 +13,47 @@ interface PlaylistCardProps {
   createdBy?: string;
   onPlay: () => void;
   onAddSong: () => void;
+  id: number;
+  isNft?: boolean;
 }
 
-export function PlaylistCard({ title, songCount, image, createdBy, onPlay, onAddSong }: PlaylistCardProps) {
+export function PlaylistCard({
+  id,
+  title,
+  songCount,
+  image,
+  createdBy,
+  onPlay,
+  onAddSong,
+  isNft = false,
+}: PlaylistCardProps) {
+  const { toast } = useToast();
+
+  const mintNftMutation = useMutation({
+    mutationFn: async (playlistId: number) => {
+      await apiRequest("POST", `/api/playlists/${playlistId}/mint-nft`);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "NFT minted successfully! You've earned 3 PFORK tokens.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   return (
     <Card className="overflow-hidden group hover:bg-accent transition-colors">
       <CardHeader className="relative p-0">
         <div className="aspect-square overflow-hidden">
           <img
-            src={image || "https://images.unsplash.com/photo-1734552452939-7d9630889748"}
+            src={image || "/neo_token_logo_flaukowski.png"}
             alt={title}
             className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-300"
           />
@@ -43,10 +78,23 @@ export function PlaylistCard({ title, songCount, image, createdBy, onPlay, onAdd
               </p>
             )}
           </div>
-          <ShareButton
-            title={`Check out this playlist: ${title}`}
-            text={`A playlist with ${songCount} songs on Decentralized Music`}
-          />
+          <div className="flex items-center gap-2">
+            {!isNft && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => mintNftMutation.mutate(id)}
+                disabled={mintNftMutation.isPending || songCount === 0}
+              >
+                <Coins className="h-4 w-4 mr-2" />
+                Mint NFT
+              </Button>
+            )}
+            <ShareButton
+              title={`Check out this playlist: ${title}`}
+              text={`A playlist with ${songCount} songs on Music Portal`}
+            />
+          </div>
         </div>
       </CardContent>
     </Card>
