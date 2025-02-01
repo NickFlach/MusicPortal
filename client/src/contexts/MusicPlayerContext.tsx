@@ -21,10 +21,12 @@ interface MusicPlayerContextType {
   duration: number;
   currentTime: number;
   volume: number;
+  isMuted: boolean;
   playSong: (song: Song) => void;
   playNext: () => void;
   playPrevious: () => void;
   togglePlay: () => void;
+  toggleMute: () => void;
   handleSeek: (value: number[]) => void;
   handleVolumeChange: (value: number[]) => void;
   recentSongs?: Song[];
@@ -38,6 +40,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [volume, setVolume] = useState(1);
+  const [isMuted, setIsMuted] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(new Audio());
   const queryClient = useQueryClient();
   const { address } = useAccount();
@@ -57,7 +60,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   });
 
   // Check if current page is one where music should play
-  const isAllowedPage = ["/", "/treasury", "/admin"].includes(location);
+  const isAllowedPage = ["/", "/treasury", "/admin", "/landing"].includes(location);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -82,7 +85,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
 
   // Stop playback when wallet disconnects or navigating away from allowed pages
   useEffect(() => {
-    if (!address || !isAllowedPage) {
+    if (!isAllowedPage && location !== '/landing') {
       audioRef.current.pause();
       setIsPlaying(false);
     }
@@ -94,6 +97,13 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
     }
   }, [currentSong]);
 
+  // Auto-start playing the most recent song when on landing page
+  useEffect(() => {
+    if (location === '/landing' && recentSongs?.length && !currentSong) {
+      playSong(recentSongs[0]);
+    }
+  }, [location, recentSongs]);
+
   const loadSong = async () => {
     if (!currentSong) return;
     try {
@@ -102,7 +112,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
       const url = URL.createObjectURL(blob);
       audioRef.current.src = url;
       audioRef.current.load();
-      if (isPlaying && address && isAllowedPage) {
+      if (isPlaying && (address || location === '/landing') && isAllowedPage) {
         audioRef.current.play();
       }
     } catch (error) {
@@ -111,7 +121,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   };
 
   const togglePlay = () => {
-    if (!address || !isAllowedPage) return;
+    if (!isAllowedPage && location !== '/landing') return;
 
     if (audioRef.current) {
       if (isPlaying) {
@@ -123,8 +133,15 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
     }
   };
 
+  const toggleMute = () => {
+    if (audioRef.current) {
+      audioRef.current.muted = !audioRef.current.muted;
+      setIsMuted(!isMuted);
+    }
+  };
+
   const handleSeek = (value: number[]) => {
-      if (!address || !isAllowedPage) return;
+    if (!isAllowedPage && location !== '/landing') return;
 
     if (audioRef.current) {
       audioRef.current.currentTime = value[0];
@@ -133,7 +150,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   };
 
   const handleVolumeChange = (value: number[]) => {
-    if (!address || !isAllowedPage) return;
+    if (!isAllowedPage && location !== '/landing') return;
 
     const newVolume = value[0];
     if (audioRef.current) {
@@ -143,7 +160,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   };
 
   const playSong = async (song: Song) => {
-      if (!address || !isAllowedPage) return;
+    if (!isAllowedPage && location !== '/landing') return;
 
     setCurrentSong(song);
     setIsPlaying(true);
@@ -151,7 +168,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   };
 
   const playNext = () => {
-      if (!address || !isAllowedPage) return;
+    if (!isAllowedPage && location !== '/landing') return;
 
     if (!recentSongs || !currentSong) return;
     const currentIndex = recentSongs.findIndex((s) => s.id === currentSong.id);
@@ -160,7 +177,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   };
 
   const playPrevious = () => {
-    if (!address || !isAllowedPage) return;
+    if (!isAllowedPage && location !== '/landing') return;
 
     if (!recentSongs || !currentSong) return;
     const currentIndex = recentSongs.findIndex((s) => s.id === currentSong.id);
@@ -176,10 +193,12 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
         duration,
         currentTime,
         volume,
+        isMuted,
         playSong,
         playNext,
         playPrevious,
         togglePlay,
+        toggleMute,
         handleSeek,
         handleVolumeChange,
         recentSongs,

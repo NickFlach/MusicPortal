@@ -1,10 +1,14 @@
 import { useAccount } from 'wagmi';
 import { WalletConnect } from "@/components/WalletConnect";
 import { useLocation } from 'wouter';
+import { useMusicPlayer } from "@/contexts/MusicPlayerContext";
+import { Volume2, VolumeX } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export default function Landing() {
   const { address } = useAccount();
   const [, setLocation] = useLocation();
+  const { isMuted, toggleMute, currentSong } = useMusicPlayer();
 
   if (address) {
     setLocation("/");
@@ -42,7 +46,7 @@ export default function Landing() {
         </div>
 
         {/* Centered Logo with Link */}
-        <div className="flex justify-center items-center mt-24">
+        <div className="flex flex-col items-center justify-center mt-24 space-y-6">
           <a 
             href="https://app.pitchforks.social/"
             target="_blank"
@@ -55,6 +59,27 @@ export default function Landing() {
               className="w-64 h-64 object-contain hover:animate-pulse"
             />
           </a>
+
+          {/* Mute Toggle Button */}
+          <div className="flex flex-col items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleMute}
+              className="hover:scale-110 transition-transform"
+            >
+              {isMuted ? (
+                <VolumeX className="h-6 w-6" />
+              ) : (
+                <Volume2 className="h-6 w-6" />
+              )}
+            </Button>
+            {currentSong && (
+              <p className="text-sm text-muted-foreground animate-pulse">
+                Now Playing: {currentSong.title} - {currentSong.artist}
+              </p>
+            )}
+          </div>
         </div>
       </div>
     </div>
