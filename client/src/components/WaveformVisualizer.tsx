@@ -46,26 +46,6 @@ export function WaveformVisualizer() {
   const lastBeatTime = useRef(0);
   const energyHistory = useRef<number[]>([]);
 
-  function generateRandomColor(): string {
-    const hue = Math.floor(Math.random() * 360);
-    return `${hue}, 80%, 60%`;
-  }
-
-  function createParticle(x: number, y: number, intensity: number): Particle {
-    const angle = Math.random() * Math.PI * 2;
-    const speed = (Math.random() * 2 + 2) * intensity;
-    return {
-      x,
-      y,
-      size: Math.random() * 4 + 2,
-      angle,
-      speed,
-      life: 1,
-      color: generateRandomColor(),
-      trail: [{x, y}],
-    };
-  }
-
   // Initialize audio context and analyzers
   useEffect(() => {
     if (!isPlaying || !currentSong) {
@@ -142,6 +122,21 @@ export function WaveformVisualizer() {
       return false;
     }
 
+    function createParticle(x: number, y: number, intensity: number): Particle {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = (Math.random() * 2 + 2) * intensity;
+      return {
+        x,
+        y,
+        size: Math.random() * 4 + 2,
+        angle,
+        speed,
+        life: 1,
+        color: `${Math.floor(Math.random() * 360)}, 80%, 60%`,
+        trail: [{ x, y }],
+      };
+    }
+
     function updateVisualization() {
       if (!analyserRef.current) return;
 
@@ -191,6 +186,26 @@ export function WaveformVisualizer() {
         });
       }
 
+      // Update particle positions
+      setParticles(prevParticles =>
+        prevParticles
+          .map(particle => {
+            const newX = particle.x + Math.cos(particle.angle) * particle.speed;
+            const newY = particle.y + Math.sin(particle.angle) * particle.speed;
+            const trail = [...particle.trail, { x: newX, y: newY }];
+            if (trail.length > 10) trail.shift();
+
+            return {
+              ...particle,
+              x: newX,
+              y: newY,
+              life: particle.life - 0.01,
+              trail,
+            };
+          })
+          .filter(particle => particle.life > 0)
+      );
+
       animationFrameRef.current = requestAnimationFrame(updateVisualization);
     }
 
@@ -232,7 +247,7 @@ export function WaveformVisualizer() {
     const centerY = canvas.height / (2 * window.devicePixelRatio);
     const radius = Math.min(centerX, centerY) * 0.4;
 
-    // Draw frequency visualization
+    // Draw frequency bars in a circle
     ctx.save();
     ctx.translate(centerX, centerY);
 
@@ -250,36 +265,15 @@ export function WaveformVisualizer() {
 
     ctx.restore();
 
-    // Update and draw particles
-    setParticles(prevParticles => 
-      prevParticles
-        .map(particle => {
-          const newX = particle.x + Math.cos(particle.angle) * particle.speed;
-          const newY = particle.y + Math.sin(particle.angle) * particle.speed;
-          const trail = [...particle.trail, { x: newX, y: newY }];
-          if (trail.length > 10) trail.shift();
-
-          return {
-            ...particle,
-            x: newX,
-            y: newY,
-            life: particle.life - 0.01,
-            trail,
-          };
-        })
-        .filter(particle => particle.life > 0)
-    );
-
+    // Draw particles and their trails
     particles.forEach(particle => {
       if (particle.trail.length > 1) {
         ctx.beginPath();
         ctx.moveTo(particle.trail[0].x, particle.trail[0].y);
 
-        particle.trail.forEach((point, index) => {
-          if (index > 0) {
-            ctx.lineTo(point.x, point.y);
-          }
-        });
+        for (let i = 1; i < particle.trail.length; i++) {
+          ctx.lineTo(particle.trail[i].x, particle.trail[i].y);
+        }
 
         ctx.strokeStyle = `hsla(${particle.color}, ${particle.life * 50}%)`;
         ctx.lineWidth = particle.size * particle.life;
@@ -299,13 +293,14 @@ export function WaveformVisualizer() {
       ctx.fill();
     });
 
+    // Add beat flash effect
     if (audioFeatures.beatDetected) {
       ctx.fillStyle = `rgba(255, 255, 255, ${audioFeatures.volume * 0.2})`;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
     }
 
     return () => window.removeEventListener('resize', updateSize);
-  }, [audioFeatures]);
+  }, [audioFeatures, particles]);
 
   // Update mood with OpenAI when song changes
   useEffect(() => {
