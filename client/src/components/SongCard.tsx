@@ -10,11 +10,10 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { MoreVertical, Plus, ListMusic, Coins, Edit } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { useAccount, useContractWrite, usePrepareContractWrite } from 'wagmi';
-import { PLAYLIST_NFT_ADDRESS, PLAYLIST_NFT_ABI } from "@/lib/contracts";
+import { getPlaylistNFTContract } from "@/lib/contracts";
 import { EditSongDialog } from "./EditSongDialog";
 import { useState } from "react";
-import { parseEther } from "viem";
+import { ethers } from "ethers";
 
 interface Song {
   id: number;
@@ -37,28 +36,11 @@ export function SongCard({ song, onClick, variant = "ghost", showDelete = false 
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const { address } = useAccount();
+  const [isMinting, setIsMinting] = useState(false);
 
-  const { data: playlists } = useQuery<Playlist[]>({
+  const { data: playlists } = useQuery<{ id: number; name: string }[]>({
     queryKey: ["/api/playlists"],
   });
-
-  const { config: contractConfig } = usePrepareContractWrite({
-    address: PLAYLIST_NFT_ADDRESS,
-    abi: PLAYLIST_NFT_ABI,
-    functionName: 'mintSong',
-    args: [
-      address!,
-      song.title,
-      song.artist,
-      song.ipfsHash,
-      `ipfs://${song.ipfsHash}`
-    ],
-    value: parseEther("1"),
-    enabled: !!address,
-  });
-
-  const { write: mintSongNFT, isLoading: isMinting } = useContractWrite(contractConfig);
 
   const addToPlaylistMutation = useMutation({
     mutationFn: async ({ playlistId, songId }: { playlistId: number; songId: number }) => {
@@ -80,18 +62,41 @@ export function SongCard({ song, onClick, variant = "ghost", showDelete = false 
     },
   });
 
-  const handleMintNFT = () => {
-    if (!address) {
-      toast({
-        title: "Error",
-        description: "Please connect your wallet first",
-        variant: "destructive",
-      });
-      return;
-    }
-
+  const handleMintNFT = async () => {
     try {
-      mintSongNFT?.();
+      setIsMinting(true);
+
+      // Get contract instance
+      const contract = getPlaylistNFTContract();
+      if (!contract) {
+        throw new Error("Please connect your wallet first");
+      }
+
+      // Get the current signer's address
+      const address = await contract.runner.getAddress();
+
+      // Mint NFT
+      const tx = await contract.mintSong(
+        address,
+        song.title,
+        song.artist,
+        song.ipfsHash,
+        `ipfs://${song.ipfsHash}`,
+        { value: ethers.parseEther("1") }
+      );
+
+      toast({
+        title: "Transaction Sent",
+        description: "Please wait while your NFT is being minted...",
+      });
+
+      // Wait for transaction to be mined
+      await tx.wait();
+
+      toast({
+        title: "Success",
+        description: "NFT minted successfully! You've earned 1 PFORK token.",
+      });
     } catch (error: any) {
       console.error('Mint error:', error);
       toast({
@@ -99,6 +104,8 @@ export function SongCard({ song, onClick, variant = "ghost", showDelete = false 
         description: error?.message || "Failed to mint NFT",
         variant: "destructive",
       });
+    } finally {
+      setIsMinting(false);
     }
   };
 
@@ -155,7 +162,7 @@ export function SongCard({ song, onClick, variant = "ghost", showDelete = false 
                   handleMintNFT();
                 }
               }}
-              disabled={!address || isMinting}
+              disabled={isMinting}
             >
               <Coins className="mr-2 h-4 w-4" />
               {isMinting ? "Minting..." : "Mint as NFT"}

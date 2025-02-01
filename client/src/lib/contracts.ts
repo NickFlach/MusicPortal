@@ -1,55 +1,48 @@
-import { configureChains, createConfig } from 'wagmi';
-import { mainnet } from 'wagmi/chains';
-import { publicProvider } from 'wagmi/providers/public';
-import { InjectedConnector } from 'wagmi/connectors/injected';
-import { Chain } from 'wagmi/chains';
-
-// NEO X chain configuration
-export const neoChain: Chain = {
-  id: 1,
-  name: 'NEO X',
-  network: 'mainnet',
-  nativeCurrency: {
-    decimals: 18,
-    name: 'GAS',
-    symbol: 'GAS',
-  },
-  rpcUrls: {
-    public: { http: ['https://mainnet.neo.org/'] },
-    default: { http: ['https://mainnet.neo.org/'] },
-  },
-  blockExplorers: {
-    default: { name: 'NeoTracker', url: 'https://neotracker.io' },
-  },
-};
+import { ethers } from "ethers";
 
 // Contract addresses
 export const PFORK_TOKEN_ADDRESS = '0x216490C8E6b33b4d8A2390dADcf9f433E30da60F';
 export const TREASURY_ADDRESS = '0x5fe2434F5C5d614d8dc5362AA96a4d9aFFdC5A82';
 export const PLAYLIST_NFT_ADDRESS = '0x0177102d27753957EBD4221e1b0Cf4777c2A2Bf2';
 
-// Configure wagmi
-const { chains, publicClient, webSocketPublicClient } = configureChains(
-  [neoChain],
-  [publicProvider()]
-);
+// NEO X chain configuration
+export const NEO_CHAIN_ID = 1;
+export const NEO_RPC_URL = 'https://mainnet.neo.org/';
 
-export const config = createConfig({
-  autoConnect: true,
-  publicClient,
-  webSocketPublicClient,
-  connectors: [
-    new InjectedConnector({
-      chains,
-      options: {
-        name: 'Injected',
-        shimDisconnect: true,
-      },
-    }),
-  ],
-});
+let provider: ethers.BrowserProvider | null = null;
+let signer: ethers.JsonRpcSigner | null = null;
 
-// ABI for PFORKToken
+export async function connectWallet() {
+  if (typeof window.ethereum === 'undefined') {
+    throw new Error('MetaMask is not installed');
+  }
+
+  try {
+    provider = new ethers.BrowserProvider(window.ethereum);
+    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+    signer = await provider.getSigner();
+    return accounts[0];
+  } catch (error) {
+    console.error('Error connecting to wallet:', error);
+    throw error;
+  }
+}
+
+export function getProvider() {
+  if (!provider) {
+    throw new Error('Provider not initialized. Call connectWallet() first.');
+  }
+  return provider;
+}
+
+export function getSigner() {
+  if (!signer) {
+    throw new Error('Signer not initialized. Call connectWallet() first.');
+  }
+  return signer;
+}
+
+// ABI definitions
 export const PFORK_TOKEN_ABI = [
   'function balanceOf(address owner) view returns (uint256)',
   'function transfer(address to, uint256 amount) returns (bool)',
@@ -57,7 +50,6 @@ export const PFORK_TOKEN_ABI = [
   'function allowance(address owner, address spender) view returns (uint256)',
 ] as const;
 
-// ABI for MusicTreasury
 export const TREASURY_ABI = [
   'function claimUploadReward() external',
   'function claimPlaylistReward() external',
@@ -69,7 +61,6 @@ export const TREASURY_ABI = [
   'function owner() view returns (address)',
 ] as const;
 
-// ABI for PlaylistNFT
 export const PLAYLIST_NFT_ABI = [
   'function mintSong(address to, string title, string artist, string ipfsHash, string metadataUri) payable returns (uint256)',
   'function uri(uint256 tokenId) view returns (string)',
@@ -81,11 +72,15 @@ export const PLAYLIST_NFT_ABI = [
   'function safeBatchTransferFrom(address from, address to, uint256[] ids, uint256[] amounts, bytes data)',
 ] as const;
 
-// Types for song metadata
-export interface SongMetadata {
-  title: string;
-  artist: string;
-  ipfsHash: string;
-  creator: string;
-  timestamp: bigint;
+// Contract instance getters
+export function getPFORKTokenContract() {
+  return new ethers.Contract(PFORK_TOKEN_ADDRESS, PFORK_TOKEN_ABI, getSigner());
+}
+
+export function getTreasuryContract() {
+  return new ethers.Contract(TREASURY_ADDRESS, TREASURY_ABI, getSigner());
+}
+
+export function getPlaylistNFTContract() {
+  return new ethers.Contract(PLAYLIST_NFT_ADDRESS, PLAYLIST_NFT_ABI, getSigner());
 }

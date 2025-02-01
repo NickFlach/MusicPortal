@@ -1,16 +1,40 @@
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { useAccount, useConnect, useDisconnect } from 'wagmi';
-import { injected } from 'wagmi/connectors';
 import { apiRequest } from "@/lib/queryClient";
+import { connectWallet } from "@/lib/contracts";
 import { useLocation } from 'wouter';
+import { useState, useEffect } from "react";
 
 export function WalletConnect() {
-  const { address } = useAccount();
-  const { connect } = useConnect();
-  const { disconnect } = useDisconnect();
+  const [address, setAddress] = useState<string | null>(null);
   const { toast } = useToast();
   const [location, setLocation] = useLocation();
+
+  // Listen for account changes
+  useEffect(() => {
+    if (typeof window.ethereum !== 'undefined') {
+      window.ethereum.on('accountsChanged', (accounts: string[]) => {
+        if (accounts.length === 0) {
+          setAddress(null);
+          setLocation('/landing');
+          toast({
+            title: "Disconnected",
+            description: "Wallet disconnected",
+          });
+        } else {
+          setAddress(accounts[0]);
+        }
+      });
+    }
+
+    return () => {
+      if (window.ethereum?.removeListener) {
+        window.ethereum.removeListener('accountsChanged', () => {
+          console.log('Cleaned up account changes listener');
+        });
+      }
+    };
+  }, [setLocation, toast]);
 
   const handleConnect = async () => {
     try {
@@ -25,15 +49,9 @@ export function WalletConnect() {
         return;
       }
 
-      // First connect the wallet and wait for it to complete
-      await connect({ 
-        connector: injected({
-          target: 'metaMask'
-        })
-      });
-
-      // Wait a brief moment for the wallet address to be available
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Connect wallet
+      const userAddress = await connectWallet();
+      setAddress(userAddress);
 
       try {
         // Try to register user after connection
@@ -55,7 +73,7 @@ export function WalletConnect() {
       }
     } catch (error) {
       console.error('Wallet connection error:', error);
-      if (error instanceof Error && !error.message.includes('Failed to get wallet address')) {
+      if (error instanceof Error) {
         toast({
           title: "Error",
           description: error.message,
@@ -67,9 +85,12 @@ export function WalletConnect() {
 
   const handleDisconnect = async () => {
     try {
-      await disconnect();
-      // Redirect to landing page on disconnect
+      // Clear local state
+      setAddress(null);
+
+      // Redirect to landing page
       setLocation('/landing');
+
       toast({
         title: "Disconnected",
         description: "Wallet disconnected successfully!",
