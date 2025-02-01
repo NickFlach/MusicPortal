@@ -1,4 +1,4 @@
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +21,7 @@ interface TreasuryData {
 
 export default function Admin() {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const { data: users } = useQuery<AdminUser[]>({
     queryKey: ["/api/admin/users"],
@@ -35,6 +36,7 @@ export default function Admin() {
       await apiRequest("POST", `/api/admin/toggle/${address}`);
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
       toast({
         title: "Success",
         description: "Admin status updated successfully",
@@ -47,9 +49,17 @@ export default function Admin() {
       await apiRequest("POST", "/api/admin/treasury", { address });
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/treasury"] });
       toast({
         title: "Success",
         description: "Treasury address set successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
       });
     },
   });
