@@ -62,16 +62,6 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   // Check if current page is one where music should play
   const isAllowedPage = ["/", "/treasury", "/admin", "/landing"].includes(location);
 
-  // Cleanup function for audio
-  const cleanupAudio = () => {
-    const audio = audioRef.current;
-    audio.pause();
-    audio.currentTime = 0;
-    setIsPlaying(false);
-    setCurrentTime(0);
-    setDuration(0);
-  };
-
   // Define playNext as a useCallback to ensure stable reference
   const playNext = useCallback(() => {
     if (!isAllowedPage) return;
@@ -125,15 +115,29 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
       audio.removeEventListener('timeupdate', handleTimeUpdate);
       audio.removeEventListener('ended', handleEnded);
     };
-  }, [playNext]); // Include playNext in dependencies
+  }, [playNext]);
 
-  // Handle page transitions
+  // Handle page transitions while maintaining playback state
   useEffect(() => {
-    // Only cleanup when disconnecting wallet or navigating away from music pages
     if (!isAllowedPage) {
-      cleanupAudio();
+      // Only stop playback if we're leaving music-enabled pages completely
+      audioRef.current.pause();
+      setIsPlaying(false);
+      setCurrentTime(0);
+      setDuration(0);
+    } else if (address && location === '/') {
+      // When transitioning to home page with wallet, maintain playback
+      if (currentSong && isPlaying) {
+        const currentPlaybackTime = audioRef.current.currentTime;
+        loadSong().then(() => {
+          audioRef.current.currentTime = currentPlaybackTime;
+          if (isPlaying) {
+            audioRef.current.play();
+          }
+        });
+      }
     }
-  }, [isAllowedPage]);
+  }, [isAllowedPage, address, location]);
 
   const loadSong = async () => {
     if (!currentSong) return;
@@ -144,7 +148,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
       audioRef.current.src = url;
       audioRef.current.load();
       if (isPlaying && isAllowedPage) {
-        audioRef.current.play();
+        await audioRef.current.play();
       }
     } catch (error) {
       console.error('Error loading song:', error);
