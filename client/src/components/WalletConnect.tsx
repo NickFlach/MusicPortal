@@ -3,12 +3,14 @@ import { useToast } from "@/hooks/use-toast";
 import { useAccount, useConnect, useDisconnect } from 'wagmi';
 import { injected } from 'wagmi/connectors';
 import { apiRequest } from "@/lib/queryClient";
+import { useLocation } from 'wouter';
 
 export function WalletConnect() {
   const { address } = useAccount();
   const { connect } = useConnect();
   const { disconnect } = useDisconnect();
   const { toast } = useToast();
+  const [location, setLocation] = useLocation();
 
   const handleConnect = async () => {
     try {
@@ -34,6 +36,11 @@ export function WalletConnect() {
       const userData = await response.json();
       console.log('User registered:', userData);
 
+      // Redirect to home page if on landing
+      if (location === '/landing') {
+        setLocation('/');
+      }
+
       toast({
         title: "Connected",
         description: "Wallet connected successfully!",
@@ -51,6 +58,8 @@ export function WalletConnect() {
   const handleDisconnect = async () => {
     try {
       await disconnect();
+      // Redirect to landing page on disconnect
+      setLocation('/landing');
       toast({
         title: "Disconnected",
         description: "Wallet disconnected successfully!",
