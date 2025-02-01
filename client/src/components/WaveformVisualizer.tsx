@@ -1,8 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { useMusicPlayer } from "@/contexts/MusicPlayerContext";
-import { analyzeMoodWithAI } from "@/lib/moodAnalysis";
-import { type MusicMood } from "@/lib/moodDetection";
 
 interface AudioFeatures {
   frequencies: Uint8Array;
@@ -38,15 +36,14 @@ export function WaveformVisualizer() {
     beatDetected: false,
   });
   const [particles, setParticles] = useState<Particle[]>([]);
-  const [mood, setMood] = useState<MusicMood>("mysterious");
   const audioContextRef = useRef<AudioContext>();
   const analyserRef = useRef<AnalyserNode>();
   const sourceRef = useRef<MediaElementAudioSourceNode>();
   const animationFrameRef = useRef<number>();
   const lastBeatTime = useRef(0);
   const energyHistory = useRef<number[]>([]);
+  const fibonacciRef = useRef([0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144]);
 
-  // Initialize audio context and analyzers
   useEffect(() => {
     if (!isPlaying || !currentSong) {
       if (animationFrameRef.current) {
@@ -125,6 +122,9 @@ export function WaveformVisualizer() {
     function createParticle(x: number, y: number, intensity: number): Particle {
       const angle = Math.random() * Math.PI * 2;
       const speed = (Math.random() * 2 + 2) * intensity;
+      const colorIndex = Math.floor(Math.random() * fibonacciRef.current.length);
+      const hue = (fibonacciRef.current[colorIndex] * 20) % 360;
+
       return {
         x,
         y,
@@ -132,7 +132,7 @@ export function WaveformVisualizer() {
         angle,
         speed,
         life: 1,
-        color: `${Math.floor(Math.random() * 360)}, 80%, 60%`,
+        color: `${hue}, 80%, 60%`,
         trail: [{ x, y }],
       };
     }
@@ -186,7 +186,6 @@ export function WaveformVisualizer() {
         });
       }
 
-      // Update particle positions
       setParticles(prevParticles =>
         prevParticles
           .map(particle => {
@@ -221,7 +220,6 @@ export function WaveformVisualizer() {
     };
   }, [isPlaying, currentSong]);
 
-  // Draw visualization on canvas
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -247,7 +245,6 @@ export function WaveformVisualizer() {
     const centerY = canvas.height / (2 * window.devicePixelRatio);
     const radius = Math.min(centerX, centerY) * 0.4;
 
-    // Draw frequency bars in a circle
     ctx.save();
     ctx.translate(centerX, centerY);
 
@@ -257,15 +254,16 @@ export function WaveformVisualizer() {
     for (let i = 0; i < barCount; i++) {
       const amplitude = audioFeatures.frequencies[i] || 0;
       const barHeight = (amplitude / 255) * radius * 0.5;
+      const hueIndex = Math.floor((i / barCount) * fibonacciRef.current.length);
+      const hue = (fibonacciRef.current[hueIndex] * 20) % 360;
 
       ctx.rotate(barWidth);
-      ctx.fillStyle = `hsla(${Math.floor(i * 2)}, 80%, 60%, ${0.6 + audioFeatures.volume * 0.4})`;
+      ctx.fillStyle = `hsla(${hue}, 80%, 60%, ${0.6 + audioFeatures.volume * 0.4})`;
       ctx.fillRect(0, radius * 0.8, 2, barHeight);
     }
 
     ctx.restore();
 
-    // Draw particles and their trails
     particles.forEach(particle => {
       if (particle.trail.length > 1) {
         ctx.beginPath();
@@ -293,7 +291,6 @@ export function WaveformVisualizer() {
       ctx.fill();
     });
 
-    // Add beat flash effect
     if (audioFeatures.beatDetected) {
       ctx.fillStyle = `rgba(255, 255, 255, ${audioFeatures.volume * 0.2})`;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -301,29 +298,6 @@ export function WaveformVisualizer() {
 
     return () => window.removeEventListener('resize', updateSize);
   }, [audioFeatures, particles]);
-
-  // Update mood with OpenAI when song changes
-  useEffect(() => {
-    if (!currentSong) return;
-
-    async function updateMood() {
-      try {
-        const songInput = {
-          title: currentSong.title,
-          artist: currentSong.artist,
-          ipfsHash: currentSong.ipfsHash,
-        };
-        const detectedMood = await analyzeMoodWithAI(songInput);
-        if (detectedMood) {
-          setMood(detectedMood);
-        }
-      } catch (error) {
-        console.error('Error analyzing mood:', error);
-      }
-    }
-
-    updateMood();
-  }, [currentSong]);
 
   if (!currentSong) return null;
 
@@ -334,15 +308,19 @@ export function WaveformVisualizer() {
         className="absolute inset-0 w-full h-full"
         style={{ imageRendering: 'pixelated' }}
       />
-
-      {/* Frequency bars overlay */}
       <div className="absolute inset-0 flex items-end justify-center gap-0.5">
         {Array.from({ length: 32 }).map((_, i) => {
           const frequency = audioFeatures.frequencies[i * 8] || 0;
+          const hueIndex = Math.floor((i / 32) * fibonacciRef.current.length);
+          const hue = (fibonacciRef.current[hueIndex] * 20) % 360;
+
           return (
             <motion.div
               key={i}
-              className="w-2 bg-primary/30 backdrop-blur-sm rounded-t"
+              className="w-2 backdrop-blur-sm rounded-t"
+              style={{
+                backgroundColor: `hsla(${hue}, 80%, 60%, 0.3)`,
+              }}
               animate={{
                 height: `${(frequency / 255) * 100}%`,
                 opacity: frequency > 128 ? 1 : 0.5,
