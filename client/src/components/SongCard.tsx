@@ -7,9 +7,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { MoreVertical, Plus, Trash2, ListMusic } from "lucide-react";
+import { MoreVertical, Plus, Trash2, ListMusic, Coins } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { useContractWrite } from 'wagmi';
+import { PLAYLIST_NFT_ADDRESS, PLAYLIST_NFT_ABI } from "@/lib/contracts";
 
 interface Song {
   id: number;
@@ -43,6 +45,13 @@ export function SongCard({ song, onClick, variant = "ghost", showDelete = false 
     queryKey: ["/api/playlists"],
   });
 
+  // Contract write for minting NFT
+  const { write: mintSongNFT } = useContractWrite({
+    address: PLAYLIST_NFT_ADDRESS,
+    abi: PLAYLIST_NFT_ABI,
+    functionName: 'mintSong',
+  });
+
   const addToPlaylistMutation = useMutation({
     mutationFn: async ({ playlistId, songId }: { playlistId: number; songId: number }) => {
       await apiRequest("POST", `/api/playlists/${playlistId}/songs`, { songId });
@@ -52,6 +61,39 @@ export function SongCard({ song, onClick, variant = "ghost", showDelete = false 
       toast({
         title: "Success",
         description: "Song added to playlist",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const mintNFTMutation = useMutation({
+    mutationFn: async () => {
+      if (!mintSongNFT) throw new Error("Contract write not ready");
+
+      // Create metadata URI (could be enhanced to store more metadata on IPFS)
+      const metadataUri = `ipfs://${song.ipfsHash}`;
+
+      mintSongNFT({
+        args: [
+          song.uploadedBy as `0x${string}`,
+          song.title,
+          song.artist,
+          song.ipfsHash,
+          metadataUri
+        ],
+        value: BigInt(1000000000000000000), // 1 GAS
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "NFT minting initiated. Please wait for the transaction to be mined.",
       });
     },
     onError: (error: Error) => {
@@ -126,6 +168,20 @@ export function SongCard({ song, onClick, variant = "ghost", showDelete = false 
               </DropdownMenuItem>
             ))
           )}
+
+          <DropdownMenuSeparator />
+
+          <DropdownMenuItem
+            onClick={() => {
+              if (window.confirm("Minting an NFT costs 1 GAS. Continue?")) {
+                mintNFTMutation.mutate();
+              }
+            }}
+            disabled={mintNFTMutation.isPending}
+          >
+            <Coins className="mr-2 h-4 w-4" />
+            Mint as NFT
+          </DropdownMenuItem>
 
           {showDelete && (
             <>

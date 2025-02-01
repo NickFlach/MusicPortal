@@ -4,6 +4,7 @@ import { mainnet } from 'viem/chains';
 // Contract addresses
 export const PFORK_TOKEN_ADDRESS = '0x216490C8E6b33b4d8A2390dADcf9f433E30da60F';
 export const TREASURY_ADDRESS = '0xeB57D2e1D869AA4b70961ce3aD99582E84F4F0d4';
+export const PLAYLIST_NFT_ADDRESS = '0x1234567890123456789012345678901234567890'; // Replace with actual address
 
 // Create a public client
 export const publicClient = createPublicClient({
@@ -31,6 +32,19 @@ export const TREASURY_ABI = parseAbi([
   'function owner() view returns (address)',
 ]);
 
+// ABI for PlaylistNFT (Updated for ERC1155 with proper struct definition)
+export const PLAYLIST_NFT_ABI = parseAbi([
+  'function mintSong(address to, string title, string artist, string ipfsHash, string metadataUri) payable returns (uint256)',
+  'function uri(uint256 tokenId) view returns (string)',
+  'struct SongMetadata { string title; string artist; string ipfsHash; address creator; uint256 timestamp; }',
+  'function getSongMetadata(uint256 tokenId) view returns (tuple(string title, string artist, string ipfsHash, address creator, uint256 timestamp) memory)',
+  'function balanceOf(address account, uint256 id) view returns (uint256)',
+  'function isApprovedForAll(address account, address operator) view returns (bool)',
+  'function setApprovalForAll(address operator, bool approved)',
+  'function safeTransferFrom(address from, address to, uint256 id, uint256 amount, bytes data)',
+  'function safeBatchTransferFrom(address from, address to, uint256[] ids, uint256[] amounts, bytes data)',
+]);
+
 // Contract interaction functions
 export function getPFORKTokenContract() {
   return {
@@ -46,4 +60,21 @@ export function getTreasuryContract() {
     abi: TREASURY_ABI,
     publicClient,
   };
+}
+
+export function getPlaylistNFTContract() {
+  return {
+    address: PLAYLIST_NFT_ADDRESS,
+    abi: PLAYLIST_NFT_ABI,
+    publicClient,
+  };
+}
+
+// Types for song metadata
+export interface SongMetadata {
+  title: string;
+  artist: string;
+  ipfsHash: string;
+  creator: string;
+  timestamp: bigint;
 }
