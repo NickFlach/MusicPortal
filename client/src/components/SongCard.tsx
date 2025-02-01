@@ -50,19 +50,11 @@ export function SongCard({ song, onClick, variant = "ghost", showDelete = false 
     queryKey: ["/api/playlists"],
   });
 
-  // Contract write for minting NFT
+  // Initialize contract write without arguments
   const { write: mintSongNFT, isLoading: isMintLoading } = useContractWrite({
     address: PLAYLIST_NFT_ADDRESS,
     abi: PLAYLIST_NFT_ABI,
     functionName: 'mintSong',
-    args: [
-      address!,
-      song.title,
-      song.artist,
-      song.ipfsHash,
-      `ipfs://${song.ipfsHash}` // metadata URI
-    ],
-    value: parseEther("1"), // 1 GAS
   });
 
   const addToPlaylistMutation = useMutation({
@@ -88,35 +80,24 @@ export function SongCard({ song, onClick, variant = "ghost", showDelete = false 
   const mintNFTMutation = useMutation({
     mutationFn: async () => {
       if (!address) throw new Error("Please connect your wallet first");
-      if (isMintLoading) throw new Error("Transaction in progress");
       if (!mintSongNFT) throw new Error("Contract write not available");
 
-      mintSongNFT();
+      // Pass arguments only when calling the contract
+      mintSongNFT({
+        args: [
+          address,
+          song.title,
+          song.artist,
+          song.ipfsHash,
+          `ipfs://${song.ipfsHash}`
+        ],
+        value: parseEther("1"),
+      });
     },
     onSuccess: () => {
       toast({
         title: "Success",
         description: "NFT minting initiated. Please wait for the transaction to be mined.",
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
-  const deleteSongMutation = useMutation({
-    mutationFn: async (songId: number) => {
-      await apiRequest("DELETE", `/api/songs/${songId}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/songs/library"] });
-      toast({
-        title: "Success",
-        description: "Song deleted from library",
       });
     },
     onError: (error: Error) => {

@@ -32,26 +32,27 @@ export function PlaylistCard({
   const { toast } = useToast();
   const { address } = useAccount();
 
-  // Contract write for minting NFT
+  // Initialize contract write without arguments
   const { write: mintPlaylistNFT, isLoading: isMintLoading } = useContractWrite({
     address: PLAYLIST_NFT_ADDRESS,
     abi: PLAYLIST_NFT_ABI,
     functionName: 'mintPlaylist',
-    args: [
-      address!,
-      title,
-      `ipfs://playlist-${id}` // metadata URI
-    ],
-    value: parseEther("1"), // 1 GAS
   });
 
   const mintNftMutation = useMutation({
     mutationFn: async () => {
       if (!address) throw new Error("Please connect your wallet first");
-      if (isMintLoading) throw new Error("Transaction in progress");
       if (!mintPlaylistNFT) throw new Error("Contract write not available");
 
-      mintPlaylistNFT();
+      // Pass arguments only when calling the contract
+      mintPlaylistNFT({
+        args: [
+          address,
+          title,
+          `ipfs://playlist-${id}` // metadata URI
+        ],
+        value: parseEther("1"), // 1 GAS
+      });
     },
     onSuccess: () => {
       toast({
