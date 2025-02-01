@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import { useLocation } from 'wouter';
+import { requestAccounts, getAccounts } from '@/lib/web3';
 
 interface WalletState {
   address: string | null;
@@ -20,19 +21,11 @@ export const useWalletStore = create<WalletState>((set) => ({
   connect: async () => {
     set({ isConnecting: true, error: null });
     try {
-      if (typeof window.ethereum === 'undefined') {
-        throw new Error('MetaMask is not installed');
-      }
-
-      const accounts = await window.ethereum.request({ 
-        method: 'eth_requestAccounts' 
-      });
-
+      const accounts = await requestAccounts();
       const address = accounts[0];
       if (!address) {
         throw new Error('No accounts found');
       }
-
       set({ address: address.toLowerCase(), isConnecting: false });
     } catch (error) {
       set({ 
@@ -58,12 +51,7 @@ export function useWallet() {
     // Check for existing connection
     async function checkConnection() {
       try {
-        if (typeof window.ethereum === 'undefined') return;
-
-        const accounts = await window.ethereum.request({ 
-          method: 'eth_accounts' 
-        });
-
+        const accounts = await getAccounts();
         state.setAddress(accounts[0] || null);
       } catch (error) {
         console.error('Error checking wallet connection:', error);
@@ -98,6 +86,9 @@ export function useWallet() {
 
       try {
         const response = await apiRequest("POST", "/api/users/register");
+        if (!response.ok) {
+          throw new Error('Failed to register user');
+        }
         const userData = await response.json();
         console.log('User registered:', userData);
       } catch (error) {
@@ -123,16 +114,4 @@ export function useWallet() {
     connect: state.connect,
     disconnect: state.disconnect,
   };
-}
-
-// Add window.ethereum type
-declare global {
-  interface Window {
-    ethereum?: {
-      request: (args: { method: string; params?: any[] }) => Promise<any>;
-      on: (event: string, callback: any) => void;
-      removeListener: (event: string, callback: any) => void;
-      selectedAddress: string | null;
-    };
-  }
 }
