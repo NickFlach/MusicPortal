@@ -10,7 +10,7 @@ const openai = new OpenAI({
 export async function analyzeMoodWithAI(song: Song): Promise<MusicMood> {
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024
+      model: "gpt-4",  // Using standard gpt-4 model instead
       messages: [
         {
           role: "system",
@@ -29,6 +29,9 @@ export async function analyzeMoodWithAI(song: Song): Promise<MusicMood> {
     return mood;
   } catch (error) {
     console.error('Error analyzing mood with AI:', error);
-    return "mysterious"; // fallback mood
+    // Fall back to basic detection instead of always returning mysterious
+    const basicMood = detectMood(song);
+    console.log('Falling back to basic mood detection:', basicMood);
+    return basicMood;
   }
 }
