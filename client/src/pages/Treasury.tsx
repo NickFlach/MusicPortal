@@ -4,10 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Layout } from "@/components/Layout";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
 import { useAccount } from 'wagmi';
 import { Coins, Send } from "lucide-react";
 import { useState } from "react";
+import { getTreasuryContract, getPFORKTokenContract } from "@/lib/contracts";
+import { config } from "@/config";
 
 interface TreasuryData {
   address: string;
@@ -21,15 +22,40 @@ export default function Treasury() {
   const { address } = useAccount();
   const [newTreasuryAddress, setNewTreasuryAddress] = useState("");
 
+  // Get contract instances
+  const treasuryContract = getTreasuryContract();
+  const pforkContract = getPFORKTokenContract();
+
   // Fetch treasury data
   const { data: treasury } = useQuery<TreasuryData>({
     queryKey: ["/api/treasury"],
+    queryFn: async () => {
+      if (!address) throw new Error("No wallet connected");
+
+      const [pforkBalance, gasBalance, owner] = await Promise.all([
+        pforkContract.read.balanceOf([treasuryContract.address]),
+        config.publicClient.getBalance({ address: treasuryContract.address }),
+        treasuryContract.read.owner(),
+      ]);
+
+      return {
+        address: treasuryContract.address,
+        pforkBalance: (Number(pforkBalance) / 1e18).toString(),
+        gasBalance: (Number(gasBalance) / 1e18).toString(),
+        isCurrentManager: address === owner,
+      };
+    },
+    enabled: !!address,
   });
 
   // Mutation for updating treasury address
   const updateTreasuryMutation = useMutation({
     mutationFn: async (newAddress: string) => {
-      await apiRequest("POST", "/api/treasury/transfer", { address: newAddress });
+      if (!address) throw new Error("No wallet connected");
+      const { request } = await treasuryContract.simulate.transferTreasury([newAddress], {
+        account: address,
+      });
+      return config.publicClient.writeContract(request);
     },
     onSuccess: () => {
       toast({
@@ -37,6 +63,13 @@ export default function Treasury() {
         description: "Treasury address updated successfully",
       });
       setNewTreasuryAddress("");
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
     },
   });
 
