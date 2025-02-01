@@ -94,17 +94,13 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
     };
   }, []);
 
-  // Handle wallet connection/disconnection and page transitions
+  // Handle page transitions and wallet disconnection
   useEffect(() => {
-    if (!isAllowedPage && location !== '/landing') {
+    // Only cleanup when disconnecting wallet or navigating away from music pages
+    if (!isAllowedPage) {
       cleanupAudio();
     }
-
-    // When connecting wallet (transitioning from landing to home)
-    if (address && location === '/') {
-      cleanupAudio();
-    }
-  }, [address, isAllowedPage, location]);
+  }, [isAllowedPage]);
 
   useEffect(() => {
     if (currentSong) {
@@ -127,7 +123,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
       const url = URL.createObjectURL(blob);
       audioRef.current.src = url;
       audioRef.current.load();
-      if (isPlaying && (address || location === '/landing') && isAllowedPage) {
+      if (isPlaying && isAllowedPage) {
         audioRef.current.play();
       }
     } catch (error) {
@@ -136,7 +132,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   };
 
   const togglePlay = () => {
-    if (!isAllowedPage && location !== '/landing') return;
+    if (!isAllowedPage) return;
 
     if (audioRef.current) {
       if (isPlaying) {
@@ -156,7 +152,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   };
 
   const handleSeek = (value: number[]) => {
-    if (!isAllowedPage && location !== '/landing') return;
+    if (!isAllowedPage) return;
 
     if (audioRef.current) {
       audioRef.current.currentTime = value[0];
@@ -165,7 +161,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   };
 
   const handleVolumeChange = (value: number[]) => {
-    if (!isAllowedPage && location !== '/landing') return;
+    if (!isAllowedPage) return;
 
     const newVolume = value[0];
     if (audioRef.current) {
@@ -175,7 +171,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   };
 
   const playSong = async (song: Song) => {
-    if (!isAllowedPage && location !== '/landing') return;
+    if (!isAllowedPage) return;
 
     setCurrentSong(song);
     setIsPlaying(true);
@@ -183,7 +179,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   };
 
   const playNext = () => {
-    if (!isAllowedPage && location !== '/landing') return;
+    if (!isAllowedPage) return;
 
     if (!recentSongs || !currentSong) return;
     const currentIndex = recentSongs.findIndex((s) => s.id === currentSong.id);
@@ -192,7 +188,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   };
 
   const playPrevious = () => {
-    if (!isAllowedPage && location !== '/landing') return;
+    if (!isAllowedPage) return;
 
     if (!recentSongs || !currentSong) return;
     const currentIndex = recentSongs.findIndex((s) => s.id === currentSong.id);
