@@ -10,10 +10,15 @@ interface LayoutProps {
 
 export function Layout({ children }: LayoutProps) {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="relative min-h-screen">
+      {/* Background layer */}
+      <div className="fixed inset-0 bg-background/95" />
+
+      {/* Dynamic background layer */}
       <DynamicBackground />
 
-      <header className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
+      {/* Content layers */}
+      <header className="relative z-50 border-b bg-background/80 backdrop-blur-md">
         <div className="container mx-auto py-4 flex items-center justify-between">
           <div className="flex items-center">
             <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
@@ -31,9 +36,11 @@ export function Layout({ children }: LayoutProps) {
           <WalletConnect />
         </div>
       </header>
-      <main className="container mx-auto pt-24 pb-40 relative">
+
+      <main className="relative z-10 container mx-auto pt-24 pb-40">
         {children}
       </main>
+
       <MusicPlayer />
     </div>
   );
