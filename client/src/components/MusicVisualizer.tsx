@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { useMusicPlayer } from "@/contexts/MusicPlayerContext";
 import { type MusicMood, detectMood, moodBackgrounds } from "@/lib/moodDetection";
 import { analyzeMoodWithAI } from "@/lib/moodAnalysis";
+import { VideoBackgroundGenerator } from "./VideoBackgroundGenerator";
 
 export function MusicVisualizer() {
   const { currentSong, isPlaying } = useMusicPlayer();
@@ -104,29 +105,8 @@ export function MusicVisualizer() {
 
   return (
     <div className="relative -mx-6 -mt-24 h-[60vh] overflow-hidden">
-      {/* Animated background */}
-      <motion.div
-        className="absolute inset-0 z-0"
-        animate={{
-          background: background.gradient,
-          filter: `blur(${50 + audioLevel * 50}px)`,
-        }}
-        transition={{
-          duration: 2,
-          ease: "easeInOut",
-        }}
-      />
-
-      {/* Pattern overlay */}
-      <div 
-        className="absolute inset-0 z-10 opacity-30"
-        style={{
-          backgroundImage: "radial-gradient(circle at center, white 1px, transparent 1px)",
-          backgroundSize: "50px 50px",
-          transform: `scale(${1 + audioLevel * 0.5})`,
-          transition: "transform 0.2s ease-out"
-        }}
-      />
+      {/* Video Background */}
+      <VideoBackgroundGenerator mood={mood} audioLevel={audioLevel} />
 
       {/* Content */}
       <div className="relative z-20 flex flex-col items-center justify-center h-full gap-8">
@@ -164,7 +144,7 @@ export function MusicVisualizer() {
           {mood.charAt(0).toUpperCase() + mood.slice(1)} Vibes
         </motion.h2>
 
-        {/* Visual audio level indicator */}
+        {/* Audio level indicator */}
         <div className="flex gap-1 mt-4">
           {Array.from({ length: 20 }).map((_, i) => (
             <motion.div
