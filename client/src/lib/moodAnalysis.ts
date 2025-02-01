@@ -1,6 +1,6 @@
 import OpenAI from "openai";
 import { type Song } from "@/types/song";
-import { type MusicMood } from "./moodDetection";
+import { type MusicMood, detectMood } from "./moodDetection";
 
 const openai = new OpenAI({
   apiKey: import.meta.env.VITE_OPENAI_API_KEY,
@@ -29,9 +29,7 @@ export async function analyzeMoodWithAI(song: Song): Promise<MusicMood> {
     return mood;
   } catch (error) {
     console.error('Error analyzing mood with AI:', error);
-    // Fall back to basic detection instead of always returning mysterious
-    const basicMood = detectMood(song);
-    console.log('Falling back to basic mood detection:', basicMood);
-    return basicMood;
+    // Fall back to basic detection
+    return detectMood(song);
   }
 }

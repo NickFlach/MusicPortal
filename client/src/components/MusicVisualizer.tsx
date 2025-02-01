@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { useMusicPlayer } from "@/contexts/MusicPlayerContext";
-import { type MusicMood } from "@/lib/moodDetection";
+import { type MusicMood, detectMood } from "@/lib/moodDetection";
 import { analyzeMoodWithAI } from "@/lib/moodAnalysis";
 
 export function MusicVisualizer() {
@@ -18,6 +18,11 @@ export function MusicVisualizer() {
 
     async function updateMood() {
       try {
+        // Start with basic detection immediately
+        const basicMood = detectMood(currentSong);
+        setMood(basicMood);
+
+        // Then try AI analysis if API key exists
         if (import.meta.env.VITE_OPENAI_API_KEY) {
           const detectedMood = await analyzeMoodWithAI(currentSong);
           setMood(detectedMood);
@@ -66,8 +71,8 @@ export function MusicVisualizer() {
     // Only create a new source if we haven't connected to this audio element
     if (!sourceRef.current) {
       sourceRef.current = audioContextRef.current.createMediaElementSource(audio);
-      sourceRef.current.connect(analyserRef.current);
-      analyserRef.current.connect(audioContextRef.current.destination);
+      sourceRef.current.connect(analyserRef.current!);
+      analyserRef.current!.connect(audioContextRef.current.destination);
     }
 
     function updateAnimation() {
