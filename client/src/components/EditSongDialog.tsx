@@ -76,6 +76,15 @@ export function EditSongDialog({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!title || !artist) {
+      toast({
+        title: "Error",
+        description: "Please fill in all fields",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (mode === 'edit') {
       editSongMutation.mutate({ title, artist });
     } else if (onSubmit) {
@@ -93,7 +102,7 @@ export function EditSongDialog({
               {mode === 'edit' ? 'Edit Song Details' : 'New Song Details'}
             </DialogTitle>
             <DialogDescription>
-              Update the title and artist for this song.
+              {mode === 'edit' ? 'Update the title and artist for this song.' : 'Enter the title and artist for your new song.'}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -125,7 +134,7 @@ export function EditSongDialog({
               type="submit" 
               disabled={!title || !artist || editSongMutation.isPending}
             >
-              Save Changes
+              {mode === 'edit' ? 'Save Changes' : 'Create Song'}
             </Button>
           </DialogFooter>
         </form>
