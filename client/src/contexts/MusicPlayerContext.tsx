@@ -50,7 +50,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   const { address } = useAccount();
   const [location] = useLocation();
 
-  // Fetch recent songs regardless of wallet connection for landing page
+  // Fetch recent songs regardless of wallet connection
   const { data: recentSongs } = useQuery<Song[]>({
     queryKey: ["/api/songs/recent"],
     queryFn: async () => {
@@ -61,32 +61,16 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
       const response = await apiRequest("GET", "/api/songs/recent", undefined, { headers });
       return response.json();
     },
-    enabled: true // Always enabled to support landing page
+    enabled: true // Always enabled
   });
 
-  // Initialize first song on landing page
-  useEffect(() => {
-    if (location === '/' && recentSongs?.length && !currentSong) {
-      const initialSong = recentSongs[0];
-      setCurrentSong(initialSong);
-    }
-  }, [location, recentSongs, currentSong]);
-
-  // Reset player state when wallet disconnects
-  useEffect(() => {
-    if (!address) {
-      setCurrentSong(undefined);
-      setIsPlaying(false);
-      audioRef.current.pause();
-    }
-  }, [address]);
-
-
-
+  // Track play mutation - only used when wallet is connected
   const playMutation = useMutation({
     mutationFn: async (songId: number) => {
-      if (!address) return; // Don't attempt to play if wallet is disconnected
-      await apiRequest("POST", `/api/songs/play/${songId}`);
+      if (!address) return; // Skip if no wallet connected
+      await apiRequest("POST", `/api/songs/play/${songId}`, undefined, {
+        headers: address ? {} : { 'X-Internal-Token': 'landing-page' }
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/songs/recent"] });
@@ -97,24 +81,24 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   const isAllowedPage = ["/", "/home", "/treasury", "/admin"].includes(location);
 
   const playNext = useCallback(() => {
-    if (!recentSongs?.length || !currentSong || !address) return;
+    if (!recentSongs?.length || !currentSong) return;
 
     const currentIndex = recentSongs.findIndex((s) => s.id === currentSong.id);
     const nextSong = recentSongs[(currentIndex + 1) % recentSongs.length];
     if (nextSong) {
       playSong(nextSong);
     }
-  }, [currentSong, recentSongs, address]);
+  }, [currentSong, recentSongs]);
 
   const playPrevious = useCallback(() => {
-    if (!recentSongs?.length || !currentSong || !address) return;
+    if (!recentSongs?.length || !currentSong) return;
 
     const currentIndex = recentSongs.findIndex((s) => s.id === currentSong.id);
     const prevSong = recentSongs[(currentIndex - 1 + recentSongs.length) % recentSongs.length];
     if (prevSong) {
       playSong(prevSong);
     }
-  }, [currentSong, recentSongs, address]);
+  }, [currentSong, recentSongs]);
 
   // Initialize audio event listeners
   useEffect(() => {
@@ -154,7 +138,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   }, [playNext, volume]);
 
   const loadSong = async (songToLoad: Song) => {
-    if (!songToLoad || !address) return;
+    if (!songToLoad) return;
 
     try {
       console.log('Loading song:', songToLoad.title);
@@ -181,13 +165,13 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
 
   // Load song when current song changes
   useEffect(() => {
-    if (currentSong && address) {
+    if (currentSong) {
       loadSong(currentSong);
     }
-  }, [currentSong, address]);
+  }, [currentSong]);
 
   const togglePlay = async () => {
-    if (!currentSong || !address) return;
+    if (!currentSong) return;
 
     try {
       if (isPlaying) {
@@ -209,8 +193,6 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   };
 
   const handleSeek = (value: number[]) => {
-    if (!address) return;
-
     if (audioRef.current) {
       audioRef.current.currentTime = value[0];
       setCurrentTime(value[0]);
@@ -226,12 +208,16 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   };
 
   const playSong = async (song: Song) => {
-    if (!isAllowedPage || !address) return;
+    if (!isAllowedPage) return;
 
     console.log('Playing song:', song.title);
     setCurrentSong(song);
     setIsPlaying(true);
-    await playMutation.mutate(song.id);
+
+    // Only track plays when wallet is connected
+    if (address) {
+      await playMutation.mutate(song.id);
+    }
   };
 
   return (

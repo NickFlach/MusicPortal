@@ -1,4 +1,4 @@
-import { useAccount, useConnect } from 'wagmi';
+import { useAccount } from 'wagmi';
 import { WalletConnect } from "@/components/WalletConnect";
 import { useLocation } from 'wouter';
 import { useMusicPlayer } from "@/contexts/MusicPlayerContext";
@@ -9,36 +9,29 @@ import { apiRequest } from "@/lib/queryClient";
 
 export default function Landing() {
   const { address } = useAccount();
-  const { connect, connectors } = useConnect();
   const [, setLocation] = useLocation();
-  const { isMuted, toggleMute, currentSong } = useMusicPlayer();
+  const { isMuted, toggleMute, currentSong, playSong } = useMusicPlayer();
 
-  // Auto-connect wallet and initialize music on page load
+  // Initialize music on page load
   useEffect(() => {
-    async function initializeApp() {
+    async function initializeMusic() {
       try {
-        // Try to auto-connect to first available connector
-        const connector = connectors[0];
-        if (connector && !address) {
-          await connect({ connector });
-        }
-
-        // Get initial song even if wallet isn't connected yet
+        // Get initial song even if wallet isn't connected
         const response = await apiRequest("GET", "/api/songs/recent", undefined, {
           headers: {
-            'X-Internal-Token': 'landing-page'  // Special token for internal API access
+            'X-Internal-Token': 'landing-page'
           }
         });
         const songs = await response.json();
         if (songs?.[0]) {
-          // TODO: Initialize player with first song
+          playSong(songs[0]);
         }
       } catch (error) {
-        console.error('Error initializing app:', error);
+        console.error('Error initializing music:', error);
       }
     }
 
-    initializeApp();
+    initializeMusic();
   }, []);
 
   useEffect(() => {
