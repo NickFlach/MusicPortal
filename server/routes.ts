@@ -208,9 +208,13 @@ export function registerRoutes(app: Express) {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
+    console.log('Checking admin access for:', userAddress);
+
     const user = await db.query.users.findFirst({
-      where: eq(users.address, userAddress),
+      where: eq(users.address, userAddress.toLowerCase()),
     });
+
+    console.log('Found user:', user);
 
     if (!user?.isAdmin) {
       return res.status(403).json({ message: "Forbidden" });
@@ -234,6 +238,35 @@ export function registerRoutes(app: Express) {
     });
   });
 
+  // Add a route to set up initial admin
+  app.post("/api/admin/setup", async (req, res) => {
+    const userAddress = req.headers['x-wallet-address'] as string;
+
+    if (!userAddress) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    // Check if any admin exists
+    const existingAdmin = await db.query.users.findFirst({
+      where: eq(users.isAdmin, true),
+    });
+
+    if (existingAdmin) {
+      return res.status(403).json({ message: "Admin already exists" });
+    }
+
+    // Set up first admin
+    const updatedUser = await db
+      .update(users)
+      .set({ isAdmin: true })
+      .where(eq(users.address, userAddress.toLowerCase()))
+      .returning();
+
+    console.log('Created initial admin:', updatedUser);
+
+    res.json({ success: true });
+  });
+
   app.post("/api/admin/gas-recipient", async (req, res) => {
     const userAddress = req.headers['x-wallet-address'] as string;
     const { address } = req.body;
@@ -242,9 +275,13 @@ export function registerRoutes(app: Express) {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
+    console.log('Checking admin access for:', userAddress);
+
     const user = await db.query.users.findFirst({
-      where: eq(users.address, userAddress),
+      where: eq(users.address, userAddress.toLowerCase()),
     });
+
+    console.log('Found user:', user);
 
     if (!user?.isAdmin) {
       return res.status(403).json({ message: "Forbidden" });

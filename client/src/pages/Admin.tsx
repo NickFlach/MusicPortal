@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Ban, Coins, Wallet } from "lucide-react";
 import { Layout } from "@/components/Layout";
+import { useAccount } from "wagmi";
 
 interface AdminUser {
   address: string;
@@ -22,6 +23,7 @@ interface TreasuryData {
 export default function Admin() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { address } = useAccount();
 
   const { data: users, isLoading: usersLoading } = useQuery<AdminUser[]>({
     queryKey: ["/api/admin/users"],
@@ -29,6 +31,28 @@ export default function Admin() {
 
   const { data: treasury, isLoading: treasuryLoading } = useQuery<TreasuryData>({
     queryKey: ["/api/admin/treasury"],
+    retry: false,
+  });
+
+  const setupAdminMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/admin/setup");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/treasury"] });
+      toast({
+        title: "Success",
+        description: "You are now set up as an admin",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
   });
 
   const toggleAdminMutation = useMutation({
@@ -96,6 +120,29 @@ export default function Admin() {
         <div className="flex items-center justify-center min-h-[50vh]">
           <p className="text-muted-foreground">Loading admin panel...</p>
         </div>
+      </Layout>
+    );
+  }
+
+  if (!treasury) {
+    return (
+      <Layout>
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle>Admin Setup</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <p className="text-muted-foreground">
+              No admin user is set up yet. Would you like to become the admin?
+            </p>
+            <Button 
+              onClick={() => setupAdminMutation.mutate()}
+              disabled={setupAdminMutation.isPending}
+            >
+              Set Up Admin
+            </Button>
+          </CardContent>
+        </Card>
       </Layout>
     );
   }
