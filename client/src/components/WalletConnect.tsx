@@ -25,16 +25,20 @@ export function WalletConnect() {
         return;
       }
 
+      // First connect the wallet
       await connect({ 
         connector: injected({
           target: 'metaMask'
         })
       });
 
-      // Register user after successful connection
-      const response = await apiRequest("POST", "/api/users/register");
-      const userData = await response.json();
-      console.log('User registered:', userData);
+      // Only try to register if we have an address
+      if (window.ethereum?.selectedAddress) {
+        // Register user after successful connection
+        const response = await apiRequest("POST", "/api/users/register");
+        const userData = await response.json();
+        console.log('User registered:', userData);
+      }
 
       // Redirect to home page if on landing
       if (location === '/landing') {

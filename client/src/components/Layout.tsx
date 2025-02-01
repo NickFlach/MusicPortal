@@ -18,7 +18,7 @@ export function Layout({ children }: LayoutProps) {
                 className="w-8 h-8"
               />
               <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-purple-500 bg-clip-text text-transparent">
-                Decentralized Music
+                Music Portal
               </h1>
             </div>
             <Navigation />

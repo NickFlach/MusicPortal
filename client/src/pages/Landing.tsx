@@ -22,7 +22,7 @@ export default function Landing() {
               className="w-12 h-12"
             />
             <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-purple-500 bg-clip-text text-transparent">
-              Decentralized Music
+              Music Portal
             </h1>
           </div>
           <WalletConnect />
@@ -47,7 +47,7 @@ export default function Landing() {
                 • Create and share playlists with the community
               </li>
               <li className="flex items-center gap-2 text-lg">
-                • Earn NEO tokens through community participation
+                • Earn PFORK tokens through community participation
               </li>
             </ul>
             <div className="pt-4">
