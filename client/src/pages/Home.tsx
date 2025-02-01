@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Upload, ListMusic } from "lucide-react";
+import { Navigation } from "@/components/Navigation";
 
 interface Song {
   id: number;
@@ -76,9 +77,12 @@ export default function Home() {
     <div className="min-h-screen bg-background">
       <header className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
         <div className="container mx-auto py-4 flex items-center justify-between">
-          <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-purple-500 bg-clip-text text-transparent">
-            Decentralized Music
-          </h1>
+          <div className="flex items-center">
+            <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-purple-500 bg-clip-text text-transparent">
+              Decentralized Music
+            </h1>
+            <Navigation />
+          </div>
           <WalletConnect />
         </div>
       </header>
