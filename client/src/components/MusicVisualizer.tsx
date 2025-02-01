@@ -4,6 +4,7 @@ import { useMusicPlayer } from "@/contexts/MusicPlayerContext";
 import { detectMood, type MusicMood, moodBackgrounds } from "@/lib/moodDetection";
 import { analyzeMoodWithAI } from "@/lib/moodAnalysis";
 import { VideoBackgroundGenerator } from "./VideoBackgroundGenerator";
+import { WaveformVisualizer } from "./WaveformVisualizer";
 
 export function MusicVisualizer() {
   const { currentSong, isPlaying } = useMusicPlayer();
@@ -47,57 +48,6 @@ export function MusicVisualizer() {
     };
   }, []); // Empty dependency array for cleanup on unmount
 
-  useEffect(() => {
-    if (!isPlaying || !currentSong) {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-      setAudioLevel(0);
-      return;
-    }
-
-    // Find the audio element
-    const audioElements = document.getElementsByTagName('audio');
-    if (!audioElements.length) return;
-    const audio = audioElements[0];
-
-    // Initialize audio context if needed
-    if (!audioContextRef.current) {
-      audioContextRef.current = new AudioContext();
-      analyserRef.current = audioContextRef.current.createAnalyser();
-      analyserRef.current.fftSize = 32; // Smaller size for overall volume
-    }
-
-    // Only create a new source if we haven't connected to this audio element
-    if (!sourceRef.current) {
-      sourceRef.current = audioContextRef.current.createMediaElementSource(audio);
-      sourceRef.current.connect(analyserRef.current!);
-      analyserRef.current!.connect(audioContextRef.current.destination);
-    }
-
-    function updateAnimation() {
-      if (!analyserRef.current) return;
-
-      const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
-      analyserRef.current.getByteFrequencyData(dataArray);
-
-      // Calculate average volume level
-      const average = dataArray.reduce((sum, value) => sum + value, 0) / dataArray.length;
-      const normalizedLevel = average / 255;
-
-      setAudioLevel(normalizedLevel);
-      animationFrameRef.current = requestAnimationFrame(updateAnimation);
-    }
-
-    updateAnimation();
-
-    return () => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-    };
-  }, [isPlaying, currentSong]);
-
   if (!currentSong) return null;
 
   const background = moodBackgrounds[mood];
@@ -125,6 +75,11 @@ export function MusicVisualizer() {
           }}
         />
 
+        {/* Waveform Visualizer */}
+        <div className="w-full max-w-3xl px-6">
+          <WaveformVisualizer />
+        </div>
+
         <motion.h2 
           className="text-6xl font-bold"
           style={{
@@ -142,21 +97,6 @@ export function MusicVisualizer() {
         >
           {mood.charAt(0).toUpperCase() + mood.slice(1)} Vibes
         </motion.h2>
-
-        {/* Audio level indicator */}
-        <div className="flex gap-1 mt-4">
-          {Array.from({ length: 20 }).map((_, i) => (
-            <motion.div
-              key={i}
-              className="w-1 rounded-full bg-white/30"
-              animate={{
-                height: `${Math.max(4, (audioLevel * 100) * (1 - Math.abs(i - 10) / 10))}px`,
-                opacity: audioLevel > i / 20 ? 1 : 0.3,
-              }}
-              transition={{ type: "spring", stiffness: 300, damping: 20 }}
-            />
-          ))}
-        </div>
       </div>
     </div>
   );
