@@ -1,5 +1,4 @@
 import { pgTable, text, serial, integer, timestamp, boolean } from "drizzle-orm/pg-core";
-import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { relations } from "drizzle-orm";
 
 export const users = pgTable("users", {
@@ -28,6 +27,13 @@ export const songs = pgTable("songs", {
   votes: integer("votes").default(0),
 });
 
+export const recentlyPlayed = pgTable("recently_played", {
+  id: serial("id").primaryKey(),
+  songId: integer("song_id").references(() => songs.id),
+  playedBy: text("played_by").references(() => users.address),
+  playedAt: timestamp("played_at").defaultNow(),
+});
+
 export const playlists = pgTable("playlists", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
@@ -50,18 +56,27 @@ export const votes = pgTable("votes", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const usersRelations = relations(users, ({ many }) => ({
-  followers: many(followers, { relationName: "following" }),
-  following: many(followers, { relationName: "followers" }),
+// Relations
+export const songsRelations = relations(songs, ({ many }) => ({
+  recentPlays: many(recentlyPlayed),
+  votes: many(votes),
+  playlistSongs: many(playlistSongs)
 }));
 
 export const playlistsRelations = relations(playlists, ({ many }) => ({
-  playlistSongs: many(playlistSongs),
+  playlistSongs: many(playlistSongs)
 }));
 
-export const songsRelations = relations(songs, ({ many }) => ({
-  playlistSongs: many(playlistSongs),
-  votes: many(votes),
+export const usersRelations = relations(users, ({ many }) => ({
+  followers: many(followers),
+  following: many(followers)
+}));
+
+export const recentlyPlayedRelations = relations(recentlyPlayed, ({ one }) => ({
+  song: one(songs, {
+    fields: [recentlyPlayed.songId],
+    references: [songs.id],
+  }),
 }));
 
 export type User = typeof users.$inferSelect;

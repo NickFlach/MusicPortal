@@ -35,16 +35,34 @@ export default function Home() {
   const queryClient = useQueryClient();
   const { address } = useAccount();
 
-  const { data: songs, isLoading: songsLoading } = useQuery<Song[]>({
-    queryKey: ["/api/songs"],
+  // Fetch recently played songs
+  const { data: recentSongs, isLoading: recentSongsLoading } = useQuery<Song[]>({
+    queryKey: ["/api/songs/recent"],
+  });
+
+  // Fetch user's library
+  const { data: librarySongs, isLoading: libraryLoading } = useQuery<Song[]>({
+    queryKey: ["/api/songs/library"],
+    enabled: !!address, // Only fetch if user is connected
   });
 
   const { data: playlists } = useQuery<Playlist[]>({
     queryKey: ["/api/playlists"],
   });
 
-  // Filter songs for library section
-  const userSongs = songs?.filter(song => song.uploadedBy === address);
+  const playMutation = useMutation({
+    mutationFn: async (songId: number) => {
+      await apiRequest("POST", `/api/songs/play/${songId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/songs/recent"] });
+    },
+  });
+
+  const handlePlaySong = async (song: Song) => {
+    setCurrentSong(song);
+    await playMutation.mutate(song.id);
+  };
 
   const uploadMutation = useMutation({
     mutationFn: async (data: FormData) => {
@@ -78,8 +96,8 @@ export default function Home() {
       }
     },
     onSuccess: () => {
-      // Only invalidate the songs query, don't change current playback
-      queryClient.invalidateQueries({ queryKey: ["/api/songs"] });
+      // Only invalidate the library query
+      queryClient.invalidateQueries({ queryKey: ["/api/songs/library"] });
 
       toast({
         title: "Success",
@@ -151,21 +169,40 @@ export default function Home() {
         <section className="mb-12">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-semibold">Your Library</h2>
-            <div className="flex items-center text-muted-foreground">
-              <Library className="mr-2 h-4 w-4" />
-              {userSongs?.length || 0} songs
+            <div className="flex items-center gap-4">
+              <div className="flex items-center text-muted-foreground">
+                <Library className="mr-2 h-4 w-4" />
+                {librarySongs?.length || 0} songs
+              </div>
+              <Input
+                type="file"
+                accept="audio/*"
+                onChange={handleFileUpload}
+                className="hidden"
+                id="song-upload"
+              />
+              <label htmlFor="song-upload">
+                <Button variant="outline" asChild>
+                  <span>
+                    <Upload className="mr-2 h-4 w-4" />
+                    Upload Song
+                  </span>
+                </Button>
+              </label>
             </div>
           </div>
 
           <div className="space-y-2">
-            {userSongs?.length === 0 ? (
+            {libraryLoading ? (
+              <p className="text-muted-foreground">Loading your library...</p>
+            ) : librarySongs?.length === 0 ? (
               <p className="text-muted-foreground">No songs in your library yet</p>
             ) : (
-              userSongs?.map((song) => (
+              librarySongs?.map((song) => (
                 <SongCard
                   key={song.id}
                   song={song}
-                  onClick={() => setCurrentSong(song)}
+                  onClick={() => handlePlaySong(song)}
                 />
               ))
             )}
@@ -176,36 +213,20 @@ export default function Home() {
       <section>
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-semibold">Recent Songs</h2>
-          <div className="flex items-center gap-4">
-            <Input
-              type="file"
-              accept="audio/*"
-              onChange={handleFileUpload}
-              className="hidden"
-              id="song-upload"
-            />
-            <label htmlFor="song-upload">
-              <Button variant="outline" asChild>
-                <span>
-                  <Upload className="mr-2 h-4 w-4" />
-                  Upload Song
-                </span>
-              </Button>
-            </label>
-          </div>
+          <p className="text-sm text-muted-foreground">Last 20 played</p>
         </div>
 
         <div className="space-y-2">
-          {songsLoading ? (
+          {recentSongsLoading ? (
             <p className="text-muted-foreground">Loading songs...</p>
-          ) : songs?.length === 0 ? (
-            <p className="text-muted-foreground">No songs uploaded yet</p>
+          ) : recentSongs?.length === 0 ? (
+            <p className="text-muted-foreground">No songs played yet</p>
           ) : (
-            songs?.map((song) => (
+            recentSongs?.map((song) => (
               <SongCard
                 key={song.id}
                 song={song}
-                onClick={() => setCurrentSong(song)}
+                onClick={() => handlePlaySong(song)}
               />
             ))
           )}
@@ -215,14 +236,16 @@ export default function Home() {
       <MusicPlayer
         currentSong={currentSong}
         onNext={() => {
-          if (!songs || !currentSong) return;
-          const currentIndex = songs.findIndex((s) => s.id === currentSong.id);
-          setCurrentSong(songs[(currentIndex + 1) % songs.length]);
+          if (!recentSongs || !currentSong) return;
+          const currentIndex = recentSongs.findIndex((s) => s.id === currentSong.id);
+          const nextSong = recentSongs[(currentIndex + 1) % recentSongs.length];
+          handlePlaySong(nextSong);
         }}
         onPrevious={() => {
-          if (!songs || !currentSong) return;
-          const currentIndex = songs.findIndex((s) => s.id === currentSong.id);
-          setCurrentSong(songs[(currentIndex - 1 + songs.length) % songs.length]);
+          if (!recentSongs || !currentSong) return;
+          const currentIndex = recentSongs.findIndex((s) => s.id === currentSong.id);
+          const prevSong = recentSongs[(currentIndex - 1 + recentSongs.length) % recentSongs.length];
+          handlePlaySong(prevSong);
         }}
       />
     </Layout>

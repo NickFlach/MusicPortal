@@ -1,23 +1,69 @@
 import type { Express } from "express";
 import { createServer } from "http";
 import { db } from "@db";
-import { songs, users, playlists, votes, followers, playlistSongs } from "@db/schema";
+import { songs, users, playlists, votes, followers, playlistSongs, recentlyPlayed } from "@db/schema";
 import { eq, desc, and } from "drizzle-orm";
 
 export function registerRoutes(app: Express) {
   const httpServer = createServer(app);
 
   // Songs
-  app.get("/api/songs", async (req, res) => {
-    const allSongs = await db.query.songs.findMany({
+  app.get("/api/songs/recent", async (req, res) => {
+    const recentSongs = await db.query.recentlyPlayed.findMany({
+      orderBy: desc(recentlyPlayed.playedAt),
+      limit: 20,
+      with: {
+        song: true,
+      }
+    });
+
+    // Map to return only unique songs in order of most recently played
+    const uniqueSongs = Array.from(
+      new Map(recentSongs.map(item => [item.songId, item.song])).values()
+    );
+
+    res.json(uniqueSongs);
+  });
+
+  app.get("/api/songs/library", async (req, res) => {
+    const userAddress = req.user?.address;
+
+    if (!userAddress) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const userSongs = await db.query.songs.findMany({
+      where: eq(songs.uploadedBy, userAddress),
       orderBy: desc(songs.createdAt),
     });
-    res.json(allSongs);
+
+    res.json(userSongs);
+  });
+
+  app.post("/api/songs/play/:id", async (req, res) => {
+    const songId = parseInt(req.params.id);
+    const userAddress = req.user?.address;
+
+    if (!userAddress) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    // Record play in recently played
+    await db.insert(recentlyPlayed).values({
+      songId,
+      playedBy: userAddress,
+    });
+
+    res.json({ success: true });
   });
 
   app.post("/api/songs", async (req, res) => {
     const { title, artist, ipfsHash } = req.body;
     const uploadedBy = req.user?.address;
+
+    if (!uploadedBy) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
 
     const newSong = await db.insert(songs).values({
       title,
