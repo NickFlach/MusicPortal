@@ -7,7 +7,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { MoreVertical, Plus, Trash2, ListMusic, Coins, Edit } from "lucide-react";
+import { MoreVertical, Plus, ListMusic, Coins, Edit } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useContractWrite, useAccount } from 'wagmi';
@@ -24,13 +24,6 @@ interface Song {
   uploadedBy: string | null;
   createdAt: string | null;
   votes: number | null;
-}
-
-interface Playlist {
-  id: number;
-  name: string;
-  createdBy: string | null;
-  createdAt: string | null;
 }
 
 interface SongCardProps {
@@ -50,8 +43,7 @@ export function SongCard({ song, onClick, variant = "ghost", showDelete = false 
     queryKey: ["/api/playlists"],
   });
 
-  // Initialize contract write without arguments
-  const { write: mintSongNFT, isLoading: isMintLoading } = useContractWrite({
+  const { writeAsync: mintSongNFT } = useContractWrite({
     address: PLAYLIST_NFT_ADDRESS,
     abi: PLAYLIST_NFT_ABI,
     functionName: 'mintSong',
@@ -82,22 +74,38 @@ export function SongCard({ song, onClick, variant = "ghost", showDelete = false 
       if (!address) throw new Error("Please connect your wallet first");
       if (!mintSongNFT) throw new Error("Contract write not available");
 
-      // Pass arguments only when calling the contract
-      mintSongNFT({
-        args: [
-          address,
-          song.title,
-          song.artist,
-          song.ipfsHash,
-          `ipfs://${song.ipfsHash}`
-        ],
-        value: parseEther("1"),
-      });
+      try {
+        const result = await mintSongNFT({
+          args: [
+            address,
+            song.title,
+            song.artist,
+            song.ipfsHash,
+            `ipfs://${song.ipfsHash}`
+          ],
+          value: parseEther("1"), // 1 GAS
+        });
+
+        toast({
+          title: "Transaction Submitted",
+          description: "Please wait for the transaction to be confirmed.",
+        });
+
+        const receipt = await result.wait();
+        console.log('Transaction receipt:', receipt);
+
+        return receipt;
+      } catch (error: any) {
+        if (error.code === 'ACTION_REJECTED') {
+          throw new Error('Transaction was rejected by user');
+        }
+        throw new Error(error.message || "Failed to mint NFT");
+      }
     },
     onSuccess: () => {
       toast({
         title: "Success",
-        description: "NFT minting initiated. Please wait for the transaction to be mined.",
+        description: "NFT minted successfully! You've earned 1 PFORK token.",
       });
     },
     onError: (error: Error) => {
@@ -139,27 +147,20 @@ export function SongCard({ song, onClick, variant = "ghost", showDelete = false 
               </DropdownMenuItem>
             )}
 
-            {!playlists?.length ? (
-              <DropdownMenuItem className="text-muted-foreground" disabled>
-                <ListMusic className="mr-2 h-4 w-4" />
-                Create a playlist first
+            {playlists?.map((playlist) => (
+              <DropdownMenuItem
+                key={playlist.id}
+                onClick={() => {
+                  addToPlaylistMutation.mutate({
+                    playlistId: playlist.id,
+                    songId: song.id,
+                  });
+                }}
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Add to {playlist.name}
               </DropdownMenuItem>
-            ) : (
-              playlists.map((playlist) => (
-                <DropdownMenuItem
-                  key={playlist.id}
-                  onClick={() => {
-                    addToPlaylistMutation.mutate({
-                      playlistId: playlist.id,
-                      songId: song.id,
-                    });
-                  }}
-                >
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add to {playlist.name}
-                </DropdownMenuItem>
-              ))
-            )}
+            ))}
 
             <DropdownMenuSeparator />
 
@@ -169,28 +170,11 @@ export function SongCard({ song, onClick, variant = "ghost", showDelete = false 
                   mintNFTMutation.mutate();
                 }
               }}
-              disabled={mintNFTMutation.isPending || isMintLoading || !address}
+              disabled={mintNFTMutation.isPending || !address}
             >
               <Coins className="mr-2 h-4 w-4" />
               Mint as NFT
             </DropdownMenuItem>
-
-            {showDelete && (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  className="text-destructive focus:text-destructive"
-                  onClick={() => {
-                    if (window.confirm("Are you sure you want to delete this song?")) {
-                      deleteSongMutation.mutate(song.id);
-                    }
-                  }}
-                >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Delete from Library
-                </DropdownMenuItem>
-              </>
-            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

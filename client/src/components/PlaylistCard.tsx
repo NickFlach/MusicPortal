@@ -32,8 +32,7 @@ export function PlaylistCard({
   const { toast } = useToast();
   const { address } = useAccount();
 
-  // Initialize contract write without arguments
-  const { write: mintPlaylistNFT, isLoading: isMintLoading } = useContractWrite({
+  const { writeAsync: mintPlaylistNFT } = useContractWrite({
     address: PLAYLIST_NFT_ADDRESS,
     abi: PLAYLIST_NFT_ABI,
     functionName: 'mintPlaylist',
@@ -43,21 +42,38 @@ export function PlaylistCard({
     mutationFn: async () => {
       if (!address) throw new Error("Please connect your wallet first");
       if (!mintPlaylistNFT) throw new Error("Contract write not available");
+      if (songCount === 0) throw new Error("Cannot mint empty playlist");
 
-      // Pass arguments only when calling the contract
-      mintPlaylistNFT({
-        args: [
-          address,
-          title,
-          `ipfs://playlist-${id}` // metadata URI
-        ],
-        value: parseEther("1"), // 1 GAS
-      });
+      try {
+        const result = await mintPlaylistNFT({
+          args: [
+            address,
+            title,
+            `ipfs://playlist-${id}`
+          ],
+          value: parseEther("1"), // 1 GAS
+        });
+
+        toast({
+          title: "Transaction Submitted",
+          description: "Please wait for the transaction to be confirmed.",
+        });
+
+        const receipt = await result.wait();
+        console.log('Transaction receipt:', receipt);
+
+        return receipt;
+      } catch (error: any) {
+        if (error.code === 'ACTION_REJECTED') {
+          throw new Error('Transaction was rejected by user');
+        }
+        throw new Error(error.message || "Failed to mint NFT");
+      }
     },
     onSuccess: () => {
       toast({
         title: "Success",
-        description: "Playlist NFT minting initiated! You've earned 3 PFORK tokens.",
+        description: "Playlist NFT minting successful! You've earned 2 PFORK tokens.",
       });
     },
     onError: (error: Error) => {
@@ -109,7 +125,7 @@ export function PlaylistCard({
                     mintNftMutation.mutate();
                   }
                 }}
-                disabled={mintNftMutation.isPending || isMintLoading || !address || songCount === 0}
+                disabled={mintNftMutation.isPending || !address || songCount === 0}
               >
                 <Coins className="h-4 w-4 mr-2" />
                 Mint NFT
