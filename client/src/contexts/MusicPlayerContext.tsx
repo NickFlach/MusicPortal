@@ -105,6 +105,8 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
     if (!recentSongs?.length || !currentSong) return;
 
     const currentIndex = recentSongs.findIndex((s) => s.id === currentSong.id);
+    if (currentIndex === -1) return;
+
     const nextSong = recentSongs[(currentIndex + 1) % recentSongs.length];
     if (nextSong) {
       playSong(nextSong);
@@ -115,6 +117,8 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
     if (!recentSongs?.length || !currentSong) return;
 
     const currentIndex = recentSongs.findIndex((s) => s.id === currentSong.id);
+    if (currentIndex === -1) return;
+
     const prevSong = recentSongs[(currentIndex - 1 + recentSongs.length) % recentSongs.length];
     if (prevSong) {
       playSong(prevSong);
