@@ -175,13 +175,13 @@ export default function Home() {
         </section>
       )}
 
-      <section className="container mx-auto px-4">
-        <div className="flex items-center justify-between mb-6 sticky top-0 bg-background z-10">
+      <section className="container mx-auto px-4 mb-8">
+        <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-semibold">Recent Songs</h2>
           <p className="text-sm text-muted-foreground">Last 20 played</p>
         </div>
 
-        <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2">
+        <div className="space-y-2">
           {recentSongs?.length === 0 ? (
             <p className="text-muted-foreground">No songs played yet</p>
           ) : (
