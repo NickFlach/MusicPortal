@@ -10,7 +10,7 @@ import { useState } from "react";
 import { TREASURY_ADDRESS, TREASURY_ABI, PFORK_TOKEN_ADDRESS, PFORK_TOKEN_ABI } from "@/lib/contracts";
 
 interface TreasuryData {
-  address: string;
+  treasurerAddress: string;
   pforkBalance: string;
   gasBalance: string;
   isCurrentManager: boolean;
@@ -21,18 +21,19 @@ export default function Treasury() {
   const { address } = useAccount();
   const [newTreasuryAddress, setNewTreasuryAddress] = useState("");
 
-  // Read contract data
-  const { data: ownerAddress } = useContractRead({
-    address: TREASURY_ADDRESS,
-    abi: TREASURY_ABI,
-    functionName: 'owner',
-  });
-
+  // Read PFORK balance of Treasury contract
   const { data: pforkBalance } = useContractRead({
     address: PFORK_TOKEN_ADDRESS,
     abi: PFORK_TOKEN_ABI,
     functionName: 'balanceOf',
     args: [TREASURY_ADDRESS],
+  });
+
+  // Read current treasurer
+  const { data: ownerAddress } = useContractRead({
+    address: TREASURY_ADDRESS,
+    abi: TREASURY_ABI,
+    functionName: 'owner',
   });
 
   // Contract write mutation
@@ -42,7 +43,7 @@ export default function Treasury() {
     functionName: 'transferTreasury',
   });
 
-  // Mutation for updating treasury address
+  // Mutation for updating treasurer address
   const updateTreasuryMutation = useMutation({
     mutationFn: async () => {
       if (!address) throw new Error("No wallet connected");
@@ -53,7 +54,7 @@ export default function Treasury() {
     onSuccess: () => {
       toast({
         title: "Success",
-        description: "Treasury transfer initiated. Please wait for the transaction to be mined.",
+        description: "Treasury manager transfer initiated. Please wait for the transaction to be mined.",
       });
       setNewTreasuryAddress("");
     },
@@ -67,7 +68,7 @@ export default function Treasury() {
   });
 
   const treasury: TreasuryData = {
-    address: TREASURY_ADDRESS,
+    treasurerAddress: ownerAddress as string,
     pforkBalance: pforkBalance ? (Number(pforkBalance) / 1e18).toString() : "0",
     gasBalance: "0", // We'll get this from the chain directly
     isCurrentManager: address === ownerAddress,
@@ -80,11 +81,14 @@ export default function Treasury() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <Card>
             <CardHeader>
-              <CardTitle>Contract Address</CardTitle>
+              <CardTitle>Treasury Contract</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground break-all">
-                {treasury.address}
+                {TREASURY_ADDRESS}
+              </p>
+              <p className="text-xs text-muted-foreground mt-2">
+                Smart contract that holds and distributes rewards
               </p>
             </CardContent>
           </Card>
@@ -98,6 +102,9 @@ export default function Treasury() {
                 <Coins className="h-4 w-4 text-primary" />
                 <p className="text-2xl font-bold">{treasury.pforkBalance}</p>
               </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                Available for reward distribution
+              </p>
             </CardContent>
           </Card>
 
@@ -110,11 +117,14 @@ export default function Treasury() {
                 <Send className="h-4 w-4 text-primary" />
                 <p className="text-2xl font-bold">{treasury.gasBalance}</p>
               </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                Collected from NFT minting
+              </p>
             </CardContent>
           </Card>
         </div>
 
-        {/* Treasury Management - Only visible to current treasury manager */}
+        {/* Treasury Management - Only visible to current treasurer */}
         {treasury.isCurrentManager && (
           <Card>
             <CardHeader>
@@ -123,11 +133,20 @@ export default function Treasury() {
             <CardContent>
               <div className="flex items-end gap-4">
                 <div className="flex-1 space-y-2">
-                  <label className="text-sm font-medium">New Treasury Address</label>
+                  <label className="text-sm font-medium">Current Treasurer</label>
+                  <p className="text-sm text-muted-foreground break-all">
+                    {treasury.treasurerAddress}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Address authorized to manage treasury operations
+                  </p>
+                </div>
+                <div className="flex-1 space-y-2">
+                  <label className="text-sm font-medium">New Treasurer Address</label>
                   <Input
                     value={newTreasuryAddress}
                     onChange={(e) => setNewTreasuryAddress(e.target.value)}
-                    placeholder="Enter new treasury address"
+                    placeholder="Enter new treasurer address"
                   />
                 </div>
                 <Button

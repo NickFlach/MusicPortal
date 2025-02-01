@@ -15,7 +15,7 @@ interface AdminUser {
 }
 
 interface TreasuryData {
-  address: string | null;
+  treasurerAddress: string | null;
   totalRewards: number;
   rewardedUsers: number;
 }
@@ -55,27 +55,7 @@ export default function Admin() {
     },
   });
 
-  const toggleAdminMutation = useMutation({
-    mutationFn: async (address: string) => {
-      await apiRequest("POST", `/api/admin/toggle/${address}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
-      toast({
-        title: "Success",
-        description: "Admin status updated successfully",
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
-  const setGasRecipientMutation = useMutation({
+  const setTreasurerMutation = useMutation({
     mutationFn: async (address: string) => {
       const response = await apiRequest("POST", "/api/admin/gas-recipient", { address });
       return await response.json();
@@ -84,7 +64,7 @@ export default function Admin() {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/treasury"] });
       toast({
         title: "Success",
-        description: "GAS fee recipient address updated successfully",
+        description: "Treasurer address updated successfully",
       });
     },
     onError: (error: Error) => {
@@ -96,21 +76,21 @@ export default function Admin() {
     },
   });
 
-  const handleSetGasRecipient = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSetTreasurer = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    const address = formData.get("gasRecipientAddress") as string;
+    const address = formData.get("treasurerAddress") as string;
 
     if (!address) {
       toast({
         title: "Error",
-        description: "Please enter a GAS recipient address",
+        description: "Please enter a treasurer address",
         variant: "destructive",
       });
       return;
     }
 
-    setGasRecipientMutation.mutate(address);
+    setTreasurerMutation.mutate(address);
     e.currentTarget.reset();
   };
 
@@ -151,17 +131,17 @@ export default function Admin() {
     <Layout>
       <Card className="mb-8">
         <CardHeader>
-          <CardTitle>NFT GAS Fee Distribution</CardTitle>
+          <CardTitle>Treasury Management</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="flex items-center justify-between p-4 border rounded-lg">
             <div>
-              <p className="font-medium">Current GAS & PFORK Holder</p>
+              <p className="font-medium">Current Treasurer</p>
               <p className="text-sm text-muted-foreground break-all">
-                {treasury?.address || "Not set"}
+                {treasury?.treasurerAddress || "Not set"}
               </p>
               <p className="text-xs text-muted-foreground mt-1">
-                This address receives GAS fees from NFT minting and holds PFORK tokens
+                Address authorized to manage Treasury operations and receive GAS fees
               </p>
             </div>
             <div className="text-right">
@@ -177,26 +157,26 @@ export default function Admin() {
             </div>
           </div>
 
-          <form onSubmit={handleSetGasRecipient} className="space-y-4">
+          <form onSubmit={handleSetTreasurer} className="space-y-4">
             <div className="flex items-end gap-4">
               <div className="flex-1">
                 <label className="text-sm font-medium mb-2 block">
-                  Set GAS Fee Recipient Address
+                  Set New Treasurer Address
                 </label>
                 <div className="flex items-center gap-2">
                   <Wallet className="h-4 w-4 text-muted-foreground" />
                   <Input
-                    name="gasRecipientAddress"
+                    name="treasurerAddress"
                     placeholder="Enter NEO X address"
                     required
                   />
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  This address will receive GAS fees from NFT minting transactions
+                  This address will be authorized to manage Treasury operations and receive GAS fees
                 </p>
               </div>
-              <Button type="submit" disabled={setGasRecipientMutation.isPending}>
-                Update Recipient
+              <Button type="submit" disabled={setTreasurerMutation.isPending}>
+                Update Treasurer
               </Button>
             </div>
           </form>
