@@ -49,10 +49,10 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   const queryClient = useQueryClient();
   const { address } = useAccount();
   const [location] = useLocation();
-  const hasInitializedRef = useRef(false);
 
   const { data: recentSongs } = useQuery<Song[]>({
     queryKey: ["/api/songs/recent"],
+    enabled: true, // Always fetch recent songs
   });
 
   const playMutation = useMutation({
@@ -64,13 +64,10 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
     },
   });
 
-  // Check if current page is one where music should play
+  // Define which pages should have music playback enabled
   const isAllowedPage = ["/", "/home", "/treasury", "/admin"].includes(location);
 
-  // Define playNext as a useCallback to ensure stable reference
   const playNext = useCallback(() => {
-    if (!isAllowedPage) return;
-
     if (!recentSongs?.length || !currentSong) {
       if (recentSongs?.length) {
         playSong(recentSongs[0]);
@@ -80,17 +77,19 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
 
     const currentIndex = recentSongs.findIndex((s) => s.id === currentSong.id);
     const nextSong = recentSongs[(currentIndex + 1) % recentSongs.length];
-    playSong(nextSong);
-  }, [currentSong, recentSongs, isAllowedPage]);
+    if (nextSong) {
+      playSong(nextSong);
+    }
+  }, [currentSong, recentSongs]);
 
   const playPrevious = useCallback(() => {
-    if (!isAllowedPage) return;
-
     if (!recentSongs?.length || !currentSong) return;
     const currentIndex = recentSongs.findIndex((s) => s.id === currentSong.id);
     const prevSong = recentSongs[(currentIndex - 1 + recentSongs.length) % recentSongs.length];
-    playSong(prevSong);
-  }, [currentSong, recentSongs, isAllowedPage]);
+    if (prevSong) {
+      playSong(prevSong);
+    }
+  }, [currentSong, recentSongs]);
 
   // Initialize audio event listeners
   useEffect(() => {
@@ -129,24 +128,9 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
     };
   }, [playNext, volume]);
 
-  // Remove auto-play functionality from landing page
-  useEffect(() => {
-    if (location === '/landing' && recentSongs?.length && !hasInitializedRef.current) {
-      hasInitializedRef.current = true;
-      const initialSong = recentSongs[0];
-      setCurrentSong(initialSong);
-    }
-  }, [location, recentSongs]);
-
-  // Reset initialization flag when leaving landing page
-  useEffect(() => {
-    if (location !== '/landing') {
-      hasInitializedRef.current = false;
-    }
-  }, [location]);
-
   const loadSong = async (songToLoad: Song) => {
     if (!songToLoad) return;
+
     try {
       console.log('Loading song:', songToLoad.title);
       const audioData = await getFromIPFS(songToLoad.ipfsHash);
@@ -178,7 +162,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   }, [currentSong]);
 
   const togglePlay = async () => {
-    if (!isAllowedPage || !currentSong) return;
+    if (!currentSong) return;
 
     try {
       if (isPlaying) {
@@ -200,8 +184,6 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   };
 
   const handleSeek = (value: number[]) => {
-    if (!isAllowedPage) return;
-
     if (audioRef.current) {
       audioRef.current.currentTime = value[0];
       setCurrentTime(value[0]);
@@ -209,8 +191,6 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   };
 
   const handleVolumeChange = (value: number[]) => {
-    if (!isAllowedPage) return;
-
     const newVolume = value[0];
     if (audioRef.current) {
       audioRef.current.volume = newVolume;
@@ -220,6 +200,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
 
   const playSong = async (song: Song) => {
     if (!isAllowedPage) return;
+
     console.log('Playing song:', song.title);
     setCurrentSong(song);
     setIsPlaying(true);
