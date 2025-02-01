@@ -92,6 +92,35 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
     playSong(prevSong);
   }, [currentSong, recentSongs, isAllowedPage]);
 
+  // Auto-start playing the most recent song when on landing page
+  useEffect(() => {
+    if (location === '/landing' && recentSongs?.length) {
+      const initialSong = recentSongs[0];
+      // Set the song and trigger play mutation
+      setCurrentSong(initialSong);
+      playMutation.mutate(initialSong.id);
+
+      // Ensure audio is ready to play
+      const loadAndPlay = async () => {
+        try {
+          const audioData = await getFromIPFS(initialSong.ipfsHash);
+          const blob = new Blob([audioData], { type: 'audio/mp3' });
+          const url = URL.createObjectURL(blob);
+
+          audioRef.current.src = url;
+          audioRef.current.load();
+          await audioRef.current.play();
+          setIsPlaying(true);
+        } catch (error) {
+          console.error('Failed to autoplay:', error);
+          setIsPlaying(false);
+        }
+      };
+
+      loadAndPlay();
+    }
+  }, [location, recentSongs]);
+
   // Initialize audio event listeners
   useEffect(() => {
     const audio = audioRef.current;
@@ -113,17 +142,10 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
       setIsPlaying(false);
     };
 
-    const handleLoadedData = () => {
-      if (isPlaying && isAllowedPage) {
-        audio.play().catch(console.error);
-      }
-    };
-
     audio.addEventListener('timeupdate', handleTimeUpdate);
     audio.addEventListener('ended', handleEnded);
     audio.addEventListener('play', handlePlay);
     audio.addEventListener('pause', handlePause);
-    audio.addEventListener('loadeddata', handleLoadedData);
 
     // Set initial volume
     audio.volume = volume;
@@ -133,38 +155,22 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
       audio.removeEventListener('ended', handleEnded);
       audio.removeEventListener('play', handlePlay);
       audio.removeEventListener('pause', handlePause);
-      audio.removeEventListener('loadeddata', handleLoadedData);
     };
-  }, [playNext, volume, isPlaying, isAllowedPage]);
+  }, [playNext, volume]);
 
-  // Auto-start playing the most recent song when on landing page
-  useEffect(() => {
-    if (location === '/landing' && recentSongs?.length && !currentSong) {
-      const initialSong = recentSongs[0];
-      setCurrentSong(initialSong);
-      playMutation.mutate(initialSong.id);
-
-      // Start playing immediately
-      loadSong(initialSong, true);
-    }
-  }, [location, recentSongs]);
-
-  const loadSong = async (songToLoad: Song = currentSong!, autoplay: boolean = false) => {
+  const loadSong = async (songToLoad: Song) => {
     if (!songToLoad) return;
     try {
       const audioData = await getFromIPFS(songToLoad.ipfsHash);
       const blob = new Blob([audioData], { type: 'audio/mp3' });
       const url = URL.createObjectURL(blob);
 
-      // Update source
       audioRef.current.src = url;
       audioRef.current.load();
 
-      // If autoplay is requested, or we were already playing, start playback
-      if ((autoplay || isPlaying) && isAllowedPage) {
+      if (isPlaying && isAllowedPage) {
         try {
           await audioRef.current.play();
-          setIsPlaying(true);
         } catch (error) {
           console.error('Failed to start playback:', error);
           setIsPlaying(false);
