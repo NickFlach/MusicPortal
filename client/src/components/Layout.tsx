@@ -9,17 +9,18 @@ interface LayoutProps {
 
 export function Layout({ children }: LayoutProps) {
   return (
-    <div className="min-h-screen bg-background relative overflow-hidden">
+    <div className="min-h-screen bg-background">
       {/* Background Image with Overlay */}
       <div
-        className="absolute inset-0 z-[-1]"
+        className="fixed inset-0 pointer-events-none"
         style={{
           backgroundImage: 'url("/neo_token_logo_flaukowski.png")',
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           filter: 'blur(8px)',
           transform: 'scale(1.1)',
-          opacity: '0.15'
+          opacity: '0.2',
+          zIndex: -1
         }}
       />
 
@@ -41,7 +42,7 @@ export function Layout({ children }: LayoutProps) {
           <WalletConnect />
         </div>
       </header>
-      <main className="container mx-auto pt-24 pb-40 relative z-10">
+      <main className="container mx-auto pt-24 pb-40 relative">
         {children}
       </main>
       <MusicPlayer />
