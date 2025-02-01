@@ -66,24 +66,15 @@ export function WaveformVisualizer() {
 
     async function setupAudioContext() {
       try {
-        if (audioContextRef.current?.state === 'closed') {
-          audioContextRef.current = undefined;
-          analyserRef.current = undefined;
-          sourceRef.current = undefined;
-        }
-
-        if (!audioContextRef.current) {
+        if (!audioContextRef.current || audioContextRef.current.state === 'closed') {
           audioContextRef.current = new AudioContext();
+          analyserRef.current = audioContextRef.current.createAnalyser();
+          analyserRef.current.fftSize = 2048;
+          analyserRef.current.smoothingTimeConstant = 0.85;
         }
 
         if (audioContextRef.current.state === 'suspended') {
           await audioContextRef.current.resume();
-        }
-
-        if (!analyserRef.current) {
-          analyserRef.current = audioContextRef.current.createAnalyser();
-          analyserRef.current.fftSize = 4096;
-          analyserRef.current.smoothingTimeConstant = 0.85;
         }
 
         if (sourceRef.current) {
@@ -169,8 +160,8 @@ export function WaveformVisualizer() {
 
       if (beatDetected && canvasRef.current) {
         const canvas = canvasRef.current;
-        const centerX = canvas.width / (2 * window.devicePixelRatio);
-        const centerY = canvas.height / (2 * window.devicePixelRatio);
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
         const radius = Math.min(centerX, centerY) * 0.3;
         const intensity = Math.max(bassLevel, volume);
 
@@ -224,27 +215,21 @@ export function WaveformVisualizer() {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { alpha: true });
     if (!ctx) return;
 
-    const updateSize = () => {
-      canvas.width = canvas.offsetWidth * window.devicePixelRatio;
-      canvas.height = canvas.offsetHeight * window.devicePixelRatio;
-      ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
-    };
+    canvas.width = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
 
-    updateSize();
-    window.addEventListener('resize', updateSize);
-
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.globalCompositeOperation = 'lighter';
 
-    const centerX = canvas.width / (2 * window.devicePixelRatio);
-    const centerY = canvas.height / (2 * window.devicePixelRatio);
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
     const radius = Math.min(centerX, centerY) * 0.4;
 
+    // Draw frequency visualization
     ctx.save();
     ctx.translate(centerX, centerY);
 
@@ -264,6 +249,7 @@ export function WaveformVisualizer() {
 
     ctx.restore();
 
+    // Draw particles
     particles.forEach(particle => {
       if (particle.trail.length > 1) {
         ctx.beginPath();
@@ -278,25 +264,23 @@ export function WaveformVisualizer() {
         ctx.stroke();
       }
 
-      const glow = ctx.createRadialGradient(
-        particle.x, particle.y, 0,
-        particle.x, particle.y, particle.size * 2
-      );
-      glow.addColorStop(0, `hsla(${particle.color}, ${particle.life * 100}%)`);
-      glow.addColorStop(1, 'transparent');
-
-      ctx.fillStyle = glow;
+      ctx.fillStyle = `hsla(${particle.color}, ${particle.life * 100}%)`;
       ctx.beginPath();
-      ctx.arc(particle.x, particle.y, particle.size * 2, 0, Math.PI * 2);
+      ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
       ctx.fill();
     });
 
+    // Beat flash effect
     if (audioFeatures.beatDetected) {
       ctx.fillStyle = `rgba(255, 255, 255, ${audioFeatures.volume * 0.2})`;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
     }
 
-    return () => window.removeEventListener('resize', updateSize);
+    const drawFrame = () => {
+      requestAnimationFrame(drawFrame);
+    };
+    drawFrame();
+
   }, [audioFeatures, particles]);
 
   if (!currentSong) return null;
@@ -305,8 +289,7 @@ export function WaveformVisualizer() {
     <div className="relative w-full h-32">
       <canvas
         ref={canvasRef}
-        className="absolute inset-0 w-full h-full"
-        style={{ imageRendering: 'pixelated' }}
+        className="absolute inset-0 w-full h-full bg-black"
       />
       <div className="absolute inset-0 flex items-end justify-center gap-0.5">
         {Array.from({ length: 32 }).map((_, i) => {
