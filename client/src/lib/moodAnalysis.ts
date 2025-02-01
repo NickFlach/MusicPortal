@@ -1,5 +1,4 @@
 import OpenAI from "openai";
-import { type MusicMood, detectMood } from "./moodDetection";
 
 interface SongInput {
   title: string;
@@ -12,7 +11,7 @@ const openai = new OpenAI({
   dangerouslyAllowBrowser: true
 });
 
-export async function analyzeMoodWithAI(song: SongInput): Promise<MusicMood | undefined> {
+export async function analyzeMoodWithAI(song: SongInput): Promise<string | undefined> {
   try {
     const response = await openai.chat.completions.create({
       model: "gpt-4-turbo-preview",
@@ -30,11 +29,9 @@ export async function analyzeMoodWithAI(song: SongInput): Promise<MusicMood | un
       max_tokens: 10,
     });
 
-    const mood = response.choices[0].message.content?.toLowerCase().trim() as MusicMood;
-    return mood;
+    return response.choices[0].message.content?.toLowerCase().trim();
   } catch (error) {
     console.error('Error analyzing mood with AI:', error);
-    // Fall back to basic detection
-    return detectMood(song);
+    return undefined;
   }
 }
