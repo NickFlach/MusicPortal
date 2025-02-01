@@ -3,6 +3,8 @@ import { Slider } from "@/components/ui/slider";
 import { Play, Pause, SkipBack, SkipForward, Volume2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { useMusicPlayer } from "@/contexts/MusicPlayerContext";
+import { useAccount } from 'wagmi';
+import { useLocation } from 'wouter';
 
 export function MusicPlayer() {
   const {
@@ -18,13 +20,17 @@ export function MusicPlayer() {
     handleVolumeChange,
   } = useMusicPlayer();
 
+  const { address } = useAccount();
+  const [location] = useLocation();
+  const isAllowedPage = ["/", "/treasury", "/admin"].includes(location);
+
   const formatTime = (time: number) => {
     const minutes = Math.floor(time / 60);
     const seconds = Math.floor(time % 60);
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
-  if (!currentSong) return null;
+  if (!currentSong || !address || !isAllowedPage) return null;
 
   return (
     <Card className="fixed bottom-0 left-0 right-0 p-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-t z-50">

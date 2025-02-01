@@ -2,6 +2,8 @@ import React, { createContext, useContext, useState, useRef, useEffect } from 'r
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { getFromIPFS } from "@/lib/ipfs";
+import { useAccount } from 'wagmi';
+import { useLocation } from 'wouter';
 
 interface Song {
   id: number;
@@ -38,6 +40,8 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   const [volume, setVolume] = useState(1);
   const audioRef = useRef<HTMLAudioElement>(new Audio());
   const queryClient = useQueryClient();
+  const { address } = useAccount();
+  const [location] = useLocation();
 
   const { data: recentSongs } = useQuery<Song[]>({
     queryKey: ["/api/songs/recent"],
@@ -51,6 +55,9 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
       queryClient.invalidateQueries({ queryKey: ["/api/songs/recent"] });
     },
   });
+
+  // Check if current page is one where music should play
+  const isAllowedPage = ["/", "/treasury", "/admin"].includes(location);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -73,6 +80,14 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
     };
   }, []);
 
+  // Stop playback when wallet disconnects or navigating away from allowed pages
+  useEffect(() => {
+    if (!address || !isAllowedPage) {
+      audioRef.current.pause();
+      setIsPlaying(false);
+    }
+  }, [address, isAllowedPage]);
+
   useEffect(() => {
     if (currentSong) {
       loadSong();
@@ -87,7 +102,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
       const url = URL.createObjectURL(blob);
       audioRef.current.src = url;
       audioRef.current.load();
-      if (isPlaying) {
+      if (isPlaying && address && isAllowedPage) {
         audioRef.current.play();
       }
     } catch (error) {
@@ -96,6 +111,8 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   };
 
   const togglePlay = () => {
+    if (!address || !isAllowedPage) return;
+
     if (audioRef.current) {
       if (isPlaying) {
         audioRef.current.pause();
@@ -107,6 +124,8 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   };
 
   const handleSeek = (value: number[]) => {
+      if (!address || !isAllowedPage) return;
+
     if (audioRef.current) {
       audioRef.current.currentTime = value[0];
       setCurrentTime(value[0]);
@@ -114,6 +133,8 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   };
 
   const handleVolumeChange = (value: number[]) => {
+    if (!address || !isAllowedPage) return;
+
     const newVolume = value[0];
     if (audioRef.current) {
       audioRef.current.volume = newVolume;
@@ -122,12 +143,16 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   };
 
   const playSong = async (song: Song) => {
+      if (!address || !isAllowedPage) return;
+
     setCurrentSong(song);
     setIsPlaying(true);
     await playMutation.mutate(song.id);
   };
 
   const playNext = () => {
+      if (!address || !isAllowedPage) return;
+
     if (!recentSongs || !currentSong) return;
     const currentIndex = recentSongs.findIndex((s) => s.id === currentSong.id);
     const nextSong = recentSongs[(currentIndex + 1) % recentSongs.length];
@@ -135,6 +160,8 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   };
 
   const playPrevious = () => {
+    if (!address || !isAllowedPage) return;
+
     if (!recentSongs || !currentSong) return;
     const currentIndex = recentSongs.findIndex((s) => s.id === currentSong.id);
     const prevSong = recentSongs[(currentIndex - 1 + recentSongs.length) % recentSongs.length];
