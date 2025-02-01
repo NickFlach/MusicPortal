@@ -11,15 +11,32 @@ export function WalletConnect() {
 
   const handleConnect = async () => {
     try {
-      await connect({ connector: injected() });
+      // Check if MetaMask is installed
+      if (typeof window.ethereum === 'undefined') {
+        window.open('https://metamask.io/download/', '_blank');
+        toast({
+          title: "MetaMask Required",
+          description: "Please install MetaMask to connect your wallet",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      await connect({ 
+        connector: injected({
+          target: 'metaMask'
+        })
+      });
+
       toast({
         title: "Connected",
         description: "Wallet connected successfully!",
       });
     } catch (error) {
+      console.error('Wallet connection error:', error);
       toast({
         title: "Error",
-        description: "Failed to connect wallet",
+        description: error instanceof Error ? error.message : "Failed to connect wallet",
         variant: "destructive",
       });
     }
