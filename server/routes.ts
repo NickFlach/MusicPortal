@@ -45,17 +45,27 @@ export function registerRoutes(app: Express) {
     const songId = parseInt(req.params.id);
     const userAddress = req.headers['x-wallet-address'] as string;
 
-    if (!userAddress) {
-      return res.status(401).json({ message: "Unauthorized" });
+    try {
+      // If user is authenticated, record the play
+      if (userAddress) {
+        await db.insert(recentlyPlayed).values({
+          songId,
+          playedBy: userAddress,
+        });
+      }
+      // For anonymous plays from landing page, just record the song
+      else {
+        await db.insert(recentlyPlayed).values({
+          songId,
+          playedBy: null,
+        });
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error recording play:', error);
+      res.status(500).json({ message: "Failed to record play" });
     }
-
-    // Record play in recently played
-    await db.insert(recentlyPlayed).values({
-      songId,
-      playedBy: userAddress,
-    });
-
-    res.json({ success: true });
   });
 
   app.post("/api/songs", async (req, res) => {
