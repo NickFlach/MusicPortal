@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useMusicPlayer } from "@/contexts/MusicPlayerContext";
 import { analyzeMoodWithAI } from "@/lib/moodAnalysis";
 import { type MusicMood } from "@/lib/moodDetection";
@@ -61,26 +61,56 @@ export function WaveformVisualizer() {
       return;
     }
 
+    // Find the audio element
     const audioElements = document.getElementsByTagName('audio');
     if (!audioElements.length) return;
     const audio = audioElements[0];
 
-    if (!audioContextRef.current) {
-      audioContextRef.current = new AudioContext();
-      analyserRef.current = audioContextRef.current.createAnalyser();
-      analyserRef.current.fftSize = 4096;
-      analyserRef.current.smoothingTimeConstant = 0.85;
+    async function setupAudioContext() {
+      try {
+        // Clean up old context if it exists
+        if (audioContextRef.current?.state === 'closed') {
+          audioContextRef.current = undefined;
+          analyserRef.current = undefined;
+          sourceRef.current = undefined;
+        }
+
+        // Create new context if needed
+        if (!audioContextRef.current) {
+          audioContextRef.current = new AudioContext();
+        }
+
+        // Resume context if suspended
+        if (audioContextRef.current.state === 'suspended') {
+          await audioContextRef.current.resume();
+        }
+
+        // Create analyzer if needed
+        if (!analyserRef.current) {
+          analyserRef.current = audioContextRef.current.createAnalyser();
+          analyserRef.current.fftSize = 4096;
+          analyserRef.current.smoothingTimeConstant = 0.85;
+        }
+
+        // Disconnect old source if it exists
+        if (sourceRef.current) {
+          sourceRef.current.disconnect();
+        }
+
+        // Create and connect new source
+        sourceRef.current = audioContextRef.current.createMediaElementSource(audio);
+        sourceRef.current.connect(analyserRef.current);
+        analyserRef.current.connect(audioContextRef.current.destination);
+      } catch (error) {
+        console.error('Error setting up audio context:', error);
+      }
     }
 
-    if (!sourceRef.current) {
-      sourceRef.current = audioContextRef.current.createMediaElementSource(audio);
-      sourceRef.current.connect(analyserRef.current!);
-      analyserRef.current!.connect(audioContextRef.current.destination);
-    }
+    setupAudioContext();
 
     function detectBeat(frequencyData: Uint8Array): boolean {
       const bassSum = frequencyData.slice(0, 10).reduce((sum, value) => sum + value, 0);
-      const currentEnergy = bassSum / 2550; // Normalize to 0-1
+      const currentEnergy = bassSum / 2550;
       energyHistory.current.push(currentEnergy);
 
       if (energyHistory.current.length > 30) {
@@ -141,7 +171,7 @@ export function WaveformVisualizer() {
           ));
         }
 
-        setParticles(newParticles.slice(-50)); // Keep max 50 particles
+        setParticles(newParticles.slice(-50));
       }
 
       setAudioFeatures({
@@ -162,6 +192,9 @@ export function WaveformVisualizer() {
     return () => {
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
+      }
+      if (sourceRef.current) {
+        sourceRef.current.disconnect();
       }
     };
   }, [isPlaying, currentSong, particles]);
