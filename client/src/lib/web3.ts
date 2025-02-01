@@ -1,70 +1,48 @@
+import { createConfig, http } from 'wagmi';
 import { mainnet } from 'wagmi/chains';
+import { injected } from 'wagmi/connectors';
+import { createPublicClient, walletClient } from 'viem';
 
-// Simple MetaMask interaction functions
-export async function requestAccounts(): Promise<string[]> {
-  if (typeof window.ethereum === 'undefined') {
-    throw new Error('MetaMask is not installed');
-  }
-  return window.ethereum.request({ method: 'eth_requestAccounts' });
-}
+// Create a public client
+const publicClient = createPublicClient({
+  chain: mainnet,
+  transport: http(),
+});
 
-export async function getAccounts(): Promise<string[]> {
-  if (typeof window.ethereum === 'undefined') {
-    throw new Error('MetaMask is not installed');
-  }
-  return window.ethereum.request({ method: 'eth_accounts' });
-}
+// Create wagmi config
+export const config = createConfig({
+  chains: [mainnet],
+  transports: {
+    [mainnet.id]: http(),
+  },
+  connectors: [
+    injected({
+      target: 'metaMask',
+    }),
+  ],
+  client: {
+    public: publicClient,
+  },
+});
 
-export async function getBalance(address: string): Promise<string> {
-  if (typeof window.ethereum === 'undefined') {
-    throw new Error('MetaMask is not installed');
-  }
-  return window.ethereum.request({ 
-    method: 'eth_getBalance',
-    params: [address, 'latest']
-  });
-}
+// Helper functions
+export const isConnected = () => {
+  return Boolean(config.state.connections.size);
+};
 
-// Contract interaction helpers
-export async function sendTransaction(params: {
-  to: string;
-  from: string;
-  data?: string;
-  value?: string;
-}) {
-  if (typeof window.ethereum === 'undefined') {
-    throw new Error('MetaMask is not installed');
-  }
-  return window.ethereum.request({
-    method: 'eth_sendTransaction',
-    params: [params],
-  });
-}
+export const getAccount = () => {
+  if (!isConnected()) return null;
+  const connections = Array.from(config.state.connections);
+  if (!connections.length) return null;
+  const [, connection] = connections[0];
+  return connection?.accounts[0];
+};
 
-export async function callContract(params: {
-  to: string;
-  data: string;
-}) {
-  if (typeof window.ethereum === 'undefined') {
-    throw new Error('MetaMask is not installed');
-  }
-  return window.ethereum.request({
-    method: 'eth_call',
-    params: [params, 'latest'],
-  });
-}
-
-export const chain = mainnet;
-
-// Type declarations
-declare global {
-  interface Window {
-    ethereum?: {
-      request: (args: { method: string; params?: any[] }) => Promise<any>;
-      on: (event: string, callback: any) => void;
-      removeListener: (event: string, callback: any) => void;
-      selectedAddress: string | null;
-      chainId?: string;
-    };
-  }
-}
+export const getBalance = async (address: string) => {
+  if (!isConnected()) return BigInt(0);
+  const connections = Array.from(config.state.connections);
+  if (!connections.length) return BigInt(0);
+  const [, connection] = connections[0];
+  if (!connection) return BigInt(0);
+  return publicClient.getBalance({ address });
+};

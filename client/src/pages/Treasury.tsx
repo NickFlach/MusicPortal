@@ -4,61 +4,59 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Layout } from "@/components/Layout";
 import { useToast } from "@/hooks/use-toast";
-import { useWallet } from "@/hooks/use-wallet";
+import { useAccount, useContractRead, useContractWrite } from 'wagmi';
 import { Coins, Send } from "lucide-react";
 import { useState } from "react";
-import { web3Client } from "@/lib/web3";
 import { TREASURY_ADDRESS, TREASURY_ABI, PFORK_TOKEN_ADDRESS, PFORK_TOKEN_ABI } from "@/lib/contracts";
 
 interface TreasuryData {
-  treasurerAddress: string | null;
-  isTreasurer: boolean;
+  treasurerAddress: string;
+  pforkBalance: string;
+  gasBalance: string;
+  isCurrentManager: boolean;
 }
 
 export default function Treasury() {
   const { toast } = useToast();
-  const { address } = useWallet();
-  const [newTreasurerAddress, setNewTreasurerAddress] = useState("");
+  const { address } = useAccount();
+  const [newTreasuryAddress, setNewTreasuryAddress] = useState("");
 
   // Read PFORK balance of Treasury contract
-  const { data: pforkBalance } = useQuery({
-    queryKey: ["pforkBalance", TREASURY_ADDRESS],
-    queryFn: async () => {
-      const data = await web3Client.readContract({
-        address: PFORK_TOKEN_ADDRESS,
-        abi: PFORK_TOKEN_ABI,
-        functionName: 'balanceOf',
-        args: [TREASURY_ADDRESS],
-      });
-      return data;
-    },
+  const { data: pforkBalance } = useContractRead({
+    address: PFORK_TOKEN_ADDRESS,
+    abi: PFORK_TOKEN_ABI,
+    functionName: 'balanceOf',
+    args: [TREASURY_ADDRESS],
   });
 
-  // Get treasurer status
-  const { data: treasurerData } = useQuery<TreasuryData>({
-    queryKey: ["/api/treasury/treasurer"],
+  // Read current treasurer
+  const { data: ownerAddress } = useContractRead({
+    address: TREASURY_ADDRESS,
+    abi: TREASURY_ABI,
+    functionName: 'owner',
+  });
+
+  // Contract write mutation
+  const { writeAsync: transferTreasury } = useContractWrite({
+    address: TREASURY_ADDRESS,
+    abi: TREASURY_ABI,
+    functionName: 'transferTreasury',
   });
 
   // Mutation for updating treasurer address
-  const updateTreasurerMutation = useMutation({
+  const updateTreasuryMutation = useMutation({
     mutationFn: async () => {
       if (!address) throw new Error("No wallet connected");
-
-      const result = await web3Client.writeContract({
-        address: TREASURY_ADDRESS,
-        abi: TREASURY_ABI,
-        functionName: 'transferTreasury',
-        args: [newTreasurerAddress],
+      return transferTreasury({
+        args: [newTreasuryAddress],
       });
-
-      return result;
     },
     onSuccess: () => {
       toast({
         title: "Success",
         description: "Treasury manager transfer initiated. Please wait for the transaction to be mined.",
       });
-      setNewTreasurerAddress("");
+      setNewTreasuryAddress("");
     },
     onError: (error: Error) => {
       toast({
@@ -68,6 +66,13 @@ export default function Treasury() {
       });
     },
   });
+
+  const treasury: TreasuryData = {
+    treasurerAddress: ownerAddress as string,
+    pforkBalance: pforkBalance ? (Number(pforkBalance) / 1e18).toString() : "0",
+    gasBalance: "0", // We'll get this from the chain directly
+    isCurrentManager: address === ownerAddress,
+  };
 
   return (
     <Layout>
@@ -95,9 +100,7 @@ export default function Treasury() {
             <CardContent>
               <div className="flex items-center gap-2">
                 <Coins className="h-4 w-4 text-primary" />
-                <p className="text-2xl font-bold">
-                  {pforkBalance ? (Number(pforkBalance) / 1e18).toString() : "0"}
-                </p>
+                <p className="text-2xl font-bold">{treasury.pforkBalance}</p>
               </div>
               <p className="text-xs text-muted-foreground mt-2">
                 Available for reward distribution
@@ -107,24 +110,22 @@ export default function Treasury() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Current Treasurer</CardTitle>
+              <CardTitle>GAS Balance</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex items-center gap-2">
                 <Send className="h-4 w-4 text-primary" />
-                <p className="text-sm break-all">
-                  {treasurerData?.treasurerAddress || "Not set"}
-                </p>
+                <p className="text-2xl font-bold">{treasury.gasBalance}</p>
               </div>
               <p className="text-xs text-muted-foreground mt-2">
-                Address authorized to manage treasury operations
+                Collected from NFT minting
               </p>
             </CardContent>
           </Card>
         </div>
 
         {/* Treasury Management - Only visible to current treasurer */}
-        {treasurerData?.isTreasurer && (
+        {treasury.isCurrentManager && (
           <Card>
             <CardHeader>
               <CardTitle>Treasury Management</CardTitle>
@@ -132,23 +133,29 @@ export default function Treasury() {
             <CardContent>
               <div className="flex items-end gap-4">
                 <div className="flex-1 space-y-2">
-                  <label className="text-sm font-medium">Transfer Treasury Control</label>
+                  <label className="text-sm font-medium">Current Treasurer</label>
+                  <p className="text-sm text-muted-foreground break-all">
+                    {treasury.treasurerAddress}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Address authorized to manage treasury operations
+                  </p>
+                </div>
+                <div className="flex-1 space-y-2">
+                  <label className="text-sm font-medium">New Treasurer Address</label>
                   <Input
-                    value={newTreasurerAddress}
-                    onChange={(e) => setNewTreasurerAddress(e.target.value)}
+                    value={newTreasuryAddress}
+                    onChange={(e) => setNewTreasuryAddress(e.target.value)}
                     placeholder="Enter new treasurer address"
                   />
-                  <p className="text-xs text-muted-foreground">
-                    This address will be authorized to manage treasury operations
-                  </p>
                 </div>
                 <Button
                   onClick={() => {
                     if (window.confirm("Are you sure you want to transfer treasury control?")) {
-                      updateTreasurerMutation.mutate();
+                      updateTreasuryMutation.mutate();
                     }
                   }}
-                  disabled={!newTreasurerAddress || updateTreasurerMutation.isPending}
+                  disabled={!newTreasuryAddress || updateTreasuryMutation.isPending}
                 >
                   Transfer Control
                 </Button>

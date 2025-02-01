@@ -1,18 +1,15 @@
-import { useWallet } from '@/hooks/use-wallet';
+import { useAccount } from 'wagmi';
 import { WalletConnect } from "@/components/WalletConnect";
 import { useLocation } from 'wouter';
-import { useEffect } from 'react';
 
 export default function Landing() {
-  const { address } = useWallet();
+  const { address } = useAccount();
   const [, setLocation] = useLocation();
 
-  // Use useEffect to handle navigation after render
-  useEffect(() => {
-    if (address) {
-      setLocation("/");
-    }
-  }, [address, setLocation]);
+  if (address) {
+    setLocation("/");
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">

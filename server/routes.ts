@@ -228,37 +228,13 @@ export function registerRoutes(app: Express) {
                     (user.nftRewardClaimed ? 3 : 0);
     }, 0);
 
+    // Get current GAS recipient address from environment
     const gasRecipientAddress = process.env.GAS_RECIPIENT_ADDRESS || process.env.TREASURY_ADDRESS;
 
     res.json({
-      treasurerAddress: gasRecipientAddress,
+      address: gasRecipientAddress,
       totalRewards,
       rewardedUsers: rewardedUsers.length,
-    });
-  });
-
-  // Add a route to check treasurer status
-  app.get("/api/treasury/treasurer", async (req, res) => {
-    const userAddress = req.headers['x-wallet-address'] as string;
-
-    if (!userAddress) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
-    // Check if user is admin or treasurer
-    const user = await db.query.users.findFirst({
-      where: eq(users.address, userAddress.toLowerCase()),
-    });
-
-    if (!user?.isAdmin) {
-      return res.status(403).json({ message: "Forbidden" });
-    }
-
-    const gasRecipientAddress = process.env.GAS_RECIPIENT_ADDRESS || process.env.TREASURY_ADDRESS;
-
-    res.json({
-      isTreasurer: userAddress.toLowerCase() === gasRecipientAddress?.toLowerCase(),
-      treasurerAddress: gasRecipientAddress,
     });
   });
 
