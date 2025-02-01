@@ -8,13 +8,17 @@ interface LayoutProps {
 
 export function Layout({ children }: LayoutProps) {
   return (
-    <div className="min-h-screen bg-background relative">
-      {/* Background image with overlay */}
-      <div 
-        className="fixed inset-0 -z-10 bg-[url('/background.jpg')] bg-cover bg-center"
+    <div className="min-h-screen bg-background relative overflow-hidden">
+      {/* Background Image with Overlay */}
+      <div
+        className="absolute inset-0 z-0"
         style={{
-          backgroundImage: "url('/neo_token_logo_flaukowski.png')",
-          opacity: 0.1
+          backgroundImage: 'url("/neo_token_logo_flaukowski.png")',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          filter: 'blur(8px)',
+          transform: 'scale(1.1)',
+          opacity: '0.15'
         }}
       />
 
