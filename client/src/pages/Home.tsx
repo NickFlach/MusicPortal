@@ -10,6 +10,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { Upload, ListMusic, Library } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { useAccount } from 'wagmi';
+import { SongCard } from "@/components/SongCard";
 
 interface Song {
   id: number;
@@ -161,15 +162,11 @@ export default function Home() {
               <p className="text-muted-foreground">No songs in your library yet</p>
             ) : (
               userSongs?.map((song) => (
-                <Button
+                <SongCard
                   key={song.id}
-                  variant="ghost"
-                  className="w-full justify-start"
+                  song={song}
                   onClick={() => setCurrentSong(song)}
-                >
-                  <span className="truncate">{song.title}</span>
-                  <span className="ml-2 text-muted-foreground">- {song.artist}</span>
-                </Button>
+                />
               ))
             )}
           </div>
@@ -205,15 +202,11 @@ export default function Home() {
             <p className="text-muted-foreground">No songs uploaded yet</p>
           ) : (
             songs?.map((song) => (
-              <Button
+              <SongCard
                 key={song.id}
-                variant="ghost"
-                className="w-full justify-start"
+                song={song}
                 onClick={() => setCurrentSong(song)}
-              >
-                <span className="truncate">{song.title}</span>
-                <span className="ml-2 text-muted-foreground">- {song.artist}</span>
-              </Button>
+              />
             ))
           )}
         </div>

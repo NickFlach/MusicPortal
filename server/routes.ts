@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer } from "http";
 import { db } from "@db";
-import { songs, users, playlists, votes, followers } from "@db/schema";
+import { songs, users, playlists, votes, followers, playlistSongs } from "@db/schema";
 import { eq, desc, and } from "drizzle-orm";
 
 export function registerRoutes(app: Express) {
@@ -47,6 +47,42 @@ export function registerRoutes(app: Express) {
     }).returning();
 
     res.json(newPlaylist[0]);
+  });
+  
+  app.post("/api/playlists/:playlistId/songs", async (req, res) => {
+    const { playlistId } = req.params;
+    const { songId } = req.body;
+    const userAddress = req.user?.address;
+
+    if (!userAddress) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    // Get the playlist to check ownership
+    const playlist = await db.query.playlists.findFirst({
+      where: eq(playlists.id, parseInt(playlistId)),
+    });
+
+    if (!playlist || playlist.createdBy !== userAddress) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+
+    // Get current max position
+    const currentSongs = await db.query.playlistSongs.findMany({
+      where: eq(playlistSongs.playlistId, parseInt(playlistId)),
+      orderBy: desc(playlistSongs.position),
+    });
+
+    const nextPosition = currentSongs.length > 0 ? currentSongs[0].position + 1 : 0;
+
+    // Add song to playlist
+    await db.insert(playlistSongs).values({
+      playlistId: parseInt(playlistId),
+      songId: parseInt(songId),
+      position: nextPosition,
+    });
+
+    res.json({ success: true });
   });
 
   // Votes
