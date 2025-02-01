@@ -37,9 +37,9 @@ export default function Treasury() {
           <Card>
             <CardHeader className="flex flex-row items-center space-x-4 pb-2">
               <img 
-                src="/attached_assets/neo_token_logo_flaukowski.png" 
+                src="/neo_token_logo_flaukowski.png" 
                 alt="NEO Token"
-                className="w-8 h-8"
+                className="w-8 h-8 rounded-full"
               />
               <CardTitle>NEO Balance</CardTitle>
             </CardHeader>
