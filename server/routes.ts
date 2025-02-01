@@ -261,5 +261,31 @@ export function registerRoutes(app: Express) {
 
     res.json(feed);
   });
+
+  // User registration
+  app.post("/api/users/register", async (req, res) => {
+    const address = req.headers['x-wallet-address'] as string;
+
+    if (!address) {
+      return res.status(400).json({ message: "Wallet address is required" });
+    }
+
+    // Check if user exists
+    const existingUser = await db.query.users.findFirst({
+      where: eq(users.address, address),
+    });
+
+    if (existingUser) {
+      return res.json(existingUser);
+    }
+
+    // Create new user
+    const newUser = await db.insert(users).values({
+      address,
+      isAdmin: false,
+    }).returning();
+
+    res.json(newUser[0]);
+  });
   return httpServer;
 }

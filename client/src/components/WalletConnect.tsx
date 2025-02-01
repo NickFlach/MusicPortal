@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useAccount, useConnect, useDisconnect } from 'wagmi';
 import { injected } from 'wagmi/connectors';
+import { apiRequest } from "@/lib/queryClient";
 
 export function WalletConnect() {
   const account = useAccount();
@@ -27,6 +28,9 @@ export function WalletConnect() {
           target: 'metaMask'
         })
       });
+
+      // Register user after successful connection
+      await apiRequest("POST", "/api/users/register");
 
       toast({
         title: "Connected",
