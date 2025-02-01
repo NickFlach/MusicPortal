@@ -1,7 +1,13 @@
 import { create } from 'ipfs-http-client';
+import { Buffer } from 'buffer';
 
 const projectId = import.meta.env.VITE_INFURA_PROJECT_ID;
 const projectSecret = import.meta.env.VITE_INFURA_PROJECT_SECRET;
+
+// Ensure Buffer is available in the browser environment
+if (typeof window !== 'undefined') {
+  window.Buffer = window.Buffer || Buffer;
+}
 
 const auth = 'Basic ' + Buffer.from(projectId + ':' + projectSecret).toString('base64');
 
@@ -25,9 +31,14 @@ export async function uploadToIPFS(file: File): Promise<string> {
 }
 
 export async function getFromIPFS(hash: string): Promise<Uint8Array> {
-  const chunks = [];
-  for await (const chunk of ipfs.cat(hash)) {
-    chunks.push(chunk);
+  try {
+    const chunks = [];
+    for await (const chunk of ipfs.cat(hash)) {
+      chunks.push(chunk);
+    }
+    return new Uint8Array(Buffer.concat(chunks));
+  } catch (error) {
+    console.error('Error getting file from IPFS:', error);
+    throw error;
   }
-  return new Uint8Array(Buffer.concat(chunks));
 }

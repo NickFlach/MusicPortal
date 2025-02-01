@@ -1,17 +1,17 @@
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useAccount, useConnect, useDisconnect } from 'wagmi';
-import { MetaMaskConnector } from 'wagmi/connectors/metaMask';
+import { injected } from 'wagmi/connectors';
 
 export function WalletConnect() {
-  const { address, isConnected } = useAccount();
+  const account = useAccount();
   const { connect } = useConnect();
   const { disconnect } = useDisconnect();
   const { toast } = useToast();
 
   const handleConnect = async () => {
     try {
-      await connect({ connector: new MetaMaskConnector() });
+      await connect({ connector: injected() });
       toast({
         title: "Connected",
         description: "Wallet connected successfully!",
@@ -43,12 +43,12 @@ export function WalletConnect() {
 
   return (
     <div>
-      {!isConnected ? (
+      {!account.address ? (
         <Button onClick={handleConnect}>Connect Wallet</Button>
       ) : (
         <div className="flex items-center gap-2">
           <span className="text-sm text-muted-foreground">
-            {address?.slice(0, 6)}...{address?.slice(-4)}
+            {account.address?.slice(0, 6)}...{account.address?.slice(-4)}
           </span>
           <Button variant="outline" onClick={handleDisconnect}>
             Disconnect
