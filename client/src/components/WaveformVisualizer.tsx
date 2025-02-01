@@ -40,7 +40,7 @@ export function WaveformVisualizer() {
 
         if (!analyserRef.current) {
           analyserRef.current = audioContextRef.current.createAnalyser();
-          analyserRef.current.fftSize = 128; // Reduced for better performance
+          analyserRef.current.fftSize = 128;
           analyserRef.current.smoothingTimeConstant = 0.8;
           console.log('Created new AnalyserNode');
         }
@@ -87,10 +87,10 @@ export function WaveformVisualizer() {
     window.addEventListener('resize', resize);
 
     function draw() {
-      if (!ctx || !analyserRef.current) return;
+      if (!ctx || !analyserRef.current || !canvas) return;
 
-      // Clear canvas with a dark background
-      ctx.fillStyle = '#1a1a1a';
+      // Semi-transparent background
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
       const bufferLength = analyserRef.current.frequencyBinCount;
@@ -100,19 +100,18 @@ export function WaveformVisualizer() {
       const barWidth = (canvas.width / bufferLength) * 2.5;
       let x = 0;
 
-      // Draw frequency bars with a gradient effect
+      // Draw frequency bars
       for (let i = 0; i < bufferLength; i++) {
         const barHeight = (dataArray[i] / 255) * canvas.height * 0.8;
 
         // Create gradient for each bar
-        const gradient = ctx.createLinearGradient(x, canvas.height, x, canvas.height - barHeight);
-        gradient.addColorStop(0, `hsl(${(i / bufferLength) * 360}, 100%, 50%)`);
-        gradient.addColorStop(1, `hsl(${(i / bufferLength) * 360}, 100%, 80%)`);
+        const gradient = ctx.createLinearGradient(x, canvas.height - barHeight, x, canvas.height);
+        gradient.addColorStop(0, `hsla(${(i / bufferLength) * 360}, 100%, 70%, 0.8)`);
+        gradient.addColorStop(1, `hsla(${(i / bufferLength) * 360}, 100%, 50%, 0.8)`);
 
         ctx.fillStyle = gradient;
+        ctx.fillRect(x, canvas.height - barHeight, barWidth - 1, barHeight);
 
-        const y = canvas.height - barHeight;
-        ctx.fillRect(x, y, barWidth - 1, barHeight);
         x += barWidth;
       }
 
@@ -133,7 +132,7 @@ export function WaveformVisualizer() {
   if (!currentSong) return null;
 
   return (
-    <div className="relative w-full h-32 bg-background rounded-lg overflow-hidden border border-border">
+    <div className="relative w-full h-32 bg-transparent rounded-lg overflow-hidden">
       <canvas
         ref={canvasRef}
         className="absolute inset-0 w-full h-full"
