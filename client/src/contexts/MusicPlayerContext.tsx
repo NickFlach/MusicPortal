@@ -34,6 +34,9 @@ interface MusicPlayerContextType {
 
 const MusicPlayerContext = createContext<MusicPlayerContextType | undefined>(undefined);
 
+// Create a single audio instance that will be shared across the entire app
+const globalAudio = new Audio();
+
 export function MusicPlayerProvider({ children }: { children: React.ReactNode }) {
   const [currentSong, setCurrentSong] = useState<Song>();
   const [isPlaying, setIsPlaying] = useState(false);
@@ -41,7 +44,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   const [currentTime, setCurrentTime] = useState(0);
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
-  const audioRef = useRef<HTMLAudioElement>(new Audio());
+  const audioRef = useRef(globalAudio);
   const queryClient = useQueryClient();
   const { address } = useAccount();
   const [location] = useLocation();
@@ -104,40 +107,28 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
     };
 
     const handleEnded = () => {
-      // When a song ends, automatically play the next one
       playNext();
     };
 
     audio.addEventListener('timeupdate', handleTimeUpdate);
     audio.addEventListener('ended', handleEnded);
 
+    // Set initial volume
+    audio.volume = volume;
+
     return () => {
       audio.removeEventListener('timeupdate', handleTimeUpdate);
       audio.removeEventListener('ended', handleEnded);
     };
-  }, [playNext]);
+  }, [playNext, volume]);
 
   // Handle page transitions while maintaining playback state
   useEffect(() => {
     if (!isAllowedPage) {
-      // Only stop playback if we're leaving music-enabled pages completely
       audioRef.current.pause();
       setIsPlaying(false);
-      setCurrentTime(0);
-      setDuration(0);
-    } else if (address && location === '/') {
-      // When transitioning to home page with wallet, maintain playback
-      if (currentSong && isPlaying) {
-        const currentPlaybackTime = audioRef.current.currentTime;
-        loadSong().then(() => {
-          audioRef.current.currentTime = currentPlaybackTime;
-          if (isPlaying) {
-            audioRef.current.play();
-          }
-        });
-      }
     }
-  }, [isAllowedPage, address, location]);
+  }, [isAllowedPage]);
 
   const loadSong = async () => {
     if (!currentSong) return;
@@ -145,10 +136,29 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
       const audioData = await getFromIPFS(currentSong.ipfsHash);
       const blob = new Blob([audioData], { type: 'audio/mp3' });
       const url = URL.createObjectURL(blob);
+
+      // Store current playback state
+      const wasPlaying = !audioRef.current.paused;
+      const currentTime = audioRef.current.currentTime;
+
+      // Update source
       audioRef.current.src = url;
       audioRef.current.load();
-      if (isPlaying && isAllowedPage) {
-        await audioRef.current.play();
+
+      // Restore playback state
+      if (wasPlaying && isAllowedPage) {
+        try {
+          await audioRef.current.play();
+          setIsPlaying(true);
+        } catch (error) {
+          console.error('Failed to resume playback:', error);
+          setIsPlaying(false);
+        }
+      }
+
+      // Restore time position if we were in the middle of the song
+      if (currentTime > 0) {
+        audioRef.current.currentTime = currentTime;
       }
     } catch (error) {
       console.error('Error loading song:', error);
