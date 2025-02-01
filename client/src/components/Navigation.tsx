@@ -5,7 +5,6 @@ export function Navigation() {
   const [location] = useLocation();
 
   const links = [
-    { href: "/", label: "Home" },
     { href: "/treasury", label: "Treasury" },
     { href: "/admin", label: "Admin" },
   ];
