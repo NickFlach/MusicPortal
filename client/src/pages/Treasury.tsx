@@ -35,7 +35,12 @@ export default function Treasury() {
           </Card>
 
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center space-x-4 pb-2">
+              <img 
+                src="/attached_assets/neo_token_logo_flaukowski.png" 
+                alt="NEO Token"
+                className="w-8 h-8"
+              />
               <CardTitle>NEO Balance</CardTitle>
             </CardHeader>
             <CardContent>
@@ -48,7 +53,12 @@ export default function Treasury() {
               <CardTitle>Total Vote Weight</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-3xl font-bold">{treasuryBalance?.voteWeight || 0}</p>
+              <div className="space-y-2">
+                <p className="text-3xl font-bold">{treasuryBalance?.voteWeight || 0}</p>
+                <p className="text-sm text-muted-foreground">
+                  Based on PFORK token holdings
+                </p>
+              </div>
             </CardContent>
           </Card>
         </div>
