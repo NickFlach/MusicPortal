@@ -10,6 +10,7 @@ import Treasury from "@/pages/Treasury";
 import Admin from "@/pages/Admin";
 import Landing from "@/pages/Landing";
 import { useAccount } from 'wagmi';
+import { MusicPlayerProvider } from "@/contexts/MusicPlayerContext";
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
   const { address } = useAccount();
@@ -43,8 +44,10 @@ function App() {
   return (
     <WagmiConfig config={config}>
       <QueryClientProvider client={queryClient}>
-        <Router />
-        <Toaster />
+        <MusicPlayerProvider>
+          <Router />
+          <Toaster />
+        </MusicPlayerProvider>
       </QueryClientProvider>
     </WagmiConfig>
   );

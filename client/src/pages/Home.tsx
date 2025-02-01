@@ -12,6 +12,7 @@ import { Layout } from "@/components/Layout";
 import { useAccount } from 'wagmi';
 import { SongCard } from "@/components/SongCard";
 import { EditSongDialog } from "@/components/EditSongDialog";
+import { useMusicPlayer } from "@/contexts/MusicPlayerContext";
 
 interface Song {
   id: number;
@@ -37,22 +38,16 @@ interface PlaylistWithSongs extends Playlist {
 }
 
 export default function Home() {
-  const [currentSong, setCurrentSong] = useState<Song>();
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [pendingUpload, setPendingUpload] = useState<File>();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { address } = useAccount();
+  const { playSong, recentSongs } = useMusicPlayer();
 
-  // Fetch recently played songs
-  const { data: recentSongs, isLoading: recentSongsLoading } = useQuery<Song[]>({
-    queryKey: ["/api/songs/recent"],
-  });
-
-  // Fetch user's library
   const { data: librarySongs, isLoading: libraryLoading } = useQuery<Song[]>({
     queryKey: ["/api/songs/library"],
-    enabled: !!address, // Only fetch if user is connected
+    enabled: !!address,
   });
 
   const { data: playlists } = useQuery<PlaylistWithSongs[]>({
@@ -69,13 +64,12 @@ export default function Home() {
   });
 
   const handlePlaySong = async (song: Song) => {
-    setCurrentSong(song);
+    playSong(song);
     await playMutation.mutate(song.id);
   };
 
   const uploadMutation = useMutation({
     mutationFn: async ({ file, title, artist }: { file: File; title: string; artist: string }) => {
-      // First ensure user is registered
       try {
         await apiRequest("POST", "/api/users/register");
       } catch (error) {
@@ -189,6 +183,7 @@ export default function Home() {
           {playlists?.map((playlist) => (
             <PlaylistCard
               key={playlist.id}
+              id={playlist.id}
               title={playlist.name}
               songCount={playlist.playlistSongs?.length || 0}
               createdBy={playlist.createdBy}
@@ -198,7 +193,6 @@ export default function Home() {
                 }
               }}
               onAddSong={() => {
-                // This will be handled by the SongCard dropdown
               }}
             />
           ))}
@@ -258,9 +252,9 @@ export default function Home() {
         </div>
 
         <div className="space-y-2">
-          {recentSongsLoading ? (
-            <p className="text-muted-foreground">Loading songs...</p>
-          ) : recentSongs?.length === 0 ? (
+          {libraryLoading ? (
+              <p className="text-muted-foreground">Loading songs...</p>
+            ) : recentSongs?.length === 0 ? (
             <p className="text-muted-foreground">No songs played yet</p>
           ) : (
             recentSongs?.map((song) => (
@@ -273,23 +267,7 @@ export default function Home() {
           )}
         </div>
       </section>
-
-      <MusicPlayer
-        currentSong={currentSong}
-        onNext={() => {
-          if (!recentSongs || !currentSong) return;
-          const currentIndex = recentSongs.findIndex((s) => s.id === currentSong.id);
-          const nextSong = recentSongs[(currentIndex + 1) % recentSongs.length];
-          handlePlaySong(nextSong);
-        }}
-        onPrevious={() => {
-          if (!recentSongs || !currentSong) return;
-          const currentIndex = recentSongs.findIndex((s) => s.id === currentSong.id);
-          const prevSong = recentSongs[(currentIndex - 1 + recentSongs.length) % recentSongs.length];
-          handlePlaySong(prevSong);
-        }}
-      />
-       <EditSongDialog
+      <EditSongDialog
         open={uploadDialogOpen}
         onOpenChange={(open) => {
           setUploadDialogOpen(open);
