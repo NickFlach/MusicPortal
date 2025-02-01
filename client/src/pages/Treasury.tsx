@@ -10,16 +10,14 @@ import { useState } from "react";
 import { TREASURY_ADDRESS, TREASURY_ABI, PFORK_TOKEN_ADDRESS, PFORK_TOKEN_ABI } from "@/lib/contracts";
 
 interface TreasuryData {
-  treasurerAddress: string;
-  pforkBalance: string;
-  gasBalance: string;
-  isCurrentManager: boolean;
+  treasurerAddress: string | null;
+  isTreasurer: boolean;
 }
 
 export default function Treasury() {
   const { toast } = useToast();
   const { address } = useAccount();
-  const [newTreasuryAddress, setNewTreasuryAddress] = useState("");
+  const [newTreasurerAddress, setNewTreasurerAddress] = useState("");
 
   // Read PFORK balance of Treasury contract
   const { data: pforkBalance } = useContractRead({
@@ -29,26 +27,24 @@ export default function Treasury() {
     args: [TREASURY_ADDRESS],
   });
 
-  // Read current treasurer
-  const { data: ownerAddress } = useContractRead({
-    address: TREASURY_ADDRESS,
-    abi: TREASURY_ABI,
-    functionName: 'owner',
+  // Get treasurer status
+  const { data: treasurerData } = useQuery<TreasuryData>({
+    queryKey: ["/api/treasury/treasurer"],
   });
 
-  // Contract write mutation
-  const { writeAsync: transferTreasury } = useContractWrite({
+  // Contract write mutation for transferring treasury control
+  const { write: transferTreasury } = useContractWrite({
     address: TREASURY_ADDRESS,
     abi: TREASURY_ABI,
     functionName: 'transferTreasury',
   });
 
   // Mutation for updating treasurer address
-  const updateTreasuryMutation = useMutation({
+  const updateTreasurerMutation = useMutation({
     mutationFn: async () => {
       if (!address) throw new Error("No wallet connected");
       return transferTreasury({
-        args: [newTreasuryAddress],
+        args: [newTreasurerAddress],
       });
     },
     onSuccess: () => {
@@ -56,7 +52,7 @@ export default function Treasury() {
         title: "Success",
         description: "Treasury manager transfer initiated. Please wait for the transaction to be mined.",
       });
-      setNewTreasuryAddress("");
+      setNewTreasurerAddress("");
     },
     onError: (error: Error) => {
       toast({
@@ -66,13 +62,6 @@ export default function Treasury() {
       });
     },
   });
-
-  const treasury: TreasuryData = {
-    treasurerAddress: ownerAddress as string,
-    pforkBalance: pforkBalance ? (Number(pforkBalance) / 1e18).toString() : "0",
-    gasBalance: "0", // We'll get this from the chain directly
-    isCurrentManager: address === ownerAddress,
-  };
 
   return (
     <Layout>
@@ -100,7 +89,9 @@ export default function Treasury() {
             <CardContent>
               <div className="flex items-center gap-2">
                 <Coins className="h-4 w-4 text-primary" />
-                <p className="text-2xl font-bold">{treasury.pforkBalance}</p>
+                <p className="text-2xl font-bold">
+                  {pforkBalance ? (Number(pforkBalance) / 1e18).toString() : "0"}
+                </p>
               </div>
               <p className="text-xs text-muted-foreground mt-2">
                 Available for reward distribution
@@ -110,22 +101,24 @@ export default function Treasury() {
 
           <Card>
             <CardHeader>
-              <CardTitle>GAS Balance</CardTitle>
+              <CardTitle>Current Treasurer</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex items-center gap-2">
                 <Send className="h-4 w-4 text-primary" />
-                <p className="text-2xl font-bold">{treasury.gasBalance}</p>
+                <p className="text-sm break-all">
+                  {treasurerData?.treasurerAddress || "Not set"}
+                </p>
               </div>
               <p className="text-xs text-muted-foreground mt-2">
-                Collected from NFT minting
+                Address authorized to manage treasury operations
               </p>
             </CardContent>
           </Card>
         </div>
 
         {/* Treasury Management - Only visible to current treasurer */}
-        {treasury.isCurrentManager && (
+        {treasurerData?.isTreasurer && (
           <Card>
             <CardHeader>
               <CardTitle>Treasury Management</CardTitle>
@@ -133,29 +126,23 @@ export default function Treasury() {
             <CardContent>
               <div className="flex items-end gap-4">
                 <div className="flex-1 space-y-2">
-                  <label className="text-sm font-medium">Current Treasurer</label>
-                  <p className="text-sm text-muted-foreground break-all">
-                    {treasury.treasurerAddress}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Address authorized to manage treasury operations
-                  </p>
-                </div>
-                <div className="flex-1 space-y-2">
-                  <label className="text-sm font-medium">New Treasurer Address</label>
+                  <label className="text-sm font-medium">Transfer Treasury Control</label>
                   <Input
-                    value={newTreasuryAddress}
-                    onChange={(e) => setNewTreasuryAddress(e.target.value)}
+                    value={newTreasurerAddress}
+                    onChange={(e) => setNewTreasurerAddress(e.target.value)}
                     placeholder="Enter new treasurer address"
                   />
+                  <p className="text-xs text-muted-foreground">
+                    This address will be authorized to manage treasury operations
+                  </p>
                 </div>
                 <Button
                   onClick={() => {
                     if (window.confirm("Are you sure you want to transfer treasury control?")) {
-                      updateTreasuryMutation.mutate();
+                      updateTreasurerMutation.mutate();
                     }
                   }}
-                  disabled={!newTreasuryAddress || updateTreasuryMutation.isPending}
+                  disabled={!newTreasurerAddress || updateTreasurerMutation.isPending}
                 >
                   Transfer Control
                 </Button>
