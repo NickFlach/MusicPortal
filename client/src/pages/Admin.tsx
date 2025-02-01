@@ -23,11 +23,11 @@ export default function Admin() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: users } = useQuery<AdminUser[]>({
+  const { data: users, isLoading: usersLoading } = useQuery<AdminUser[]>({
     queryKey: ["/api/admin/users"],
   });
 
-  const { data: treasury } = useQuery<TreasuryData>({
+  const { data: treasury, isLoading: treasuryLoading } = useQuery<TreasuryData>({
     queryKey: ["/api/admin/treasury"],
   });
 
@@ -42,14 +42,23 @@ export default function Admin() {
         description: "Admin status updated successfully",
       });
     },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
   });
 
   const setTreasuryMutation = useMutation({
     mutationFn: async (address: string) => {
-      await apiRequest("POST", "/api/admin/treasury", { address });
+      const response = await apiRequest("POST", "/api/admin/treasury", { address });
+      return await response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/treasury"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/treasury"] });
       toast({
         title: "Success",
         description: "Treasury address set successfully",
@@ -81,6 +90,16 @@ export default function Admin() {
     setTreasuryMutation.mutate(address);
     e.currentTarget.reset();
   };
+
+  if (usersLoading || treasuryLoading) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center min-h-[50vh]">
+          <p className="text-muted-foreground">Loading admin panel...</p>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
