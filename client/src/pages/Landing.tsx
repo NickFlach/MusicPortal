@@ -4,31 +4,38 @@ import { useState, useEffect } from 'react';
 
 export default function Landing() {
   const [, setLocation] = useLocation();
-  const [address, setAddress] = useState<string | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
 
-  // Check for wallet connection on mount and address changes
   useEffect(() => {
     const checkWallet = () => {
-      const currentAddress = window.ethereum?.selectedAddress;
-      setAddress(currentAddress || null);
+      const connected = window.ethereum?.selectedAddress;
+      setIsConnected(!!connected);
 
-      if (currentAddress) {
+      // Only redirect if connected
+      if (connected) {
         setLocation('/');
       }
     };
 
+    // Initial check
     checkWallet();
-    window.ethereum?.on('accountsChanged', checkWallet);
+
+    // Listen for account changes
+    if (window.ethereum) {
+      window.ethereum.on('accountsChanged', (accounts: string[]) => {
+        setIsConnected(accounts.length > 0);
+        if (accounts.length > 0) {
+          setLocation('/');
+        }
+      });
+    }
 
     return () => {
-      window.ethereum?.removeListener('accountsChanged', checkWallet);
+      if (window.ethereum) {
+        window.ethereum.removeListener('accountsChanged', () => {});
+      }
     };
   }, [setLocation]);
-
-  if (address) {
-    setLocation("/");
-    return null;
-  }
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">

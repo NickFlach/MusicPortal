@@ -23,6 +23,12 @@ function useWalletConnection() {
         setWeb3State(state);
       } catch (error) {
         console.error('Failed to initialize web3:', error);
+        setWeb3State({
+          isConnected: false,
+          address: null,
+          chainId: null,
+          provider: null
+        });
       } finally {
         setIsInitializing(false);
       }
@@ -31,11 +37,8 @@ function useWalletConnection() {
     init();
 
     const unsubscribe = subscribeToAccountChanges(async (accounts) => {
-      setWeb3State(prev => ({
-        ...prev!,
-        isConnected: accounts.length > 0,
-        address: accounts[0] || null
-      }));
+      const state = await initializeWeb3();
+      setWeb3State(state);
     });
 
     return () => {
@@ -79,14 +82,17 @@ function Router() {
     );
   }
 
-  // Redirect to landing if not on landing page and wallet is not connected
+  // Only redirect to landing if not already on landing page and wallet is not connected
   if (!isConnected && window.location.pathname !== '/landing') {
     return <Redirect to="/landing" />;
   }
 
   return (
     <Switch>
+      {/* Always allow access to landing page */}
       <Route path="/landing" component={Landing} />
+
+      {/* Protected routes */}
       <Route path="/">
         <ProtectedRoute component={Home} />
       </Route>

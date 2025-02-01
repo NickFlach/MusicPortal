@@ -10,10 +10,19 @@ export function WalletConnect() {
   const { toast } = useToast();
   const [location, setLocation] = useLocation();
 
-  // Listen for account changes
   useEffect(() => {
-    if (typeof window.ethereum !== 'undefined') {
-      window.ethereum.on('accountsChanged', (accounts: string[]) => {
+    const checkWallet = () => {
+      if (window.ethereum?.selectedAddress) {
+        setAddress(window.ethereum.selectedAddress);
+      } else {
+        setAddress(null);
+      }
+    };
+
+    checkWallet();
+
+    if (window.ethereum) {
+      window.ethereum.on('accountsChanged', async (accounts: string[]) => {
         if (accounts.length === 0) {
           setAddress(null);
           setLocation('/landing');
@@ -23,22 +32,23 @@ export function WalletConnect() {
           });
         } else {
           setAddress(accounts[0]);
+          // If we're on landing page and have a wallet connection, redirect to home
+          if (location === '/landing') {
+            setLocation('/');
+          }
         }
       });
     }
 
     return () => {
-      if (window.ethereum?.removeListener) {
-        window.ethereum.removeListener('accountsChanged', () => {
-          console.log('Cleaned up account changes listener');
-        });
+      if (window.ethereum) {
+        window.ethereum.removeListener('accountsChanged', () => {});
       }
     };
-  }, [setLocation, toast]);
+  }, [setLocation, toast, location]);
 
   const handleConnect = async () => {
     try {
-      // Check if MetaMask is installed
       if (typeof window.ethereum === 'undefined') {
         window.open('https://metamask.io/download/', '_blank');
         toast({
@@ -49,17 +59,14 @@ export function WalletConnect() {
         return;
       }
 
-      // Connect wallet
       const { address: userAddress } = await connectWallet();
       setAddress(userAddress);
 
       try {
-        // Try to register user after connection
         const response = await apiRequest("POST", "/api/users/register");
         const userData = await response.json();
         console.log('User registered:', userData);
 
-        // Redirect to home page if on landing
         if (location === '/landing') {
           setLocation('/');
         }
@@ -85,12 +92,8 @@ export function WalletConnect() {
 
   const handleDisconnect = async () => {
     try {
-      // Clear local state
       setAddress(null);
-
-      // Redirect to landing page
       setLocation('/landing');
-
       toast({
         title: "Disconnected",
         description: "Wallet disconnected successfully!",
