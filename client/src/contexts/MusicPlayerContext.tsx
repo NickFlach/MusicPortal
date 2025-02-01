@@ -62,6 +62,16 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   // Check if current page is one where music should play
   const isAllowedPage = ["/", "/treasury", "/admin", "/landing"].includes(location);
 
+  // Cleanup function for audio
+  const cleanupAudio = () => {
+    const audio = audioRef.current;
+    audio.pause();
+    audio.currentTime = 0;
+    setIsPlaying(false);
+    setCurrentTime(0);
+    setDuration(0);
+  };
+
   useEffect(() => {
     const audio = audioRef.current;
 
@@ -80,16 +90,21 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
     return () => {
       audio.removeEventListener('timeupdate', handleTimeUpdate);
       audio.removeEventListener('ended', handleEnded);
+      cleanupAudio();
     };
   }, []);
 
-  // Stop playback when wallet disconnects or navigating away from allowed pages
+  // Handle wallet connection/disconnection and page transitions
   useEffect(() => {
     if (!isAllowedPage && location !== '/landing') {
-      audioRef.current.pause();
-      setIsPlaying(false);
+      cleanupAudio();
     }
-  }, [address, isAllowedPage]);
+
+    // When connecting wallet (transitioning from landing to home)
+    if (address && location === '/') {
+      cleanupAudio();
+    }
+  }, [address, isAllowedPage, location]);
 
   useEffect(() => {
     if (currentSong) {
