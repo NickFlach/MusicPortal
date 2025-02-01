@@ -8,39 +8,39 @@ export type MusicMood =
   | "mysterious"
   | "romantic";
 
-// Enhanced mood backgrounds with stronger colors and proper gradient syntax
+// Enhanced mood backgrounds with proper color stops for canvas gradients
 export const moodBackgrounds: Record<MusicMood, {
-  gradient: string;
+  colors: [string, string];
   overlay: string;
   textColor: string;
 }> = {
   energetic: {
-    gradient: "linear-gradient(135deg, #FF4B2B 0%, #FF416C 100%)",
+    colors: ["#FF4B2B", "#FF416C"],
     overlay: "rgba(255, 75, 43, 0.3)",
     textColor: "text-orange-500"
   },
   calm: {
-    gradient: "linear-gradient(135deg, #2193b0 0%, #6dd5ed 100%)",
+    colors: ["#2193b0", "#6dd5ed"],
     overlay: "rgba(33, 147, 176, 0.3)",
     textColor: "text-blue-400"
   },
   happy: {
-    gradient: "linear-gradient(135deg, #FFD93D 0%, #FF6B6B 100%)",
+    colors: ["#FFD93D", "#FF6B6B"],
     overlay: "rgba(255, 217, 61, 0.3)",
     textColor: "text-yellow-500"
   },
   melancholic: {
-    gradient: "linear-gradient(135deg, #614385 0%, #516395 100%)",
+    colors: ["#614385", "#516395"],
     overlay: "rgba(97, 67, 133, 0.3)",
     textColor: "text-purple-500"
   },
   mysterious: {
-    gradient: "linear-gradient(135deg, #232526 0%, #414345 100%)",
+    colors: ["#232526", "#414345"],
     overlay: "rgba(35, 37, 38, 0.3)",
     textColor: "text-gray-500"
   },
   romantic: {
-    gradient: "linear-gradient(135deg, #FF758C 0%, #FF7EB3 100%)",
+    colors: ["#FF758C", "#FF7EB3"],
     overlay: "rgba(255, 117, 140, 0.3)",
     textColor: "text-pink-500"
   }

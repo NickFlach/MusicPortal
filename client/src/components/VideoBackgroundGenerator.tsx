@@ -69,10 +69,8 @@ export function VideoBackgroundGenerator({ mood, audioLevel }: VideoBackgroundGe
 
       // Create gradient background
       const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-      const colors = background.gradient.match(/rgba?\([^)]+\)|[^,]+/g) || [];
-      colors.forEach((color, index) => {
-        gradient.addColorStop(index / (colors.length - 1), color.trim());
-      });
+      gradient.addColorStop(0, background.colors[0]);
+      gradient.addColorStop(1, background.colors[1]);
       ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
