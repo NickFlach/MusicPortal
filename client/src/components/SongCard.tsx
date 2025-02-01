@@ -51,10 +51,18 @@ export function SongCard({ song, onClick, variant = "ghost", showDelete = false 
   });
 
   // Contract write for minting NFT
-  const { writeAsync: mintSongNFT } = useContractWrite({
+  const { write: mintSongNFT, isLoading: isMintLoading } = useContractWrite({
     address: PLAYLIST_NFT_ADDRESS,
     abi: PLAYLIST_NFT_ABI,
     functionName: 'mintSong',
+    args: [
+      address!,
+      song.title,
+      song.artist,
+      song.ipfsHash,
+      `ipfs://${song.ipfsHash}` // metadata URI
+    ],
+    value: parseEther("1"), // 1 GAS
   });
 
   const addToPlaylistMutation = useMutation({
@@ -79,28 +87,11 @@ export function SongCard({ song, onClick, variant = "ghost", showDelete = false 
 
   const mintNFTMutation = useMutation({
     mutationFn: async () => {
-      if (!mintSongNFT) throw new Error("Contract write not ready");
-      if (!address) throw new Error("Wallet not connected");
+      if (!address) throw new Error("Please connect your wallet first");
+      if (isMintLoading) throw new Error("Transaction in progress");
+      if (!mintSongNFT) throw new Error("Contract write not available");
 
-      const metadataUri = `ipfs://${song.ipfsHash}`;
-
-      try {
-        const tx = await mintSongNFT({
-          args: [
-            address,
-            song.title,
-            song.artist,
-            song.ipfsHash,
-            metadataUri
-          ],
-          value: parseEther("1"), // 1 GAS
-        });
-
-        // Wait for transaction confirmation
-        await tx.wait();
-      } catch (error: any) {
-        throw new Error(error.message || "Failed to mint NFT");
-      }
+      mintSongNFT();
     },
     onSuccess: () => {
       toast({
@@ -197,7 +188,7 @@ export function SongCard({ song, onClick, variant = "ghost", showDelete = false 
                   mintNFTMutation.mutate();
                 }
               }}
-              disabled={mintNFTMutation.isPending || !address}
+              disabled={mintNFTMutation.isPending || isMintLoading || !address}
             >
               <Coins className="mr-2 h-4 w-4" />
               Mint as NFT

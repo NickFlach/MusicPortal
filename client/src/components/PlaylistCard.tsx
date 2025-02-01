@@ -33,32 +33,25 @@ export function PlaylistCard({
   const { address } = useAccount();
 
   // Contract write for minting NFT
-  const { writeAsync: mintPlaylistNFT } = useContractWrite({
+  const { write: mintPlaylistNFT, isLoading: isMintLoading } = useContractWrite({
     address: PLAYLIST_NFT_ADDRESS,
     abi: PLAYLIST_NFT_ABI,
     functionName: 'mintPlaylist',
+    args: [
+      address!,
+      title,
+      `ipfs://playlist-${id}` // metadata URI
+    ],
+    value: parseEther("1"), // 1 GAS
   });
 
   const mintNftMutation = useMutation({
     mutationFn: async () => {
-      if (!mintPlaylistNFT) throw new Error("Contract write not ready");
-      if (!address) throw new Error("Wallet not connected");
+      if (!address) throw new Error("Please connect your wallet first");
+      if (isMintLoading) throw new Error("Transaction in progress");
+      if (!mintPlaylistNFT) throw new Error("Contract write not available");
 
-      try {
-        const tx = await mintPlaylistNFT({
-          args: [
-            address,
-            title,
-            `ipfs://placeholder-metadata-uri-${id}`, // You might want to generate proper metadata
-          ],
-          value: parseEther("1"), // 1 GAS
-        });
-
-        // Wait for transaction confirmation
-        await tx.wait();
-      } catch (error: any) {
-        throw new Error(error.message || "Failed to mint NFT");
-      }
+      mintPlaylistNFT();
     },
     onSuccess: () => {
       toast({
@@ -115,7 +108,7 @@ export function PlaylistCard({
                     mintNftMutation.mutate();
                   }
                 }}
-                disabled={mintNftMutation.isPending || !address || songCount === 0}
+                disabled={mintNftMutation.isPending || isMintLoading || !address || songCount === 0}
               >
                 <Coins className="h-4 w-4 mr-2" />
                 Mint NFT
