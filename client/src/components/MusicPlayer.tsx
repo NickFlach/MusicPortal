@@ -1,86 +1,22 @@
-import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Play, Pause, SkipBack, SkipForward, Volume2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { getFromIPFS } from "@/lib/ipfs";
+import { useMusicPlayer } from "@/contexts/MusicPlayerContext";
 
-interface Song {
-  id: number;
-  title: string;
-  artist: string;
-  ipfsHash: string;
-  uploadedBy: string | null;
-  createdAt: string | null;
-  votes: number | null;
-}
-
-interface MusicPlayerProps {
-  currentSong?: Song;
-  onNext?: () => void;
-  onPrevious?: () => void;
-}
-
-export function MusicPlayer({ currentSong, onNext, onPrevious }: MusicPlayerProps) {
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [duration, setDuration] = useState(0);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [volume, setVolume] = useState(1);
-  const audioRef = useRef<HTMLAudioElement>(null);
-
-  useEffect(() => {
-    if (currentSong) {
-      loadSong();
-    }
-  }, [currentSong]);
-
-  const loadSong = async () => {
-    if (!currentSong) return;
-    try {
-      const audioData = await getFromIPFS(currentSong.ipfsHash);
-      const blob = new Blob([audioData], { type: 'audio/mp3' });
-      const url = URL.createObjectURL(blob);
-      if (audioRef.current) {
-        audioRef.current.src = url;
-        audioRef.current.load();
-      }
-    } catch (error) {
-      console.error('Error loading song:', error);
-    }
-  };
-
-  const togglePlay = () => {
-    if (audioRef.current) {
-      if (isPlaying) {
-        audioRef.current.pause();
-      } else {
-        audioRef.current.play();
-      }
-      setIsPlaying(!isPlaying);
-    }
-  };
-
-  const handleTimeUpdate = () => {
-    if (audioRef.current) {
-      setCurrentTime(audioRef.current.currentTime);
-      setDuration(audioRef.current.duration);
-    }
-  };
-
-  const handleSeek = (value: number[]) => {
-    if (audioRef.current) {
-      audioRef.current.currentTime = value[0];
-      setCurrentTime(value[0]);
-    }
-  };
-
-  const handleVolumeChange = (value: number[]) => {
-    const newVolume = value[0];
-    if (audioRef.current) {
-      audioRef.current.volume = newVolume;
-      setVolume(newVolume);
-    }
-  };
+export function MusicPlayer() {
+  const {
+    currentSong,
+    isPlaying,
+    duration,
+    currentTime,
+    volume,
+    togglePlay,
+    playNext,
+    playPrevious,
+    handleSeek,
+    handleVolumeChange,
+  } = useMusicPlayer();
 
   const formatTime = (time: number) => {
     const minutes = Math.floor(time / 60);
@@ -88,27 +24,23 @@ export function MusicPlayer({ currentSong, onNext, onPrevious }: MusicPlayerProp
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
+  if (!currentSong) return null;
+
   return (
     <Card className="fixed bottom-0 left-0 right-0 p-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-t z-50">
       <div className="container mx-auto">
-        <audio
-          ref={audioRef}
-          onTimeUpdate={handleTimeUpdate}
-          onEnded={onNext}
-        />
-        
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <div className="flex-1">
-              <h3 className="text-lg font-semibold">{currentSong?.title || 'No song selected'}</h3>
-              <p className="text-sm text-muted-foreground">{currentSong?.artist || 'Unknown artist'}</p>
+              <h3 className="text-lg font-semibold">{currentSong.title}</h3>
+              <p className="text-sm text-muted-foreground">{currentSong.artist}</p>
             </div>
-            
+
             <div className="flex items-center gap-4">
-              <Button variant="ghost" size="icon" onClick={onPrevious}>
+              <Button variant="ghost" size="icon" onClick={playPrevious}>
                 <SkipBack className="h-4 w-4" />
               </Button>
-              
+
               <Button variant="default" size="icon" onClick={togglePlay}>
                 {isPlaying ? (
                   <Pause className="h-4 w-4" />
@@ -116,8 +48,8 @@ export function MusicPlayer({ currentSong, onNext, onPrevious }: MusicPlayerProp
                   <Play className="h-4 w-4" />
                 )}
               </Button>
-              
-              <Button variant="ghost" size="icon" onClick={onNext}>
+
+              <Button variant="ghost" size="icon" onClick={playNext}>
                 <SkipForward className="h-4 w-4" />
               </Button>
             </div>
@@ -127,7 +59,7 @@ export function MusicPlayer({ currentSong, onNext, onPrevious }: MusicPlayerProp
             <span className="text-sm w-12 text-muted-foreground">
               {formatTime(currentTime)}
             </span>
-            
+
             <Slider
               value={[currentTime]}
               max={duration}
@@ -135,7 +67,7 @@ export function MusicPlayer({ currentSong, onNext, onPrevious }: MusicPlayerProp
               onValueChange={handleSeek}
               className="flex-1"
             />
-            
+
             <span className="text-sm w-12 text-muted-foreground">
               {formatTime(duration)}
             </span>

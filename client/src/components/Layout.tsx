@@ -1,15 +1,12 @@
 import { WalletConnect } from "@/components/WalletConnect";
 import { Navigation } from "@/components/Navigation";
 import { MusicPlayer } from "@/components/MusicPlayer";
-import { useMusicPlayer } from "@/contexts/MusicPlayerContext";
 
 interface LayoutProps {
   children: React.ReactNode;
 }
 
 export function Layout({ children }: LayoutProps) {
-  const { currentSong, playNext, playPrevious } = useMusicPlayer();
-
   return (
     <div className="min-h-screen bg-background">
       <header className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
@@ -33,13 +30,7 @@ export function Layout({ children }: LayoutProps) {
       <main className="container mx-auto pt-24 pb-40">
         {children}
       </main>
-      {currentSong && (
-        <MusicPlayer
-          currentSong={currentSong}
-          onNext={playNext}
-          onPrevious={playPrevious}
-        />
-      )}
+      <MusicPlayer />
     </div>
   );
 }
