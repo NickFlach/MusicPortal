@@ -37,7 +37,7 @@ export default function Treasury() {
   });
 
   // Contract write mutation
-  const { writeAsync: transferTreasury } = useContractWrite({
+  const { write: transferTreasury } = useContractWrite({
     address: TREASURY_ADDRESS,
     abi: TREASURY_ABI,
     functionName: 'transferTreasury',
@@ -47,8 +47,10 @@ export default function Treasury() {
   const updateTreasuryMutation = useMutation({
     mutationFn: async () => {
       if (!address) throw new Error("No wallet connected");
-      return transferTreasury({
-        args: [newTreasuryAddress],
+      if (!transferTreasury) throw new Error("Contract write not ready");
+
+      transferTreasury({
+        args: [newTreasuryAddress as `0x${string}`],
       });
     },
     onSuccess: () => {
