@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useRef, useEffect } from 'react';
+import React, { createContext, useContext, useState, useRef, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { getFromIPFS } from "@/lib/ipfs";
@@ -72,6 +72,39 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
     setDuration(0);
   };
 
+  // Define playNext as a useCallback to ensure stable reference
+  const playNext = useCallback(() => {
+    if (!isAllowedPage) return;
+
+    if (!recentSongs?.length || !currentSong) {
+      if (recentSongs?.length) {
+        // If no current song but we have recent songs, play the first one
+        playSong(recentSongs[0]);
+      }
+      return;
+    }
+
+    const currentIndex = recentSongs.findIndex((s) => s.id === currentSong.id);
+    const nextSong = recentSongs[(currentIndex + 1) % recentSongs.length];
+    playSong(nextSong);
+  }, [currentSong, recentSongs, isAllowedPage]);
+
+  const playPrevious = useCallback(() => {
+    if (!isAllowedPage) return;
+
+    if (!recentSongs?.length || !currentSong) return;
+    const currentIndex = recentSongs.findIndex((s) => s.id === currentSong.id);
+    const prevSong = recentSongs[(currentIndex - 1 + recentSongs.length) % recentSongs.length];
+    playSong(prevSong);
+  }, [currentSong, recentSongs, isAllowedPage]);
+
+  // Auto-start playing the most recent song when on landing page
+  useEffect(() => {
+    if (location === '/landing' && recentSongs?.length && !currentSong) {
+      playSong(recentSongs[0]);
+    }
+  }, [location, recentSongs, currentSong]);
+
   useEffect(() => {
     const audio = audioRef.current;
 
@@ -81,6 +114,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
     };
 
     const handleEnded = () => {
+      // When a song ends, automatically play the next one
       playNext();
     };
 
@@ -90,30 +124,16 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
     return () => {
       audio.removeEventListener('timeupdate', handleTimeUpdate);
       audio.removeEventListener('ended', handleEnded);
-      cleanupAudio();
     };
-  }, []);
+  }, [playNext]); // Include playNext in dependencies
 
-  // Handle page transitions and wallet disconnection
+  // Handle page transitions
   useEffect(() => {
     // Only cleanup when disconnecting wallet or navigating away from music pages
     if (!isAllowedPage) {
       cleanupAudio();
     }
   }, [isAllowedPage]);
-
-  useEffect(() => {
-    if (currentSong) {
-      loadSong();
-    }
-  }, [currentSong]);
-
-  // Auto-start playing the most recent song when on landing page
-  useEffect(() => {
-    if (location === '/landing' && recentSongs?.length && !currentSong) {
-      playSong(recentSongs[0]);
-    }
-  }, [location, recentSongs]);
 
   const loadSong = async () => {
     if (!currentSong) return;
@@ -130,6 +150,12 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
       console.error('Error loading song:', error);
     }
   };
+
+  useEffect(() => {
+    if (currentSong) {
+      loadSong();
+    }
+  }, [currentSong]);
 
   const togglePlay = () => {
     if (!isAllowedPage) return;
@@ -176,24 +202,6 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
     setCurrentSong(song);
     setIsPlaying(true);
     await playMutation.mutate(song.id);
-  };
-
-  const playNext = () => {
-    if (!isAllowedPage) return;
-
-    if (!recentSongs || !currentSong) return;
-    const currentIndex = recentSongs.findIndex((s) => s.id === currentSong.id);
-    const nextSong = recentSongs[(currentIndex + 1) % recentSongs.length];
-    playSong(nextSong);
-  };
-
-  const playPrevious = () => {
-    if (!isAllowedPage) return;
-
-    if (!recentSongs || !currentSong) return;
-    const currentIndex = recentSongs.findIndex((s) => s.id === currentSong.id);
-    const prevSong = recentSongs[(currentIndex - 1 + recentSongs.length) % recentSongs.length];
-    playSong(prevSong);
   };
 
   return (
