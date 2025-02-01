@@ -7,7 +7,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { MoreVertical, Plus, Trash2 } from "lucide-react";
+import { MoreVertical, Plus, Trash2, ListMusic } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -105,20 +105,27 @@ export function SongCard({ song, onClick, variant = "ghost", showDelete = false 
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-48">
-          {playlists?.map((playlist) => (
-            <DropdownMenuItem
-              key={playlist.id}
-              onClick={() => {
-                addToPlaylistMutation.mutate({
-                  playlistId: playlist.id,
-                  songId: song.id,
-                });
-              }}
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Add to {playlist.name}
+          {!playlists?.length ? (
+            <DropdownMenuItem className="text-muted-foreground" disabled>
+              <ListMusic className="mr-2 h-4 w-4" />
+              Create a playlist first
             </DropdownMenuItem>
-          ))}
+          ) : (
+            playlists.map((playlist) => (
+              <DropdownMenuItem
+                key={playlist.id}
+                onClick={() => {
+                  addToPlaylistMutation.mutate({
+                    playlistId: playlist.id,
+                    songId: song.id,
+                  });
+                }}
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Add to {playlist.name}
+              </DropdownMenuItem>
+            ))
+          )}
 
           {showDelete && (
             <>

@@ -92,13 +92,17 @@ export function registerRoutes(app: Express) {
       return res.status(403).json({ message: "Forbidden" });
     }
 
-    // First delete any playlist associations
-    await db.delete(playlistSongs).where(eq(playlistSongs.songId, songId));
+    try {
+      // Delete in order: recently_played, playlist_songs, then songs
+      await db.delete(recentlyPlayed).where(eq(recentlyPlayed.songId, songId));
+      await db.delete(playlistSongs).where(eq(playlistSongs.songId, songId));
+      await db.delete(songs).where(eq(songs.id, songId));
 
-    // Then delete the song itself
-    await db.delete(songs).where(eq(songs.id, songId));
-
-    res.json({ success: true });
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error deleting song:', error);
+      res.status(500).json({ message: "Failed to delete song" });
+    }
   });
 
   // Playlists
