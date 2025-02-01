@@ -10,50 +10,44 @@ import Landing from "@/pages/Landing";
 import { MusicPlayerProvider } from "@/contexts/MusicPlayerContext";
 import { useState, useEffect } from "react";
 import { Loader2 } from "lucide-react";
+import { initializeWeb3, subscribeToAccountChanges, Web3State } from "./lib/web3";
 
 function useWalletConnection() {
-  const [isConnected, setIsConnected] = useState(false);
+  const [web3State, setWeb3State] = useState<Web3State | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
 
   useEffect(() => {
-    const checkConnection = async () => {
+    const init = async () => {
       try {
-        // Wait for ethereum object to be injected
-        if (typeof window.ethereum === 'undefined') {
-          setIsInitializing(false);
-          return;
-        }
-
-        const connected = window.ethereum.selectedAddress;
-        setIsConnected(!!connected);
+        const state = await initializeWeb3();
+        setWeb3State(state);
       } catch (error) {
-        console.error('Wallet check error:', error);
+        console.error('Failed to initialize web3:', error);
       } finally {
         setIsInitializing(false);
       }
     };
 
-    checkConnection();
+    init();
 
-    if (window.ethereum) {
-      window.ethereum.on('accountsChanged', (accounts: string[]) => {
-        setIsConnected(accounts.length > 0);
-      });
-
-      window.ethereum.on('chainChanged', () => {
-        window.location.reload();
-      });
-    }
+    const unsubscribe = subscribeToAccountChanges(async (accounts) => {
+      setWeb3State(prev => ({
+        ...prev!,
+        isConnected: accounts.length > 0,
+        address: accounts[0] || null
+      }));
+    });
 
     return () => {
-      if (window.ethereum?.removeListener) {
-        window.ethereum.removeListener('accountsChanged', () => {});
-        window.ethereum.removeListener('chainChanged', () => {});
-      }
+      unsubscribe();
     };
   }, []);
 
-  return { isConnected, isInitializing };
+  return {
+    isConnected: web3State?.isConnected ?? false,
+    isInitializing,
+    address: web3State?.address
+  };
 }
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {

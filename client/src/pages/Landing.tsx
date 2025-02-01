@@ -1,10 +1,29 @@
-import { useAccount } from 'wagmi';
-import { WalletConnect } from "@/components/WalletConnect";
 import { useLocation } from 'wouter';
+import { WalletConnect } from "@/components/WalletConnect";
+import { useState, useEffect } from 'react';
 
 export default function Landing() {
-  const { address } = useAccount();
   const [, setLocation] = useLocation();
+  const [address, setAddress] = useState<string | null>(null);
+
+  // Check for wallet connection on mount and address changes
+  useEffect(() => {
+    const checkWallet = () => {
+      const currentAddress = window.ethereum?.selectedAddress;
+      setAddress(currentAddress || null);
+
+      if (currentAddress) {
+        setLocation('/');
+      }
+    };
+
+    checkWallet();
+    window.ethereum?.on('accountsChanged', checkWallet);
+
+    return () => {
+      window.ethereum?.removeListener('accountsChanged', checkWallet);
+    };
+  }, [setLocation]);
 
   if (address) {
     setLocation("/");

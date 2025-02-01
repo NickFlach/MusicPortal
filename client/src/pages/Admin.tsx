@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Ban, Coins, Wallet } from "lucide-react";
 import { Layout } from "@/components/Layout";
-import { useAccount } from "wagmi";
+import { useState, useEffect } from "react";
 
 interface AdminUser {
   address: string;
@@ -23,7 +23,20 @@ interface TreasuryData {
 export default function Admin() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { address } = useAccount();
+  const [address, setAddress] = useState<string | null>(null);
+
+  useEffect(() => {
+    const checkWallet = () => {
+      setAddress(window.ethereum?.selectedAddress || null);
+    };
+
+    checkWallet();
+    window.ethereum?.on('accountsChanged', checkWallet);
+
+    return () => {
+      window.ethereum?.removeListener('accountsChanged', checkWallet);
+    };
+  }, []);
 
   const { data: users, isLoading: usersLoading } = useQuery<AdminUser[]>({
     queryKey: ["/api/admin/users"],
@@ -65,6 +78,27 @@ export default function Admin() {
       toast({
         title: "Success",
         description: "Treasurer address updated successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const toggleAdminMutation = useMutation({
+    mutationFn: async (userAddress: string) => {
+      const response = await apiRequest("POST", "/api/admin/toggle-admin", { address: userAddress });
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      toast({
+        title: "Success",
+        description: "Admin status updated successfully",
       });
     },
     onError: (error: Error) => {

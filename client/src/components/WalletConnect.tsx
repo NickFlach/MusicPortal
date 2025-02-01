@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { connectWallet } from "@/lib/contracts";
+import { connectWallet } from "@/lib/web3";
 import { useLocation } from 'wouter';
 import { useState, useEffect } from "react";
 
