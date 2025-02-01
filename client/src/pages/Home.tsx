@@ -47,17 +47,39 @@ export default function Home() {
   });
 
   const handlePlaySong = async (song: Song) => {
+    if (!address) {
+      toast({
+        title: "Connect Wallet",
+        description: "Please connect your wallet to play songs",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      // Attempt to register user first if needed
+      await apiRequest("POST", "/api/users/register", { address });
+    } catch (error) {
+      console.error('User registration error:', error);
+      // Continue even if registration fails as the user might already be registered
+    }
+
     playSong(song);
     await playMutation.mutate(song.id);
   };
 
   const uploadMutation = useMutation({
     mutationFn: async ({ file, title, artist }: { file: File; title: string; artist: string }) => {
+      if (!address) {
+        throw new Error("Please connect your wallet to upload songs");
+      }
+
       try {
-        await apiRequest("POST", "/api/users/register");
+        // Register user first
+        await apiRequest("POST", "/api/users/register", { address });
       } catch (error) {
         console.error('User registration error:', error);
-        throw new Error("Failed to register user. Please try reconnecting your wallet.");
+        // Continue if error is due to user already being registered
       }
 
       toast({
