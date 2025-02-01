@@ -1,6 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { MusicPlayer } from "@/components/MusicPlayer";
 import { PlaylistCard } from "@/components/PlaylistCard";
 import { Button } from "@/components/ui/button";
 import { uploadToIPFS } from "@/lib/ipfs";
@@ -9,7 +8,6 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Upload, ListMusic, Library } from "lucide-react";
 import { Layout } from "@/components/Layout";
-import { useAccount } from 'wagmi';
 import { SongCard } from "@/components/SongCard";
 import { EditSongDialog } from "@/components/EditSongDialog";
 import { useMusicPlayer } from "@/contexts/MusicPlayerContext";
@@ -43,8 +41,23 @@ export default function Home() {
   const [pendingUpload, setPendingUpload] = useState<File>();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { address } = useAccount();
+  const [address, setAddress] = useState<string | null>(null);
   const { playSong, recentSongs } = useMusicPlayer();
+
+  // Check for wallet connection on mount and address changes
+  useEffect(() => {
+    const checkWallet = () => {
+      const currentAddress = window.ethereum?.selectedAddress;
+      setAddress(currentAddress || null);
+    };
+
+    checkWallet();
+    window.ethereum?.on('accountsChanged', checkWallet);
+
+    return () => {
+      window.ethereum?.removeListener('accountsChanged', checkWallet);
+    };
+  }, []);
 
   const { data: librarySongs, isLoading: libraryLoading } = useQuery<Song[]>({
     queryKey: ["/api/songs/library"],
@@ -115,8 +128,8 @@ export default function Home() {
       });
     },
   });
-  
-    const createPlaylistMutation = useMutation({
+
+  const createPlaylistMutation = useMutation({
     mutationFn: async (name: string) => {
       const response = await apiRequest("POST", "/api/playlists", { name });
       return await response.json();
@@ -143,7 +156,6 @@ export default function Home() {
       createPlaylistMutation.mutate(name);
     }
   };
-
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) {
@@ -272,6 +284,7 @@ export default function Home() {
           )}
         </div>
       </section>
+
       <EditSongDialog
         open={uploadDialogOpen}
         onOpenChange={(open) => {
