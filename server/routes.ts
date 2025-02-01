@@ -1,8 +1,8 @@
 import type { Express } from "express";
 import { createServer } from "http";
 import { db } from "@db";
-import { songs, users, playlists, votes } from "@db/schema";
-import { eq, desc } from "drizzle-orm";
+import { songs, users, playlists, votes, followers } from "@db/schema";
+import { eq, desc, and } from "drizzle-orm";
 
 export function registerRoutes(app: Express) {
   const httpServer = createServer(app);
@@ -116,5 +116,68 @@ export function registerRoutes(app: Express) {
     });
   });
 
+  // Social Features
+  app.post("/api/social/follow/:address", async (req, res) => {
+    const userAddress = req.user?.address;
+    const targetAddress = req.params.address;
+
+    if (!userAddress) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    if (userAddress === targetAddress) {
+      return res.status(400).json({ message: "Cannot follow yourself" });
+    }
+
+    await db.insert(followers).values({
+      followerId: userAddress,
+      followingId: targetAddress,
+    });
+
+    res.json({ success: true });
+  });
+
+  app.post("/api/social/unfollow/:address", async (req, res) => {
+    const userAddress = req.user?.address;
+    const targetAddress = req.params.address;
+
+    if (!userAddress) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    await db.delete(followers)
+      .where(
+        and(
+          eq(followers.followerId, userAddress),
+          eq(followers.followingId, targetAddress)
+        )
+      );
+
+    res.json({ success: true });
+  });
+
+  app.get("/api/social/feed", async (req, res) => {
+    const userAddress = req.user?.address;
+
+    if (!userAddress) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const followingUsers = await db.query.followers.findMany({
+      where: eq(followers.followerId, userAddress),
+      with: {
+        following: {
+          with: {
+            playlists: true,
+          },
+        },
+      },
+    });
+
+    const feed = followingUsers.flatMap(f => f.following.playlists)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    res.json(feed);
+  });
   return httpServer;
 }

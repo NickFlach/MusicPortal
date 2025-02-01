@@ -7,6 +7,15 @@ export const users = pgTable("users", {
   address: text("address").unique().notNull(),
   username: text("username"),
   isAdmin: boolean("is_admin").default(false),
+  bio: text("bio"),
+  avatarUrl: text("avatar_url"),
+});
+
+export const followers = pgTable("followers", {
+  id: serial("id").primaryKey(),
+  followerId: text("follower_id").references(() => users.address),
+  followingId: text("following_id").references(() => users.address),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 export const songs = pgTable("songs", {
@@ -24,6 +33,7 @@ export const playlists = pgTable("playlists", {
   name: text("name").notNull(),
   createdBy: text("created_by").references(() => users.address),
   createdAt: timestamp("created_at").defaultNow(),
+  isPublic: boolean("is_public").default(true),
 });
 
 export const playlistSongs = pgTable("playlist_songs", {
@@ -39,6 +49,11 @@ export const votes = pgTable("votes", {
   address: text("address").references(() => users.address),
   createdAt: timestamp("created_at").defaultNow(),
 });
+
+export const usersRelations = relations(users, ({ many }) => ({
+  followers: many(followers, { relationName: "following" }),
+  following: many(followers, { relationName: "followers" }),
+}));
 
 export const playlistsRelations = relations(playlists, ({ many }) => ({
   playlistSongs: many(playlistSongs),

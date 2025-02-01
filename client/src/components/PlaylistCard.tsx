@@ -1,16 +1,18 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Play, Plus } from "lucide-react";
+import { ShareButton } from "@/components/ui/share-button";
 
 interface PlaylistCardProps {
   title: string;
   songCount: number;
   image?: string;
+  createdBy?: string;
   onPlay: () => void;
   onAddSong: () => void;
 }
 
-export function PlaylistCard({ title, songCount, image, onPlay, onAddSong }: PlaylistCardProps) {
+export function PlaylistCard({ title, songCount, image, createdBy, onPlay, onAddSong }: PlaylistCardProps) {
   return (
     <Card className="overflow-hidden group hover:bg-accent transition-colors">
       <CardHeader className="relative p-0">
@@ -31,8 +33,21 @@ export function PlaylistCard({ title, songCount, image, onPlay, onAddSong }: Pla
         </div>
       </CardHeader>
       <CardContent className="p-4">
-        <CardTitle className="text-lg mb-1">{title}</CardTitle>
-        <p className="text-sm text-muted-foreground">{songCount} songs</p>
+        <div className="flex items-start justify-between">
+          <div>
+            <CardTitle className="text-lg mb-1">{title}</CardTitle>
+            <p className="text-sm text-muted-foreground">{songCount} songs</p>
+            {createdBy && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Created by {createdBy.slice(0, 6)}...{createdBy.slice(-4)}
+              </p>
+            )}
+          </div>
+          <ShareButton
+            title={`Check out this playlist: ${title}`}
+            text={`A playlist with ${songCount} songs on Decentralized Music`}
+          />
+        </div>
       </CardContent>
     </Card>
   );
