@@ -26,7 +26,7 @@ export function registerRoutes(app: Express) {
   });
 
   app.get("/api/songs/library", async (req, res) => {
-    const userAddress = req.user?.address;
+    const userAddress = req.headers['x-wallet-address'] as string;
 
     if (!userAddress) {
       return res.status(401).json({ message: "Unauthorized" });
@@ -42,7 +42,7 @@ export function registerRoutes(app: Express) {
 
   app.post("/api/songs/play/:id", async (req, res) => {
     const songId = parseInt(req.params.id);
-    const userAddress = req.user?.address;
+    const userAddress = req.headers['x-wallet-address'] as string;
 
     if (!userAddress) {
       return res.status(401).json({ message: "Unauthorized" });
@@ -59,7 +59,7 @@ export function registerRoutes(app: Express) {
 
   app.post("/api/songs", async (req, res) => {
     const { title, artist, ipfsHash } = req.body;
-    const uploadedBy = req.user?.address;
+    const uploadedBy = req.headers['x-wallet-address'] as string;
 
     if (!uploadedBy) {
       return res.status(401).json({ message: "Unauthorized" });
