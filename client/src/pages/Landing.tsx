@@ -40,6 +40,22 @@ export default function Landing() {
           </div>
           <WalletConnect />
         </div>
+
+        {/* Centered Logo with Link */}
+        <div className="flex justify-center items-center mt-24">
+          <a 
+            href="https://app.pitchforks.social/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background rounded-lg"
+          >
+            <img 
+              src="/neo_token_logo_flaukowski.png" 
+              alt="NEO Token"
+              className="w-64 h-64 object-contain hover:animate-pulse"
+            />
+          </a>
+        </div>
       </div>
     </div>
   );
