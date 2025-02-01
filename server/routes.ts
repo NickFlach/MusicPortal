@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer } from "http";
 import { db } from "@db";
-import { songs, users, playlists, followers, playlistSongs, recentlyPlayed } from "@db/schema";
+import { songs, users, playlists, followers, playlistSongs, recentlyPlayed, userRewards } from "@db/schema";
 import { eq, desc, and } from "drizzle-orm";
 
 export function registerRoutes(app: Express) {
@@ -198,6 +198,96 @@ export function registerRoutes(app: Express) {
     }).returning();
 
     res.json(newUser[0]);
+  });
+
+  // Treasury Management
+  app.get("/api/admin/treasury", async (req, res) => {
+    const userAddress = req.headers['x-wallet-address'] as string;
+
+    if (!userAddress) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const [user] = await db.query.users.findMany({
+      where: eq(users.address, userAddress),
+    });
+
+    if (!user?.isAdmin) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+
+    // Get reward statistics
+    const rewardedUsers = await db.query.userRewards.findMany();
+    const totalRewards = rewardedUsers.reduce((total, user) => {
+      return total + (user.uploadRewardClaimed ? 1 : 0) +
+                    (user.playlistRewardClaimed ? 2 : 0) +
+                    (user.nftRewardClaimed ? 3 : 0);
+    }, 0);
+
+    // Get treasury data from environment
+    const treasuryAddress = process.env.TREASURY_ADDRESS;
+
+    res.json({
+      address: treasuryAddress,
+      totalRewards,
+      rewardedUsers: rewardedUsers.length,
+    });
+  });
+
+  app.post("/api/admin/treasury", async (req, res) => {
+    const userAddress = req.headers['x-wallet-address'] as string;
+    const { address } = req.body;
+
+    if (!userAddress) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const [user] = await db.query.users.findMany({
+      where: eq(users.address, userAddress),
+    });
+
+    if (!user?.isAdmin) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+
+    // Update treasury address in environment
+    process.env.TREASURY_ADDRESS = address;
+
+    res.json({ success: true });
+  });
+
+  // User rewards tracking
+  app.post("/api/rewards/claim", async (req, res) => {
+    const userAddress = req.headers['x-wallet-address'] as string;
+    const { type } = req.body;
+
+    if (!userAddress) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    // Get or create user rewards
+    let [userReward] = await db.query.userRewards.findMany({
+      where: eq(userRewards.address, userAddress),
+    });
+
+    if (!userReward) {
+      [userReward] = await db.insert(userRewards)
+        .values({ address: userAddress })
+        .returning();
+    }
+
+    // Check if reward already claimed
+    const rewardField = `${type}RewardClaimed` as keyof typeof userReward;
+    if (userReward[rewardField]) {
+      return res.status(400).json({ message: "Reward already claimed" });
+    }
+
+    // Update reward status
+    await db.update(userRewards)
+      .set({ [rewardField]: true })
+      .where(eq(userRewards.address, userAddress));
+
+    res.json({ success: true });
   });
 
   return httpServer;

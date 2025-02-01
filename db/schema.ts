@@ -49,6 +49,15 @@ export const playlistSongs = pgTable("playlist_songs", {
   position: integer("position").notNull(),
 });
 
+export const userRewards = pgTable("user_rewards", {
+  id: serial("id").primaryKey(),
+  address: text("address").references(() => users.address),
+  uploadRewardClaimed: boolean("upload_reward_claimed").default(false),
+  playlistRewardClaimed: boolean("playlist_reward_claimed").default(false),
+  nftRewardClaimed: boolean("nft_reward_claimed").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Relations
 export const songsRelations = relations(songs, ({ many, one }) => ({
   recentPlays: many(recentlyPlayed),
@@ -83,6 +92,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   following: many(followers, { relationName: "following" }),
   songs: many(songs, { relationName: "uploaded_songs" }),
   playlists: many(playlists, { relationName: "created_playlists" }),
+  rewards: many(userRewards),
 }));
 
 export const recentlyPlayedRelations = relations(recentlyPlayed, ({ one }) => ({
@@ -95,3 +105,4 @@ export const recentlyPlayedRelations = relations(recentlyPlayed, ({ one }) => ({
 export type User = typeof users.$inferSelect;
 export type Song = typeof songs.$inferSelect;
 export type Playlist = typeof playlists.$inferSelect;
+export type UserRewards = typeof userRewards.$inferSelect;
