@@ -2,7 +2,6 @@ import { WalletConnect } from "@/components/WalletConnect";
 import { Navigation } from "@/components/Navigation";
 import { MusicPlayer } from "@/components/MusicPlayer";
 import { Link } from "wouter";
-import { DynamicBackground } from "@/components/DynamicBackground";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -13,9 +12,6 @@ export function Layout({ children }: LayoutProps) {
     <div className="relative min-h-screen">
       {/* Background layer */}
       <div className="fixed inset-0 bg-background/95" />
-
-      {/* Dynamic background layer */}
-      <DynamicBackground />
 
       {/* Content layers */}
       <header className="relative z-50 border-b bg-background/80 backdrop-blur-md">
