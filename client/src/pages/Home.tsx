@@ -74,6 +74,14 @@ export default function Home() {
         throw new Error("Missing required fields");
       }
 
+      // First ensure user is registered
+      try {
+        await apiRequest("POST", "/api/users/register");
+      } catch (error) {
+        console.error('User registration error:', error);
+        throw new Error("Failed to register user. Please try reconnecting your wallet.");
+      }
+
       toast({
         title: "Upload Started",
         description: "Uploading your song to IPFS...",
@@ -88,17 +96,14 @@ export default function Home() {
           ipfsHash,
         });
 
-        const newSong = await response.json();
-        return newSong;
+        return await response.json();
       } catch (error) {
         console.error('Upload error:', error);
         throw error;
       }
     },
     onSuccess: () => {
-      // Only invalidate the library query
       queryClient.invalidateQueries({ queryKey: ["/api/songs/library"] });
-
       toast({
         title: "Success",
         description: "Song uploaded successfully!",
@@ -112,6 +117,7 @@ export default function Home() {
       });
     },
   });
+
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) {
