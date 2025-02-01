@@ -3,10 +3,11 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { MoreVertical, Plus } from "lucide-react";
+import { MoreVertical, Plus, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -31,9 +32,10 @@ interface SongCardProps {
   song: Song;
   onClick: () => void;
   variant?: "ghost" | "default";
+  showDelete?: boolean;
 }
 
-export function SongCard({ song, onClick, variant = "ghost" }: SongCardProps) {
+export function SongCard({ song, onClick, variant = "ghost", showDelete = false }: SongCardProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -50,6 +52,26 @@ export function SongCard({ song, onClick, variant = "ghost" }: SongCardProps) {
       toast({
         title: "Success",
         description: "Song added to playlist",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteSongMutation = useMutation({
+    mutationFn: async (songId: number) => {
+      await apiRequest("DELETE", `/api/songs/${songId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/songs/library"] });
+      toast({
+        title: "Success",
+        description: "Song deleted from library",
       });
     },
     onError: (error: Error) => {
@@ -82,7 +104,7 @@ export function SongCard({ song, onClick, variant = "ghost" }: SongCardProps) {
             <MoreVertical className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
+        <DropdownMenuContent align="end" className="w-48">
           {playlists?.map((playlist) => (
             <DropdownMenuItem
               key={playlist.id}
@@ -97,6 +119,23 @@ export function SongCard({ song, onClick, variant = "ghost" }: SongCardProps) {
               Add to {playlist.name}
             </DropdownMenuItem>
           ))}
+
+          {showDelete && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className="text-destructive focus:text-destructive"
+                onClick={() => {
+                  if (window.confirm("Are you sure you want to delete this song?")) {
+                    deleteSongMutation.mutate(song.id);
+                  }
+                }}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete from Library
+              </DropdownMenuItem>
+            </>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
     </div>

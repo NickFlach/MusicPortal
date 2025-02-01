@@ -250,6 +250,7 @@ export default function Home() {
                   key={song.id}
                   song={song}
                   onClick={() => handlePlaySong(song)}
+                  showDelete={true}
                 />
               ))
             )}

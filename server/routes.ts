@@ -75,6 +75,32 @@ export function registerRoutes(app: Express) {
     res.json(newSong[0]);
   });
 
+  app.delete("/api/songs/:id", async (req, res) => {
+    const songId = parseInt(req.params.id);
+    const userAddress = req.headers['x-wallet-address'] as string;
+
+    if (!userAddress) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    // Check if the song belongs to the user
+    const song = await db.query.songs.findFirst({
+      where: eq(songs.id, songId),
+    });
+
+    if (!song || song.uploadedBy !== userAddress) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+
+    // First delete any playlist associations
+    await db.delete(playlistSongs).where(eq(playlistSongs.songId, songId));
+
+    // Then delete the song itself
+    await db.delete(songs).where(eq(songs.id, songId));
+
+    res.json({ success: true });
+  });
+
   // Playlists
   app.get("/api/playlists", async (req, res) => {
     const userAddress = req.headers['x-wallet-address'] as string;
