@@ -45,13 +45,30 @@ export default function Home() {
       const title = data.get("title") as string;
       const artist = data.get("artist") as string;
 
-      const ipfsHash = await uploadToIPFS(file);
+      if (!file || !title || !artist) {
+        throw new Error("Missing required fields");
+      }
 
-      await apiRequest("POST", "/api/songs", {
-        title,
-        artist,
-        ipfsHash,
+      // Show upload starting toast
+      toast({
+        title: "Upload Started",
+        description: "Uploading your song to IPFS...",
       });
+
+      try {
+        const ipfsHash = await uploadToIPFS(file);
+
+        await apiRequest("POST", "/api/songs", {
+          title,
+          artist,
+          ipfsHash,
+        });
+
+        return ipfsHash;
+      } catch (error) {
+        console.error('Upload error:', error);
+        throw error;
+      }
     },
     onSuccess: () => {
       toast({
@@ -59,14 +76,38 @@ export default function Home() {
         description: "Song uploaded successfully!",
       });
     },
+    onError: (error: Error) => {
+      toast({
+        title: "Upload Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
   });
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files) return;
+    if (!e.target.files || e.target.files.length === 0) {
+      toast({
+        title: "Error",
+        description: "Please select a file to upload",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const file = e.target.files[0];
+    if (!file.type.includes('audio')) {
+      toast({
+        title: "Error",
+        description: "Please select an audio file",
+        variant: "destructive",
+      });
+      return;
+    }
 
     const formData = new FormData();
-    formData.append("file", e.target.files[0]);
-    formData.append("title", e.target.files[0].name.replace(".mp3", ""));
+    formData.append("file", file);
+    formData.append("title", file.name.replace(/\.[^/.]+$/, "")); // Remove extension
     formData.append("artist", "Unknown Artist");
 
     uploadMutation.mutate(formData);
