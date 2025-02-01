@@ -21,6 +21,8 @@ interface Particle {
   angle: number;
   speed: number;
   life: number;
+  color: string;
+  trail: { x: number; y: number }[];
 }
 
 export function WaveformVisualizer() {
@@ -44,6 +46,26 @@ export function WaveformVisualizer() {
   const lastBeatTime = useRef(0);
   const energyHistory = useRef<number[]>([]);
 
+  function generateRandomColor(): string {
+    const hue = Math.random() * 360;
+    return `hsl(${hue}, 80%, 60%)`;
+  }
+
+  function createParticle(x: number, y: number, intensity: number): Particle {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = (Math.random() * 2 + 2) * intensity;
+    return {
+      x,
+      y,
+      size: Math.random() * 4 + 2,
+      angle,
+      speed,
+      life: 1,
+      color: generateRandomColor(),
+      trail: [{x, y}], // Initialize trail with starting position
+    };
+  }
+
   // Initialize audio context and analyzers
   useEffect(() => {
     if (!isPlaying || !currentSong) {
@@ -61,43 +83,36 @@ export function WaveformVisualizer() {
       return;
     }
 
-    // Find the audio element
     const audioElements = document.getElementsByTagName('audio');
     if (!audioElements.length) return;
     const audio = audioElements[0];
 
     async function setupAudioContext() {
       try {
-        // Clean up old context if it exists
         if (audioContextRef.current?.state === 'closed') {
           audioContextRef.current = undefined;
           analyserRef.current = undefined;
           sourceRef.current = undefined;
         }
 
-        // Create new context if needed
         if (!audioContextRef.current) {
           audioContextRef.current = new AudioContext();
         }
 
-        // Resume context if suspended
         if (audioContextRef.current.state === 'suspended') {
           await audioContextRef.current.resume();
         }
 
-        // Create analyzer if needed
         if (!analyserRef.current) {
           analyserRef.current = audioContextRef.current.createAnalyser();
           analyserRef.current.fftSize = 4096;
           analyserRef.current.smoothingTimeConstant = 0.85;
         }
 
-        // Disconnect old source if it exists
         if (sourceRef.current) {
           sourceRef.current.disconnect();
         }
 
-        // Create and connect new source
         sourceRef.current = audioContextRef.current.createMediaElementSource(audio);
         sourceRef.current.connect(analyserRef.current);
         analyserRef.current.connect(audioContextRef.current.destination);
@@ -127,17 +142,6 @@ export function WaveformVisualizer() {
       return false;
     }
 
-    function createParticle(x: number, y: number): Particle {
-      return {
-        x,
-        y,
-        size: Math.random() * 3 + 2,
-        angle: Math.random() * Math.PI * 2,
-        speed: Math.random() * 2 + 1,
-        life: 1,
-      };
-    }
-
     function updateVisualization() {
       if (!analyserRef.current) return;
 
@@ -147,7 +151,6 @@ export function WaveformVisualizer() {
       analyserRef.current.getByteFrequencyData(frequencyData);
       analyserRef.current.getByteTimeDomainData(waveformData);
 
-      // Calculate frequency band levels
       const bassFreqs = frequencyData.slice(0, 60);
       const midFreqs = frequencyData.slice(60, 500);
       const trebleFreqs = frequencyData.slice(500);
@@ -159,19 +162,25 @@ export function WaveformVisualizer() {
       const volume = frequencyData.reduce((sum, value) => sum + value, 0) / frequencyData.length / 255;
       const beatDetected = detectBeat(frequencyData);
 
-      // Update particles on beat
+      // Generate particles on beat with intensity
       if (beatDetected && canvasRef.current) {
         const canvas = canvasRef.current;
         const newParticles = [...particles];
+        const intensity = Math.max(bassLevel, volume);
 
-        for (let i = 0; i < 5; i++) {
-          newParticles.push(createParticle(
-            Math.random() * canvas.width,
-            Math.random() * canvas.height
-          ));
+        // Create particles in a circle around the center
+        const centerX = canvas.width / (2 * window.devicePixelRatio);
+        const centerY = canvas.height / (2 * window.devicePixelRatio);
+        const radius = Math.min(centerX, centerY) * 0.3;
+
+        for (let i = 0; i < 8; i++) {
+          const angle = (i / 8) * Math.PI * 2;
+          const x = centerX + Math.cos(angle) * radius;
+          const y = centerY + Math.sin(angle) * radius;
+          newParticles.push(createParticle(x, y, intensity));
         }
 
-        setParticles(newParticles.slice(-50));
+        setParticles(newParticles.slice(-100)); // Keep max 100 particles
       }
 
       setAudioFeatures({
@@ -217,16 +226,19 @@ export function WaveformVisualizer() {
     updateSize();
     window.addEventListener('resize', updateSize);
 
-    // Clear canvas
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
     // Create gradient based on frequency levels
     const gradient = ctx.createLinearGradient(0, 0, canvas.width, 0);
     gradient.addColorStop(0, `hsla(${audioFeatures.bassLevel * 360}, 80%, 60%, ${0.6 + audioFeatures.bassLevel * 0.4})`);
     gradient.addColorStop(0.5, `hsla(${audioFeatures.midLevel * 360}, 80%, 60%, ${0.6 + audioFeatures.midLevel * 0.4})`);
     gradient.addColorStop(1, `hsla(${audioFeatures.trebleLevel * 360}, 80%, 60%, ${0.6 + audioFeatures.trebleLevel * 0.4})`);
 
-    // Draw circular frequency visualization
+    // Set up for particle trails
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.2)'; // Fade effect for trails
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.globalCompositeOperation = 'lighter'; // Additive blending for particles
+
+    // Draw frequency visualization
     const centerX = canvas.width / (2 * window.devicePixelRatio);
     const centerY = canvas.height / (2 * window.devicePixelRatio);
     const radius = Math.min(centerX, centerY) * 0.4;
@@ -249,46 +261,58 @@ export function WaveformVisualizer() {
 
     ctx.restore();
 
-    // Draw waveform
-    const waveformPath = new Path2D();
-    const step = Math.ceil(audioFeatures.waveform.length / canvas.width);
-    const amplitude = canvas.height / (4 * window.devicePixelRatio);
-    const yOffset = canvas.height / (2 * window.devicePixelRatio);
-
-    audioFeatures.waveform.forEach((value, i) => {
-      if (i % step !== 0) return;
-      const x = (i / step) * (canvas.width / window.devicePixelRatio);
-      const normalizedValue = ((value / 255) * 2) - 1;
-      const y = normalizedValue * amplitude + yOffset;
-
-      if (i === 0) {
-        waveformPath.moveTo(x, y);
-      } else {
-        waveformPath.lineTo(x, y);
-      }
-    });
-
-    ctx.strokeStyle = gradient;
-    ctx.lineWidth = 2 * (1 + audioFeatures.volume);
-    ctx.stroke(waveformPath);
-
-    // Update and draw particles
+    // Update and draw particles with trails
     setParticles(prevParticles => 
       prevParticles
-        .map(particle => ({
-          ...particle,
-          x: particle.x + Math.cos(particle.angle) * particle.speed,
-          y: particle.y + Math.sin(particle.angle) * particle.speed,
-          life: particle.life - 0.02,
-        }))
+        .map(particle => {
+          // Update position
+          const newX = particle.x + Math.cos(particle.angle) * particle.speed;
+          const newY = particle.y + Math.sin(particle.angle) * particle.speed;
+
+          // Update trail
+          const trail = [...particle.trail, { x: newX, y: newY }];
+          if (trail.length > 10) trail.shift(); // Keep trail length manageable
+
+          return {
+            ...particle,
+            x: newX,
+            y: newY,
+            life: particle.life - 0.01,
+            trail,
+          };
+        })
         .filter(particle => particle.life > 0)
     );
 
+    // Draw particle trails and particles
     particles.forEach(particle => {
-      const alpha = particle.life * 0.5;
-      ctx.fillStyle = `hsla(${audioFeatures.volume * 360}, 80%, 60%, ${alpha})`;
+      // Draw trail
+      if (particle.trail.length > 1) {
+        ctx.beginPath();
+        ctx.moveTo(particle.trail[0].x, particle.trail[0].y);
+
+        particle.trail.forEach((point, index) => {
+          if (index > 0) {
+            ctx.lineTo(point.x, point.y);
+          }
+        });
+
+        ctx.strokeStyle = `hsla(${particle.color}, ${particle.life * 50}%)`;
+        ctx.lineWidth = particle.size * particle.life;
+        ctx.stroke();
+      }
+
+      // Draw particle
+      const glow = ctx.createRadialGradient(
+        particle.x, particle.y, 0,
+        particle.x, particle.y, particle.size * 2
+      );
+      glow.addColorStop(0, `hsla(${particle.color}, ${particle.life * 100}%)`);
+      glow.addColorStop(1, 'transparent');
+
+      ctx.fillStyle = glow;
       ctx.beginPath();
-      ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+      ctx.arc(particle.x, particle.y, particle.size * 2, 0, Math.PI * 2);
       ctx.fill();
     });
 
