@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { MusicPlayer } from "@/components/MusicPlayer";
 import { PlaylistCard } from "@/components/PlaylistCard";
 import { Button } from "@/components/ui/button";
@@ -30,8 +30,9 @@ interface Playlist {
 export default function Home() {
   const [currentSong, setCurrentSong] = useState<Song>();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
-  const { data: songs } = useQuery<Song[]>({
+  const { data: songs, isLoading: songsLoading } = useQuery<Song[]>({
     queryKey: ["/api/songs"],
   });
 
@@ -49,7 +50,6 @@ export default function Home() {
         throw new Error("Missing required fields");
       }
 
-      // Show upload starting toast
       toast({
         title: "Upload Started",
         description: "Uploading your song to IPFS...",
@@ -58,19 +58,26 @@ export default function Home() {
       try {
         const ipfsHash = await uploadToIPFS(file);
 
-        await apiRequest("POST", "/api/songs", {
+        const response = await apiRequest("POST", "/api/songs", {
           title,
           artist,
           ipfsHash,
         });
 
-        return ipfsHash;
+        const newSong = await response.json();
+        return newSong;
       } catch (error) {
         console.error('Upload error:', error);
         throw error;
       }
     },
-    onSuccess: () => {
+    onSuccess: (newSong) => {
+      // Invalidate and refetch songs
+      queryClient.invalidateQueries({ queryKey: ["/api/songs"] });
+
+      // Set the newly uploaded song as current
+      setCurrentSong(newSong);
+
       toast({
         title: "Success",
         description: "Song uploaded successfully!",
@@ -143,7 +150,7 @@ export default function Home() {
           <div className="flex items-center gap-4">
             <Input
               type="file"
-              accept=".mp3"
+              accept="audio/*"
               onChange={handleFileUpload}
               className="hidden"
               id="song-upload"
@@ -160,17 +167,23 @@ export default function Home() {
         </div>
 
         <div className="space-y-2">
-          {songs?.map((song) => (
-            <Button
-              key={song.id}
-              variant="ghost"
-              className="w-full justify-start"
-              onClick={() => setCurrentSong(song)}
-            >
-              <span className="truncate">{song.title}</span>
-              <span className="ml-2 text-muted-foreground">- {song.artist}</span>
-            </Button>
-          ))}
+          {songsLoading ? (
+            <p className="text-muted-foreground">Loading songs...</p>
+          ) : songs?.length === 0 ? (
+            <p className="text-muted-foreground">No songs uploaded yet</p>
+          ) : (
+            songs?.map((song) => (
+              <Button
+                key={song.id}
+                variant="ghost"
+                className="w-full justify-start"
+                onClick={() => setCurrentSong(song)}
+              >
+                <span className="truncate">{song.title}</span>
+                <span className="ml-2 text-muted-foreground">- {song.artist}</span>
+              </Button>
+            ))
+          )}
         </div>
       </section>
 
