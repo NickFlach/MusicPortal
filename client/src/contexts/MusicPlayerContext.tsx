@@ -49,6 +49,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   const queryClient = useQueryClient();
   const { address } = useAccount();
   const [location] = useLocation();
+  const hasInitializedRef = useRef(false);
 
   const { data: recentSongs } = useQuery<Song[]>({
     queryKey: ["/api/songs/recent"],
@@ -72,7 +73,6 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
 
     if (!recentSongs?.length || !currentSong) {
       if (recentSongs?.length) {
-        // If no current song but we have recent songs, play the first one
         playSong(recentSongs[0]);
       }
       return;
@@ -91,35 +91,6 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
     const prevSong = recentSongs[(currentIndex - 1 + recentSongs.length) % recentSongs.length];
     playSong(prevSong);
   }, [currentSong, recentSongs, isAllowedPage]);
-
-  // Auto-start playing the most recent song when on landing page
-  useEffect(() => {
-    if (location === '/landing' && recentSongs?.length) {
-      const initialSong = recentSongs[0];
-      // Set the song and trigger play mutation
-      setCurrentSong(initialSong);
-      playMutation.mutate(initialSong.id);
-
-      // Ensure audio is ready to play
-      const loadAndPlay = async () => {
-        try {
-          const audioData = await getFromIPFS(initialSong.ipfsHash);
-          const blob = new Blob([audioData], { type: 'audio/mp3' });
-          const url = URL.createObjectURL(blob);
-
-          audioRef.current.src = url;
-          audioRef.current.load();
-          await audioRef.current.play();
-          setIsPlaying(true);
-        } catch (error) {
-          console.error('Failed to autoplay:', error);
-          setIsPlaying(false);
-        }
-      };
-
-      loadAndPlay();
-    }
-  }, [location, recentSongs]);
 
   // Initialize audio event listeners
   useEffect(() => {
@@ -158,6 +129,49 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
     };
   }, [playNext, volume]);
 
+  // Auto-start playing the most recent song when on landing page
+  useEffect(() => {
+    if (location === '/landing' && recentSongs?.length && !hasInitializedRef.current) {
+      hasInitializedRef.current = true;
+      const initialSong = recentSongs[0];
+
+      const initializePlayback = async () => {
+        try {
+          setCurrentSong(initialSong);
+          await playMutation.mutateAsync(initialSong.id);
+
+          const audioData = await getFromIPFS(initialSong.ipfsHash);
+          const blob = new Blob([audioData], { type: 'audio/mp3' });
+          const url = URL.createObjectURL(blob);
+
+          audioRef.current.src = url;
+          audioRef.current.load();
+
+          // Use the play() promise to handle autoplay
+          try {
+            await audioRef.current.play();
+            setIsPlaying(true);
+          } catch (error) {
+            console.error('Autoplay prevented:', error);
+            setIsPlaying(false);
+          }
+        } catch (error) {
+          console.error('Failed to initialize playback:', error);
+          setIsPlaying(false);
+        }
+      };
+
+      initializePlayback();
+    }
+  }, [location, recentSongs]);
+
+  // Reset initialization flag when leaving landing page
+  useEffect(() => {
+    if (location !== '/landing') {
+      hasInitializedRef.current = false;
+    }
+  }, [location]);
+
   const loadSong = async (songToLoad: Song) => {
     if (!songToLoad) return;
     try {
@@ -165,14 +179,15 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
       const blob = new Blob([audioData], { type: 'audio/mp3' });
       const url = URL.createObjectURL(blob);
 
+      const wasPlaying = !audioRef.current.paused;
       audioRef.current.src = url;
       audioRef.current.load();
 
-      if (isPlaying && isAllowedPage) {
+      if (wasPlaying && isAllowedPage) {
         try {
           await audioRef.current.play();
         } catch (error) {
-          console.error('Failed to start playback:', error);
+          console.error('Failed to resume playback:', error);
           setIsPlaying(false);
         }
       }
