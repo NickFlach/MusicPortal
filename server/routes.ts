@@ -208,7 +208,7 @@ export function registerRoutes(app: Express) {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
-    const [user] = await db.query.users.findMany({
+    const user = await db.query.users.findFirst({
       where: eq(users.address, userAddress),
     });
 
@@ -224,17 +224,17 @@ export function registerRoutes(app: Express) {
                     (user.nftRewardClaimed ? 3 : 0);
     }, 0);
 
-    // Get treasury data from environment
-    const treasuryAddress = process.env.TREASURY_ADDRESS;
+    // Get current GAS recipient address from environment
+    const gasRecipientAddress = process.env.GAS_RECIPIENT_ADDRESS || process.env.TREASURY_ADDRESS;
 
     res.json({
-      address: treasuryAddress,
+      address: gasRecipientAddress,
       totalRewards,
       rewardedUsers: rewardedUsers.length,
     });
   });
 
-  app.post("/api/admin/treasury", async (req, res) => {
+  app.post("/api/admin/gas-recipient", async (req, res) => {
     const userAddress = req.headers['x-wallet-address'] as string;
     const { address } = req.body;
 
@@ -242,7 +242,7 @@ export function registerRoutes(app: Express) {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
-    const [user] = await db.query.users.findMany({
+    const user = await db.query.users.findFirst({
       where: eq(users.address, userAddress),
     });
 
@@ -250,8 +250,8 @@ export function registerRoutes(app: Express) {
       return res.status(403).json({ message: "Forbidden" });
     }
 
-    // Update treasury address in environment
-    process.env.TREASURY_ADDRESS = address;
+    // Update GAS recipient address in environment
+    process.env.GAS_RECIPIENT_ADDRESS = address;
 
     res.json({ success: true });
   });
