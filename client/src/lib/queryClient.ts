@@ -12,11 +12,14 @@ export async function apiRequest(
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
+  const walletAddress = window.ethereum?.selectedAddress;
+  console.log('Making request with wallet address:', walletAddress);
+
   const res = await fetch(url, {
     method,
     headers: {
       ...(data ? { "Content-Type": "application/json" } : {}),
-      "x-wallet-address": window.ethereum?.selectedAddress || "",
+      "x-wallet-address": walletAddress || "",
     },
     body: data ? JSON.stringify(data) : undefined,
     credentials: "include",
@@ -32,10 +35,13 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
+    const walletAddress = window.ethereum?.selectedAddress;
+    console.log('Making query with wallet address:', walletAddress);
+
     const res = await fetch(queryKey[0] as string, {
       credentials: "include",
       headers: {
-        "x-wallet-address": window.ethereum?.selectedAddress || "",
+        "x-wallet-address": walletAddress || "",
       },
     });
 

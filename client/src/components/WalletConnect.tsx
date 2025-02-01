@@ -5,7 +5,7 @@ import { injected } from 'wagmi/connectors';
 import { apiRequest } from "@/lib/queryClient";
 
 export function WalletConnect() {
-  const account = useAccount();
+  const { address } = useAccount();
   const { connect } = useConnect();
   const { disconnect } = useDisconnect();
   const { toast } = useToast();
@@ -30,7 +30,9 @@ export function WalletConnect() {
       });
 
       // Register user after successful connection
-      await apiRequest("POST", "/api/users/register");
+      const response = await apiRequest("POST", "/api/users/register");
+      const userData = await response.json();
+      console.log('User registered:', userData);
 
       toast({
         title: "Connected",
@@ -64,12 +66,12 @@ export function WalletConnect() {
 
   return (
     <div>
-      {!account.address ? (
+      {!address ? (
         <Button onClick={handleConnect}>Connect Wallet</Button>
       ) : (
         <div className="flex items-center gap-2">
           <span className="text-sm text-muted-foreground">
-            {account.address?.slice(0, 6)}...{account.address?.slice(-4)}
+            {address?.slice(0, 6)}...{address?.slice(-4)}
           </span>
           <Button variant="outline" onClick={handleDisconnect}>
             Disconnect
