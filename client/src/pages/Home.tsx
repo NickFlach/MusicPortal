@@ -7,8 +7,9 @@ import { uploadToIPFS } from "@/lib/ipfs";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { Upload, ListMusic } from "lucide-react";
+import { Upload, ListMusic, Library } from "lucide-react";
 import { Layout } from "@/components/Layout";
+import { useAccount } from 'wagmi';
 
 interface Song {
   id: number;
@@ -31,6 +32,7 @@ export default function Home() {
   const [currentSong, setCurrentSong] = useState<Song>();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { address } = useAccount();
 
   const { data: songs, isLoading: songsLoading } = useQuery<Song[]>({
     queryKey: ["/api/songs"],
@@ -39,6 +41,9 @@ export default function Home() {
   const { data: playlists } = useQuery<Playlist[]>({
     queryKey: ["/api/playlists"],
   });
+
+  // Filter songs for library section
+  const userSongs = songs?.filter(song => song.uploadedBy === address);
 
   const uploadMutation = useMutation({
     mutationFn: async (data: FormData) => {
@@ -71,12 +76,9 @@ export default function Home() {
         throw error;
       }
     },
-    onSuccess: (newSong) => {
-      // Invalidate and refetch songs
+    onSuccess: () => {
+      // Only invalidate the songs query, don't change current playback
       queryClient.invalidateQueries({ queryKey: ["/api/songs"] });
-
-      // Set the newly uploaded song as current
-      setCurrentSong(newSong);
 
       toast({
         title: "Success",
@@ -143,6 +145,36 @@ export default function Home() {
           ))}
         </div>
       </section>
+
+      {address && (
+        <section className="mb-12">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-semibold">Your Library</h2>
+            <div className="flex items-center text-muted-foreground">
+              <Library className="mr-2 h-4 w-4" />
+              {userSongs?.length || 0} songs
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            {userSongs?.length === 0 ? (
+              <p className="text-muted-foreground">No songs in your library yet</p>
+            ) : (
+              userSongs?.map((song) => (
+                <Button
+                  key={song.id}
+                  variant="ghost"
+                  className="w-full justify-start"
+                  onClick={() => setCurrentSong(song)}
+                >
+                  <span className="truncate">{song.title}</span>
+                  <span className="ml-2 text-muted-foreground">- {song.artist}</span>
+                </Button>
+              ))
+            )}
+          </div>
+        </section>
+      )}
 
       <section>
         <div className="flex items-center justify-between mb-6">
