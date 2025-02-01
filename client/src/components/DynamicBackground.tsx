@@ -40,14 +40,22 @@ export function DynamicBackground() {
       <motion.div
         key={currentMood}
         initial={{ opacity: 0 }}
-        animate={{ opacity: 0.5 }}
+        animate={{ 
+          opacity: 0.6,
+          background: background.gradient
+        }}
         exit={{ opacity: 0 }}
-        transition={{ duration: 1.5, ease: "easeInOut" }}
-        className="fixed inset-0 pointer-events-none"
+        transition={{ 
+          duration: 2,
+          ease: "easeInOut",
+          background: {
+            duration: 1.5
+          }
+        }}
+        className="fixed inset-0 pointer-events-none bg-blend-overlay"
         style={{
-          background: background.gradient,
-          filter: 'blur(12px)',
-          transform: 'scale(1.1)',
+          filter: 'blur(100px)',
+          transform: 'scale(1.5)',
           zIndex: -1
         }}
       />
