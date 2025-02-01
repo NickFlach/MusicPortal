@@ -1,17 +1,52 @@
-import { createConfig, http } from '@wagmi/core';
-import { mainnet } from 'viem/chains';
+import { configureChains, createConfig } from 'wagmi';
+import { mainnet } from 'wagmi/chains';
+import { publicProvider } from 'wagmi/providers/public';
+import { InjectedConnector } from 'wagmi/connectors/injected';
+import { Chain } from 'wagmi/chains';
+
+// NEO X chain configuration
+export const neoChain: Chain = {
+  id: 1,
+  name: 'NEO X',
+  network: 'mainnet',
+  nativeCurrency: {
+    decimals: 18,
+    name: 'GAS',
+    symbol: 'GAS',
+  },
+  rpcUrls: {
+    public: { http: ['https://mainnet.neo.org/'] },
+    default: { http: ['https://mainnet.neo.org/'] },
+  },
+  blockExplorers: {
+    default: { name: 'NeoTracker', url: 'https://neotracker.io' },
+  },
+};
 
 // Contract addresses
 export const PFORK_TOKEN_ADDRESS = '0x216490C8E6b33b4d8A2390dADcf9f433E30da60F';
 export const TREASURY_ADDRESS = '0x5fe2434F5C5d614d8dc5362AA96a4d9aFFdC5A82';
 export const PLAYLIST_NFT_ADDRESS = '0x0177102d27753957EBD4221e1b0Cf4777c2A2Bf2';
 
-// Configure wagmi client
+// Configure wagmi
+const { chains, publicClient, webSocketPublicClient } = configureChains(
+  [neoChain],
+  [publicProvider()]
+);
+
 export const config = createConfig({
-  chains: [mainnet],
-  transports: {
-    [mainnet.id]: http()
-  },
+  autoConnect: true,
+  publicClient,
+  webSocketPublicClient,
+  connectors: [
+    new InjectedConnector({
+      chains,
+      options: {
+        name: 'Injected',
+        shimDisconnect: true,
+      },
+    }),
+  ],
 });
 
 // ABI for PFORKToken

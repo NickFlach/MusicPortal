@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Play, Plus, Coins } from "lucide-react";
 import { ShareButton } from "@/components/ui/share-button";
 import { useToast } from "@/hooks/use-toast";
-import { useAccount, useContractWrite, useWaitForTransaction } from 'wagmi';
+import { useAccount, useContractWrite, usePrepareContractWrite } from 'wagmi';
 import { PLAYLIST_NFT_ADDRESS, PLAYLIST_NFT_ABI } from "@/lib/contracts";
 import { parseEther } from "viem";
 
@@ -31,23 +31,22 @@ export function PlaylistCard({
   const { toast } = useToast();
   const { address } = useAccount();
 
-  const { data: hash, isPending, write } = useContractWrite({
+  const { config: contractConfig } = usePrepareContractWrite({
     address: PLAYLIST_NFT_ADDRESS,
     abi: PLAYLIST_NFT_ABI,
     functionName: 'mintPlaylist',
+    args: [
+      address!,
+      title,
+      `ipfs://playlist-${id}`
+    ],
+    value: parseEther("1"),
+    enabled: !!address && songCount > 0,
   });
 
-  const { isLoading: isConfirming } = useWaitForTransaction({
-    hash,
-    onSuccess() {
-      toast({
-        title: "Success",
-        description: "Playlist NFT minted successfully! You've earned 2 PFORK tokens.",
-      });
-    },
-  });
+  const { write: mintPlaylistNFT, isLoading: isMinting } = useContractWrite(contractConfig);
 
-  const handleMintNFT = async () => {
+  const handleMintNFT = () => {
     if (!address) {
       toast({
         title: "Error",
@@ -67,14 +66,7 @@ export function PlaylistCard({
     }
 
     try {
-      write({
-        args: [
-          address,
-          title,
-          `ipfs://playlist-${id}`
-        ],
-        value: parseEther("1"),
-      });
+      mintPlaylistNFT?.();
     } catch (error: any) {
       console.error('Mint error:', error);
       toast({
@@ -125,10 +117,10 @@ export function PlaylistCard({
                     handleMintNFT();
                   }
                 }}
-                disabled={!address || songCount === 0 || isPending || isConfirming}
+                disabled={!address || songCount === 0 || isMinting}
               >
                 <Coins className="h-4 w-4 mr-2" />
-                {isPending || isConfirming ? "Minting..." : "Mint NFT"}
+                {isMinting ? "Minting..." : "Mint NFT"}
               </Button>
             )}
             <ShareButton
