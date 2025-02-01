@@ -13,6 +13,7 @@ import { useAccount } from 'wagmi';
 import { SongCard } from "@/components/SongCard";
 import { EditSongDialog } from "@/components/EditSongDialog";
 import { useMusicPlayer } from "@/contexts/MusicPlayerContext";
+import { MusicVisualizer } from "@/components/MusicVisualizer";
 
 interface Song {
   id: number;
@@ -170,6 +171,10 @@ export default function Home() {
 
   return (
     <Layout>
+      <section className="mb-12">
+        <MusicVisualizer />
+      </section>
+
       <section className="mb-12">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-semibold">Your Playlists</h2>
