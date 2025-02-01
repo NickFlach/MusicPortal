@@ -10,7 +10,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { MoreVertical, Plus, ListMusic, Coins, Edit } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { useContractWrite, useAccount } from 'wagmi';
+import { useAccount, useContractWrite, useWaitForTransaction } from 'wagmi';
 import { PLAYLIST_NFT_ADDRESS, PLAYLIST_NFT_ABI } from "@/lib/contracts";
 import { EditSongDialog } from "./EditSongDialog";
 import { useState } from "react";
@@ -43,10 +43,20 @@ export function SongCard({ song, onClick, variant = "ghost", showDelete = false 
     queryKey: ["/api/playlists"],
   });
 
-  const { writeAsync: mintSongNFT } = useContractWrite({
+  const { data: hash, isPending, write } = useContractWrite({
     address: PLAYLIST_NFT_ADDRESS,
     abi: PLAYLIST_NFT_ABI,
     functionName: 'mintSong',
+  });
+
+  const { isLoading: isConfirming } = useWaitForTransaction({
+    hash,
+    onSuccess() {
+      toast({
+        title: "Success",
+        description: "NFT minted successfully! You've earned 1 PFORK token.",
+      });
+    },
   });
 
   const addToPlaylistMutation = useMutation({
@@ -69,53 +79,36 @@ export function SongCard({ song, onClick, variant = "ghost", showDelete = false 
     },
   });
 
-  const mintNFTMutation = useMutation({
-    mutationFn: async () => {
-      if (!address) throw new Error("Please connect your wallet first");
-      if (!mintSongNFT) throw new Error("Contract write not available");
-
-      try {
-        const result = await mintSongNFT({
-          args: [
-            address,
-            song.title,
-            song.artist,
-            song.ipfsHash,
-            `ipfs://${song.ipfsHash}`
-          ],
-          value: parseEther("1"), // 1 GAS
-        });
-
-        toast({
-          title: "Transaction Submitted",
-          description: "Please wait for the transaction to be confirmed.",
-        });
-
-        const receipt = await result.wait();
-        console.log('Transaction receipt:', receipt);
-
-        return receipt;
-      } catch (error: any) {
-        if (error.code === 'ACTION_REJECTED') {
-          throw new Error('Transaction was rejected by user');
-        }
-        throw new Error(error.message || "Failed to mint NFT");
-      }
-    },
-    onSuccess: () => {
-      toast({
-        title: "Success",
-        description: "NFT minted successfully! You've earned 1 PFORK token.",
-      });
-    },
-    onError: (error: Error) => {
+  const handleMintNFT = async () => {
+    if (!address) {
       toast({
         title: "Error",
-        description: error.message,
+        description: "Please connect your wallet first",
         variant: "destructive",
       });
-    },
-  });
+      return;
+    }
+
+    try {
+      write({
+        args: [
+          address,
+          song.title,
+          song.artist,
+          song.ipfsHash,
+          `ipfs://${song.ipfsHash}`
+        ],
+        value: parseEther("1"),
+      });
+    } catch (error: any) {
+      console.error('Mint error:', error);
+      toast({
+        title: "Error",
+        description: error?.message || "Failed to mint NFT",
+        variant: "destructive",
+      });
+    }
+  };
 
   return (
     <>
@@ -167,13 +160,13 @@ export function SongCard({ song, onClick, variant = "ghost", showDelete = false 
             <DropdownMenuItem
               onClick={() => {
                 if (window.confirm("Minting an NFT costs 1 GAS. Continue?")) {
-                  mintNFTMutation.mutate();
+                  handleMintNFT();
                 }
               }}
-              disabled={mintNFTMutation.isPending || !address}
+              disabled={!address || isPending || isConfirming}
             >
               <Coins className="mr-2 h-4 w-4" />
-              Mint as NFT
+              {isPending || isConfirming ? "Minting..." : "Mint as NFT"}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

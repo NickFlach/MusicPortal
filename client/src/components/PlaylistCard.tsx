@@ -2,9 +2,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Play, Plus, Coins } from "lucide-react";
 import { ShareButton } from "@/components/ui/share-button";
-import { useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { useContractWrite, useAccount } from 'wagmi';
+import { useAccount, useContractWrite, useWaitForTransaction } from 'wagmi';
 import { PLAYLIST_NFT_ADDRESS, PLAYLIST_NFT_ABI } from "@/lib/contracts";
 import { parseEther } from "viem";
 
@@ -32,58 +31,59 @@ export function PlaylistCard({
   const { toast } = useToast();
   const { address } = useAccount();
 
-  const { writeAsync: mintPlaylistNFT } = useContractWrite({
+  const { data: hash, isPending, write } = useContractWrite({
     address: PLAYLIST_NFT_ADDRESS,
     abi: PLAYLIST_NFT_ABI,
     functionName: 'mintPlaylist',
   });
 
-  const mintNftMutation = useMutation({
-    mutationFn: async () => {
-      if (!address) throw new Error("Please connect your wallet first");
-      if (!mintPlaylistNFT) throw new Error("Contract write not available");
-      if (songCount === 0) throw new Error("Cannot mint empty playlist");
-
-      try {
-        const result = await mintPlaylistNFT({
-          args: [
-            address,
-            title,
-            `ipfs://playlist-${id}`
-          ],
-          value: parseEther("1"), // 1 GAS
-        });
-
-        toast({
-          title: "Transaction Submitted",
-          description: "Please wait for the transaction to be confirmed.",
-        });
-
-        const receipt = await result.wait();
-        console.log('Transaction receipt:', receipt);
-
-        return receipt;
-      } catch (error: any) {
-        if (error.code === 'ACTION_REJECTED') {
-          throw new Error('Transaction was rejected by user');
-        }
-        throw new Error(error.message || "Failed to mint NFT");
-      }
-    },
-    onSuccess: () => {
+  const { isLoading: isConfirming } = useWaitForTransaction({
+    hash,
+    onSuccess() {
       toast({
         title: "Success",
-        description: "Playlist NFT minting successful! You've earned 2 PFORK tokens.",
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
+        description: "Playlist NFT minted successfully! You've earned 2 PFORK tokens.",
       });
     },
   });
+
+  const handleMintNFT = async () => {
+    if (!address) {
+      toast({
+        title: "Error",
+        description: "Please connect your wallet first",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (songCount === 0) {
+      toast({
+        title: "Error",
+        description: "Cannot mint empty playlist",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      write({
+        args: [
+          address,
+          title,
+          `ipfs://playlist-${id}`
+        ],
+        value: parseEther("1"),
+      });
+    } catch (error: any) {
+      console.error('Mint error:', error);
+      toast({
+        title: "Error",
+        description: error?.message || "Failed to mint NFT",
+        variant: "destructive",
+      });
+    }
+  };
 
   return (
     <Card className="overflow-hidden group hover:bg-accent transition-colors">
@@ -122,13 +122,13 @@ export function PlaylistCard({
                 variant="outline"
                 onClick={() => {
                   if (window.confirm("Minting an NFT costs 1 GAS. Continue?")) {
-                    mintNftMutation.mutate();
+                    handleMintNFT();
                   }
                 }}
-                disabled={mintNftMutation.isPending || !address || songCount === 0}
+                disabled={!address || songCount === 0 || isPending || isConfirming}
               >
                 <Coins className="h-4 w-4 mr-2" />
-                Mint NFT
+                {isPending || isConfirming ? "Minting..." : "Mint NFT"}
               </Button>
             )}
             <ShareButton
