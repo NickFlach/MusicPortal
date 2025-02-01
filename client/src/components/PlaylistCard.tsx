@@ -2,10 +2,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Play, Plus, Coins } from "lucide-react";
 import { ShareButton } from "@/components/ui/share-button";
+import { useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { getPlaylistNFTContract, connectWallet } from "@/lib/contracts";
-import { ethers } from "ethers";
-import { useState } from "react";
+import { useContractWrite, useAccount } from 'wagmi';
+import { PLAYLIST_NFT_ADDRESS, PLAYLIST_NFT_ABI } from "@/lib/contracts";
+import { parseEther } from "viem";
 
 interface PlaylistCardProps {
   title: string;
@@ -29,53 +30,50 @@ export function PlaylistCard({
   isNft = false,
 }: PlaylistCardProps) {
   const { toast } = useToast();
-  const [isMinting, setIsMinting] = useState(false);
+  const { address } = useAccount();
 
-  const handleMintNFT = async () => {
-    try {
-      setIsMinting(true);
+  // Contract write for minting NFT
+  const { writeAsync: mintPlaylistNFT } = useContractWrite({
+    address: PLAYLIST_NFT_ADDRESS,
+    abi: PLAYLIST_NFT_ABI,
+    functionName: 'mintPlaylist',
+  });
 
-      // Get wallet connection first
-      const { signer } = await connectWallet();
+  const mintNftMutation = useMutation({
+    mutationFn: async () => {
+      if (!mintPlaylistNFT) throw new Error("Contract write not ready");
+      if (!address) throw new Error("Wallet not connected");
 
-      // Get contract instance with signer
-      const contract = getPlaylistNFTContract(signer);
+      try {
+        const tx = await mintPlaylistNFT({
+          args: [
+            address,
+            title,
+            `ipfs://placeholder-metadata-uri-${id}`, // You might want to generate proper metadata
+          ],
+          value: parseEther("1"), // 1 GAS
+        });
 
-      if (songCount === 0) {
-        throw new Error("Cannot mint empty playlist");
+        // Wait for transaction confirmation
+        await tx.wait();
+      } catch (error: any) {
+        throw new Error(error.message || "Failed to mint NFT");
       }
-
-      // Mint NFT
-      const tx = await contract.mintPlaylist(
-        await signer.getAddress(),
-        title,
-        `ipfs://playlist-${id}`,
-        { value: ethers.parseEther("1") }
-      );
-
-      toast({
-        title: "Transaction Sent",
-        description: "Please wait while your NFT is being minted...",
-      });
-
-      // Wait for transaction to be mined
-      await tx.wait();
-
+    },
+    onSuccess: () => {
       toast({
         title: "Success",
-        description: "Playlist NFT minted successfully! You've earned 2 PFORK tokens.",
+        description: "Playlist NFT minting initiated! You've earned 3 PFORK tokens.",
       });
-    } catch (error: any) {
-      console.error('Mint error:', error);
+    },
+    onError: (error: Error) => {
       toast({
         title: "Error",
-        description: error?.message || "Failed to mint NFT",
+        description: error.message,
         variant: "destructive",
       });
-    } finally {
-      setIsMinting(false);
-    }
-  };
+    },
+  });
 
   return (
     <Card className="overflow-hidden group hover:bg-accent transition-colors">
@@ -114,13 +112,13 @@ export function PlaylistCard({
                 variant="outline"
                 onClick={() => {
                   if (window.confirm("Minting an NFT costs 1 GAS. Continue?")) {
-                    handleMintNFT();
+                    mintNftMutation.mutate();
                   }
                 }}
-                disabled={songCount === 0 || isMinting}
+                disabled={mintNftMutation.isPending || !address || songCount === 0}
               >
                 <Coins className="h-4 w-4 mr-2" />
-                {isMinting ? "Minting..." : "Mint NFT"}
+                Mint NFT
               </Button>
             )}
             <ShareButton

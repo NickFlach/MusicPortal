@@ -7,13 +7,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { MoreVertical, Plus, ListMusic, Coins, Edit } from "lucide-react";
+import { MoreVertical, Plus, Trash2, ListMusic, Coins, Edit } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { getPlaylistNFTContract, connectWallet } from "@/lib/contracts";
+import { useContractWrite, useAccount } from 'wagmi';
+import { PLAYLIST_NFT_ADDRESS, PLAYLIST_NFT_ABI } from "@/lib/contracts";
 import { EditSongDialog } from "./EditSongDialog";
 import { useState } from "react";
-import { ethers } from "ethers";
+import { parseEther } from "viem";
 
 interface Song {
   id: number;
@@ -23,6 +24,13 @@ interface Song {
   uploadedBy: string | null;
   createdAt: string | null;
   votes: number | null;
+}
+
+interface Playlist {
+  id: number;
+  name: string;
+  createdBy: string | null;
+  createdAt: string | null;
 }
 
 interface SongCardProps {
@@ -36,10 +44,17 @@ export function SongCard({ song, onClick, variant = "ghost", showDelete = false 
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [isMinting, setIsMinting] = useState(false);
+  const { address } = useAccount();
 
-  const { data: playlists } = useQuery<{ id: number; name: string }[]>({
+  const { data: playlists } = useQuery<Playlist[]>({
     queryKey: ["/api/playlists"],
+  });
+
+  // Contract write for minting NFT
+  const { writeAsync: mintSongNFT } = useContractWrite({
+    address: PLAYLIST_NFT_ADDRESS,
+    abi: PLAYLIST_NFT_ABI,
+    functionName: 'mintSong',
   });
 
   const addToPlaylistMutation = useMutation({
@@ -62,49 +77,65 @@ export function SongCard({ song, onClick, variant = "ghost", showDelete = false 
     },
   });
 
-  const handleMintNFT = async () => {
-    try {
-      setIsMinting(true);
+  const mintNFTMutation = useMutation({
+    mutationFn: async () => {
+      if (!mintSongNFT) throw new Error("Contract write not ready");
+      if (!address) throw new Error("Wallet not connected");
 
-      // Get wallet connection first
-      const { signer } = await connectWallet();
+      const metadataUri = `ipfs://${song.ipfsHash}`;
 
-      // Get contract instance with signer
-      const contract = getPlaylistNFTContract(signer);
+      try {
+        const tx = await mintSongNFT({
+          args: [
+            address,
+            song.title,
+            song.artist,
+            song.ipfsHash,
+            metadataUri
+          ],
+          value: parseEther("1"), // 1 GAS
+        });
 
-      // Mint NFT
-      const tx = await contract.mintSong(
-        await signer.getAddress(),
-        song.title,
-        song.artist,
-        song.ipfsHash,
-        `ipfs://${song.ipfsHash}`,
-        { value: ethers.parseEther("1") }
-      );
-
-      toast({
-        title: "Transaction Sent",
-        description: "Please wait while your NFT is being minted...",
-      });
-
-      // Wait for transaction to be mined
-      await tx.wait();
-
+        // Wait for transaction confirmation
+        await tx.wait();
+      } catch (error: any) {
+        throw new Error(error.message || "Failed to mint NFT");
+      }
+    },
+    onSuccess: () => {
       toast({
         title: "Success",
-        description: "NFT minted successfully! You've earned 1 PFORK token.",
+        description: "NFT minting initiated. Please wait for the transaction to be mined.",
       });
-    } catch (error: any) {
-      console.error('Mint error:', error);
+    },
+    onError: (error: Error) => {
       toast({
         title: "Error",
-        description: error?.message || "Failed to mint NFT",
+        description: error.message,
         variant: "destructive",
       });
-    } finally {
-      setIsMinting(false);
-    }
-  };
+    },
+  });
+
+  const deleteSongMutation = useMutation({
+    mutationFn: async (songId: number) => {
+      await apiRequest("DELETE", `/api/songs/${songId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/songs/library"] });
+      toast({
+        title: "Success",
+        description: "Song deleted from library",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
 
   return (
     <>
@@ -136,34 +167,58 @@ export function SongCard({ song, onClick, variant = "ghost", showDelete = false 
               </DropdownMenuItem>
             )}
 
-            {playlists?.map((playlist) => (
-              <DropdownMenuItem
-                key={playlist.id}
-                onClick={() => {
-                  addToPlaylistMutation.mutate({
-                    playlistId: playlist.id,
-                    songId: song.id,
-                  });
-                }}
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Add to {playlist.name}
+            {!playlists?.length ? (
+              <DropdownMenuItem className="text-muted-foreground" disabled>
+                <ListMusic className="mr-2 h-4 w-4" />
+                Create a playlist first
               </DropdownMenuItem>
-            ))}
+            ) : (
+              playlists.map((playlist) => (
+                <DropdownMenuItem
+                  key={playlist.id}
+                  onClick={() => {
+                    addToPlaylistMutation.mutate({
+                      playlistId: playlist.id,
+                      songId: song.id,
+                    });
+                  }}
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add to {playlist.name}
+                </DropdownMenuItem>
+              ))
+            )}
 
             <DropdownMenuSeparator />
 
             <DropdownMenuItem
               onClick={() => {
                 if (window.confirm("Minting an NFT costs 1 GAS. Continue?")) {
-                  handleMintNFT();
+                  mintNFTMutation.mutate();
                 }
               }}
-              disabled={isMinting}
+              disabled={mintNFTMutation.isPending || !address}
             >
               <Coins className="mr-2 h-4 w-4" />
-              {isMinting ? "Minting..." : "Mint as NFT"}
+              Mint as NFT
             </DropdownMenuItem>
+
+            {showDelete && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive"
+                  onClick={() => {
+                    if (window.confirm("Are you sure you want to delete this song?")) {
+                      deleteSongMutation.mutate(song.id);
+                    }
+                  }}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete from Library
+                </DropdownMenuItem>
+              </>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

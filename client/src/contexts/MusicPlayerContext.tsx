@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useRef, useEffect } from 'r
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { getFromIPFS } from "@/lib/ipfs";
+import { useAccount } from 'wagmi';
 import { useLocation } from 'wouter';
 
 interface Song {
@@ -39,24 +40,8 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   const [volume, setVolume] = useState(1);
   const audioRef = useRef<HTMLAudioElement>(new Audio());
   const queryClient = useQueryClient();
+  const { address } = useAccount();
   const [location] = useLocation();
-
-  // Check for wallet connection
-  const [walletConnected, setWalletConnected] = useState(false);
-
-  useEffect(() => {
-    const checkWallet = () => {
-      const isConnected = window.ethereum && window.ethereum.selectedAddress;
-      setWalletConnected(!!isConnected);
-    };
-
-    checkWallet();
-    window.ethereum?.on('accountsChanged', checkWallet);
-
-    return () => {
-      window.ethereum?.removeListener('accountsChanged', checkWallet);
-    };
-  }, []);
 
   const { data: recentSongs } = useQuery<Song[]>({
     queryKey: ["/api/songs/recent"],
@@ -97,11 +82,11 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
 
   // Stop playback when wallet disconnects or navigating away from allowed pages
   useEffect(() => {
-    if (!walletConnected || !isAllowedPage) {
+    if (!address || !isAllowedPage) {
       audioRef.current.pause();
       setIsPlaying(false);
     }
-  }, [walletConnected, isAllowedPage]);
+  }, [address, isAllowedPage]);
 
   useEffect(() => {
     if (currentSong) {
@@ -117,7 +102,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
       const url = URL.createObjectURL(blob);
       audioRef.current.src = url;
       audioRef.current.load();
-      if (isPlaying && walletConnected && isAllowedPage) {
+      if (isPlaying && address && isAllowedPage) {
         audioRef.current.play();
       }
     } catch (error) {
@@ -126,7 +111,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   };
 
   const togglePlay = () => {
-    if (!walletConnected || !isAllowedPage) return;
+    if (!address || !isAllowedPage) return;
 
     if (audioRef.current) {
       if (isPlaying) {
@@ -139,7 +124,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   };
 
   const handleSeek = (value: number[]) => {
-    if (!walletConnected || !isAllowedPage) return;
+      if (!address || !isAllowedPage) return;
 
     if (audioRef.current) {
       audioRef.current.currentTime = value[0];
@@ -148,7 +133,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   };
 
   const handleVolumeChange = (value: number[]) => {
-    if (!walletConnected || !isAllowedPage) return;
+    if (!address || !isAllowedPage) return;
 
     const newVolume = value[0];
     if (audioRef.current) {
@@ -158,7 +143,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   };
 
   const playSong = async (song: Song) => {
-    if (!walletConnected || !isAllowedPage) return;
+      if (!address || !isAllowedPage) return;
 
     setCurrentSong(song);
     setIsPlaying(true);
@@ -166,7 +151,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   };
 
   const playNext = () => {
-    if (!walletConnected || !isAllowedPage) return;
+      if (!address || !isAllowedPage) return;
 
     if (!recentSongs || !currentSong) return;
     const currentIndex = recentSongs.findIndex((s) => s.id === currentSong.id);
@@ -175,7 +160,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   };
 
   const playPrevious = () => {
-    if (!walletConnected || !isAllowedPage) return;
+    if (!address || !isAllowedPage) return;
 
     if (!recentSongs || !currentSong) return;
     const currentIndex = recentSongs.findIndex((s) => s.id === currentSong.id);

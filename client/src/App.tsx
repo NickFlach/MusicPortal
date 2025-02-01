@@ -1,70 +1,21 @@
 import { Switch, Route, Redirect } from "wouter";
 import { QueryClientProvider } from "@tanstack/react-query";
+import { WagmiConfig } from 'wagmi';
 import { queryClient } from "./lib/queryClient";
+import { config } from "./lib/web3";
 import { Toaster } from "@/components/ui/toaster";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
 import Treasury from "@/pages/Treasury";
 import Admin from "@/pages/Admin";
 import Landing from "@/pages/Landing";
+import { useAccount } from 'wagmi';
 import { MusicPlayerProvider } from "@/contexts/MusicPlayerContext";
-import { useState, useEffect } from "react";
-import { Loader2 } from "lucide-react";
-import { initializeWeb3, subscribeToAccountChanges, Web3State } from "./lib/web3";
-
-function useWalletConnection() {
-  const [web3State, setWeb3State] = useState<Web3State | null>(null);
-  const [isInitializing, setIsInitializing] = useState(true);
-
-  useEffect(() => {
-    const init = async () => {
-      try {
-        const state = await initializeWeb3();
-        setWeb3State(state);
-      } catch (error) {
-        console.error('Failed to initialize web3:', error);
-        setWeb3State({
-          isConnected: false,
-          address: null,
-          chainId: null,
-          provider: null
-        });
-      } finally {
-        setIsInitializing(false);
-      }
-    };
-
-    init();
-
-    const unsubscribe = subscribeToAccountChanges(async (accounts) => {
-      const state = await initializeWeb3();
-      setWeb3State(state);
-    });
-
-    return () => {
-      unsubscribe();
-    };
-  }, []);
-
-  return {
-    isConnected: web3State?.isConnected ?? false,
-    isInitializing,
-    address: web3State?.address
-  };
-}
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
-  const { isConnected, isInitializing } = useWalletConnection();
+  const { address } = useAccount();
 
-  if (isInitializing) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-    );
-  }
-
-  if (!isConnected) {
+  if (!address) {
     return <Redirect to="/landing" />;
   }
 
@@ -72,27 +23,9 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
 }
 
 function Router() {
-  const { isConnected, isInitializing } = useWalletConnection();
-
-  if (isInitializing) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-    );
-  }
-
-  // Only redirect to landing if not already on landing page and wallet is not connected
-  if (!isConnected && window.location.pathname !== '/landing') {
-    return <Redirect to="/landing" />;
-  }
-
   return (
     <Switch>
-      {/* Always allow access to landing page */}
       <Route path="/landing" component={Landing} />
-
-      {/* Protected routes */}
       <Route path="/">
         <ProtectedRoute component={Home} />
       </Route>
@@ -109,12 +42,14 @@ function Router() {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <MusicPlayerProvider>
-        <Router />
-        <Toaster />
-      </MusicPlayerProvider>
-    </QueryClientProvider>
+    <WagmiConfig config={config}>
+      <QueryClientProvider client={queryClient}>
+        <MusicPlayerProvider>
+          <Router />
+          <Toaster />
+        </MusicPlayerProvider>
+      </QueryClientProvider>
+    </WagmiConfig>
   );
 }
 

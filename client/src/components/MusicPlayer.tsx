@@ -3,7 +3,7 @@ import { Slider } from "@/components/ui/slider";
 import { Play, Pause, SkipBack, SkipForward, Volume2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { useMusicPlayer } from "@/contexts/MusicPlayerContext";
-import { useState, useEffect } from "react";
+import { useAccount } from 'wagmi';
 import { useLocation } from 'wouter';
 
 export function MusicPlayer() {
@@ -20,24 +20,9 @@ export function MusicPlayer() {
     handleVolumeChange,
   } = useMusicPlayer();
 
+  const { address } = useAccount();
   const [location] = useLocation();
-  const [walletConnected, setWalletConnected] = useState(false);
   const isAllowedPage = ["/", "/treasury", "/admin"].includes(location);
-
-  // Check for wallet connection
-  useEffect(() => {
-    const checkWallet = () => {
-      const isConnected = window.ethereum && window.ethereum.selectedAddress;
-      setWalletConnected(!!isConnected);
-    };
-
-    checkWallet();
-    window.ethereum?.on('accountsChanged', checkWallet);
-
-    return () => {
-      window.ethereum?.removeListener('accountsChanged', checkWallet);
-    };
-  }, []);
 
   const formatTime = (time: number) => {
     const minutes = Math.floor(time / 60);
@@ -45,7 +30,7 @@ export function MusicPlayer() {
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
-  if (!currentSong || !walletConnected || !isAllowedPage) return null;
+  if (!currentSong || !address || !isAllowedPage) return null;
 
   return (
     <Card className="fixed bottom-0 left-0 right-0 p-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-t z-50">

@@ -1,41 +1,15 @@
-import { useLocation } from 'wouter';
+import { useAccount } from 'wagmi';
 import { WalletConnect } from "@/components/WalletConnect";
-import { useState, useEffect } from 'react';
+import { useLocation } from 'wouter';
 
 export default function Landing() {
+  const { address } = useAccount();
   const [, setLocation] = useLocation();
-  const [isConnected, setIsConnected] = useState(false);
 
-  useEffect(() => {
-    const checkWallet = () => {
-      const connected = window.ethereum?.selectedAddress;
-      setIsConnected(!!connected);
-
-      // Only redirect if connected
-      if (connected) {
-        setLocation('/');
-      }
-    };
-
-    // Initial check
-    checkWallet();
-
-    // Listen for account changes
-    if (window.ethereum) {
-      window.ethereum.on('accountsChanged', (accounts: string[]) => {
-        setIsConnected(accounts.length > 0);
-        if (accounts.length > 0) {
-          setLocation('/');
-        }
-      });
-    }
-
-    return () => {
-      if (window.ethereum) {
-        window.ethereum.removeListener('accountsChanged', () => {});
-      }
-    };
-  }, [setLocation]);
+  if (address) {
+    setLocation("/");
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
