@@ -36,6 +36,7 @@ const MusicPlayerContext = createContext<MusicPlayerContextType | undefined>(und
 
 // Create a single audio instance that will be shared across the entire app
 const globalAudio = new Audio();
+globalAudio.preload = 'auto';
 
 export function MusicPlayerProvider({ children }: { children: React.ReactNode }) {
   const [currentSong, setCurrentSong] = useState<Song>();
@@ -91,13 +92,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
     playSong(prevSong);
   }, [currentSong, recentSongs, isAllowedPage]);
 
-  // Auto-start playing the most recent song when on landing page
-  useEffect(() => {
-    if (location === '/landing' && recentSongs?.length && !currentSong) {
-      playSong(recentSongs[0]);
-    }
-  }, [location, recentSongs, currentSong]);
-
+  // Initialize audio event listeners
   useEffect(() => {
     const audio = audioRef.current;
 
@@ -110,8 +105,25 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
       playNext();
     };
 
+    const handlePlay = () => {
+      setIsPlaying(true);
+    };
+
+    const handlePause = () => {
+      setIsPlaying(false);
+    };
+
+    const handleLoadedData = () => {
+      if (isPlaying && isAllowedPage) {
+        audio.play().catch(console.error);
+      }
+    };
+
     audio.addEventListener('timeupdate', handleTimeUpdate);
     audio.addEventListener('ended', handleEnded);
+    audio.addEventListener('play', handlePlay);
+    audio.addEventListener('pause', handlePause);
+    audio.addEventListener('loadeddata', handleLoadedData);
 
     // Set initial volume
     audio.volume = volume;
@@ -119,68 +131,70 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
     return () => {
       audio.removeEventListener('timeupdate', handleTimeUpdate);
       audio.removeEventListener('ended', handleEnded);
+      audio.removeEventListener('play', handlePlay);
+      audio.removeEventListener('pause', handlePause);
+      audio.removeEventListener('loadeddata', handleLoadedData);
     };
-  }, [playNext, volume]);
+  }, [playNext, volume, isPlaying, isAllowedPage]);
 
-  // Handle page transitions while maintaining playback state
+  // Auto-start playing the most recent song when on landing page
   useEffect(() => {
-    if (!isAllowedPage) {
-      audioRef.current.pause();
-      setIsPlaying(false);
-    }
-  }, [isAllowedPage]);
+    if (location === '/landing' && recentSongs?.length && !currentSong) {
+      const initialSong = recentSongs[0];
+      setCurrentSong(initialSong);
+      playMutation.mutate(initialSong.id);
 
-  const loadSong = async () => {
-    if (!currentSong) return;
+      // Start playing immediately
+      loadSong(initialSong, true);
+    }
+  }, [location, recentSongs]);
+
+  const loadSong = async (songToLoad: Song = currentSong!, autoplay: boolean = false) => {
+    if (!songToLoad) return;
     try {
-      const audioData = await getFromIPFS(currentSong.ipfsHash);
+      const audioData = await getFromIPFS(songToLoad.ipfsHash);
       const blob = new Blob([audioData], { type: 'audio/mp3' });
       const url = URL.createObjectURL(blob);
-
-      // Store current playback state
-      const wasPlaying = !audioRef.current.paused;
-      const currentTime = audioRef.current.currentTime;
 
       // Update source
       audioRef.current.src = url;
       audioRef.current.load();
 
-      // Restore playback state
-      if (wasPlaying && isAllowedPage) {
+      // If autoplay is requested, or we were already playing, start playback
+      if ((autoplay || isPlaying) && isAllowedPage) {
         try {
           await audioRef.current.play();
           setIsPlaying(true);
         } catch (error) {
-          console.error('Failed to resume playback:', error);
+          console.error('Failed to start playback:', error);
           setIsPlaying(false);
         }
       }
-
-      // Restore time position if we were in the middle of the song
-      if (currentTime > 0) {
-        audioRef.current.currentTime = currentTime;
-      }
     } catch (error) {
       console.error('Error loading song:', error);
+      setIsPlaying(false);
     }
   };
 
+  // Load song when current song changes
   useEffect(() => {
     if (currentSong) {
-      loadSong();
+      loadSong(currentSong);
     }
   }, [currentSong]);
 
-  const togglePlay = () => {
-    if (!isAllowedPage) return;
+  const togglePlay = async () => {
+    if (!isAllowedPage || !currentSong) return;
 
-    if (audioRef.current) {
+    try {
       if (isPlaying) {
         audioRef.current.pause();
       } else {
-        audioRef.current.play();
+        await audioRef.current.play();
       }
-      setIsPlaying(!isPlaying);
+    } catch (error) {
+      console.error('Error toggling play state:', error);
+      setIsPlaying(false);
     }
   };
 
@@ -212,7 +226,6 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
 
   const playSong = async (song: Song) => {
     if (!isAllowedPage) return;
-
     setCurrentSong(song);
     setIsPlaying(true);
     await playMutation.mutate(song.id);
