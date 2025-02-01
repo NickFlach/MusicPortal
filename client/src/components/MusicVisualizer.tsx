@@ -20,13 +20,22 @@ export function MusicVisualizer() {
 
     async function updateMood() {
       try {
+        // Get the song input object
+        const songInput = {
+          title: currentSong.title,
+          artist: currentSong.artist,
+          ipfsHash: currentSong.ipfsHash,
+        };
+
         // Start with basic detection immediately
-        setMood(detectMood(currentSong));
+        setMood(detectMood(songInput));
 
         // Then try AI analysis if API key exists
         if (import.meta.env.VITE_OPENAI_API_KEY) {
-          const detectedMood = await analyzeMoodWithAI(currentSong);
-          setMood(detectedMood);
+          const detectedMood = await analyzeMoodWithAI(songInput);
+          if (detectedMood) {
+            setMood(detectedMood);
+          }
         }
       } catch (error) {
         console.error('Error analyzing mood:', error);
@@ -53,12 +62,13 @@ export function MusicVisualizer() {
   const background = moodBackgrounds[mood];
 
   return (
-    <div className="relative -mx-6 -mt-24 h-[60vh] overflow-hidden">
+    <div className="relative -mx-6 -mt-6 h-[60vh] overflow-hidden">
       {/* Video Background */}
       <VideoBackgroundGenerator mood={mood} audioLevel={audioLevel} />
 
       {/* Content */}
-      <div className="relative z-20 flex flex-col items-center justify-center h-full gap-8">
+      <div className="relative z-20 flex flex-col items-center justify-between h-full py-12">
+        {/* Logo Section */}
         <motion.img 
           src="/neo_token_logo_flaukowski.png" 
           alt="NEO Token"
@@ -75,11 +85,12 @@ export function MusicVisualizer() {
           }}
         />
 
-        {/* Waveform Visualizer */}
-        <div className="w-full max-w-3xl px-6">
+        {/* Waveform Section */}
+        <div className="w-full max-w-3xl px-6 my-8">
           <WaveformVisualizer />
         </div>
 
+        {/* Mood Text */}
         <motion.h2 
           className="text-6xl font-bold"
           style={{

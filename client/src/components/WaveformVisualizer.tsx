@@ -58,7 +58,7 @@ export function WaveformVisualizer() {
 
       const frequencyData = new Uint8Array(analyserRef.current.frequencyBinCount);
       const waveformData = new Uint8Array(analyserRef.current.frequencyBinCount);
-      
+
       analyserRef.current.getByteFrequencyData(frequencyData);
       analyserRef.current.getByteTimeDomainData(waveformData);
 
@@ -113,7 +113,7 @@ export function WaveformVisualizer() {
       if (i % step !== 0) return;
       const x = (i / step) * (canvas.width / window.devicePixelRatio);
       const y = (((value / 255) * 2) - 1) * amplitude + (canvas.height / (2 * window.devicePixelRatio));
-      
+
       if (i === 0) {
         waveformPath.moveTo(x, y);
       } else {
@@ -135,9 +135,10 @@ export function WaveformVisualizer() {
 
     async function updateMood() {
       try {
-        // Get enhanced mood analysis from OpenAI
         const detectedMood = await analyzeMoodWithAI(currentSong);
-        setMood(detectedMood);
+        if (detectedMood) {
+          setMood(detectedMood);
+        }
       } catch (error) {
         console.error('Error analyzing mood:', error);
       }

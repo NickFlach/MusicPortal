@@ -1,13 +1,18 @@
 import OpenAI from "openai";
-import { type Song } from "@/types/song";
 import { type MusicMood, detectMood } from "./moodDetection";
+
+interface SongInput {
+  title: string;
+  artist: string;
+  ipfsHash: string;
+}
 
 const openai = new OpenAI({
   apiKey: import.meta.env.VITE_OPENAI_API_KEY,
   dangerouslyAllowBrowser: true
 });
 
-export async function analyzeMoodWithAI(song: Song): Promise<MusicMood> {
+export async function analyzeMoodWithAI(song: SongInput): Promise<MusicMood | undefined> {
   try {
     const response = await openai.chat.completions.create({
       model: "gpt-4-turbo-preview",
