@@ -7,7 +7,7 @@ import { analyzeMoodWithAI } from "@/lib/moodAnalysis";
 export function MusicVisualizer() {
   const { currentSong, isPlaying } = useMusicPlayer();
   const [mood, setMood] = useState<MusicMood>("mysterious");
-  const [bars, setBars] = useState<number[]>(Array(20).fill(0));
+  const [audioLevel, setAudioLevel] = useState(0);
   const audioContextRef = useRef<AudioContext>();
   const analyserRef = useRef<AnalyserNode>();
   const sourceRef = useRef<MediaElementAudioSourceNode>();
@@ -47,7 +47,7 @@ export function MusicVisualizer() {
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
-      setBars(Array(20).fill(0));
+      setAudioLevel(0);
       return;
     }
 
@@ -60,7 +60,7 @@ export function MusicVisualizer() {
     if (!audioContextRef.current) {
       audioContextRef.current = new AudioContext();
       analyserRef.current = audioContextRef.current.createAnalyser();
-      analyserRef.current.fftSize = 64;
+      analyserRef.current.fftSize = 32; // Smaller size for overall volume
     }
 
     // Only create a new source if we haven't connected to this audio element
@@ -70,22 +70,21 @@ export function MusicVisualizer() {
       analyserRef.current.connect(audioContextRef.current.destination);
     }
 
-    function updateBars() {
+    function updateAnimation() {
       if (!analyserRef.current) return;
 
       const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
       analyserRef.current.getByteFrequencyData(dataArray);
 
-      // Get every third value for smoother visualization
-      const newBars = Array.from({ length: 20 }, (_, i) => 
-        dataArray[i * 3] ? dataArray[i * 3] / 255 : 0
-      );
+      // Calculate average volume level
+      const average = dataArray.reduce((sum, value) => sum + value, 0) / dataArray.length;
+      const normalizedLevel = average / 255;
 
-      setBars(newBars);
-      animationFrameRef.current = requestAnimationFrame(updateBars);
+      setAudioLevel(normalizedLevel);
+      animationFrameRef.current = requestAnimationFrame(updateAnimation);
     }
 
-    updateBars();
+    updateAnimation();
 
     return () => {
       if (animationFrameRef.current) {
@@ -96,22 +95,54 @@ export function MusicVisualizer() {
 
   if (!currentSong) return null;
 
+  // Animation variants based on mood
+  const moodAnimations = {
+    energetic: {
+      rotate: [0, 360],
+      scale: [1, 1.2 + audioLevel * 0.3],
+    },
+    calm: {
+      rotate: [-10, 10],
+      scale: [1, 1.1 + audioLevel * 0.2],
+    },
+    happy: {
+      rotate: [-20, 20],
+      scale: [1, 1.15 + audioLevel * 0.25],
+    },
+    melancholic: {
+      rotate: [-5, 5],
+      scale: [1, 1.05 + audioLevel * 0.15],
+    },
+    mysterious: {
+      rotate: [0, 180],
+      scale: [1, 1.1 + audioLevel * 0.2],
+    },
+    romantic: {
+      rotate: [-15, 15],
+      scale: [1, 1.12 + audioLevel * 0.22],
+    },
+  };
+
   return (
     <div className="relative w-full h-64 bg-background/80 backdrop-blur rounded-lg overflow-hidden">
       <div className="absolute inset-0 flex items-center justify-center">
+        <motion.img 
+          src="/neo_token_logo_flaukowski.png" 
+          alt="NEO Token"
+          className="w-32 h-32"
+          animate={moodAnimations[mood]}
+          transition={{
+            duration: 2,
+            repeat: Infinity,
+            repeatType: "reverse",
+            ease: "easeInOut",
+          }}
+        />
+      </div>
+      <div className="absolute inset-x-0 bottom-8 text-center">
         <h2 className="text-4xl font-bold bg-gradient-to-r from-primary to-purple-500 bg-clip-text text-transparent">
           {mood.charAt(0).toUpperCase() + mood.slice(1)} Vibes
         </h2>
-      </div>
-      <div className="absolute inset-0 flex items-end justify-center gap-1 p-4">
-        {bars.map((height, index) => (
-          <motion.div
-            key={index}
-            className="w-4 bg-primary/50 rounded-t-lg"
-            animate={{ height: `${Math.max(5, height * 100)}%` }}
-            transition={{ type: "spring", stiffness: 200, damping: 10 }}
-          />
-        ))}
       </div>
     </div>
   );
