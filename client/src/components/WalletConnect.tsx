@@ -25,20 +25,25 @@ export function WalletConnect() {
         return;
       }
 
-      // First connect the wallet
+      // First connect the wallet and wait for it to complete
       await connect({ 
         connector: injected({
           target: 'metaMask'
         })
       });
 
-      // Only try to register if we have an address
-      if (window.ethereum?.selectedAddress) {
-        // Register user after successful connection
-        const response = await apiRequest("POST", "/api/users/register");
-        const userData = await response.json();
-        console.log('User registered:', userData);
+      // Wait a brief moment for the wallet address to be available
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Only proceed if we have a wallet address
+      if (!window.ethereum?.selectedAddress) {
+        throw new Error("Failed to get wallet address");
       }
+
+      // Register user after successful connection
+      const response = await apiRequest("POST", "/api/users/register");
+      const userData = await response.json();
+      console.log('User registered:', userData);
 
       // Redirect to home page if on landing
       if (location === '/landing') {
