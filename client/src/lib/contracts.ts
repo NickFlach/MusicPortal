@@ -4,7 +4,7 @@ import { mainnet } from 'viem/chains';
 // Contract addresses
 export const PFORK_TOKEN_ADDRESS = '0x216490C8E6b33b4d8A2390dADcf9f433E30da60F';
 export const TREASURY_ADDRESS = '0xeB57D2e1D869AA4b70961ce3aD99582E84F4F0d4';
-export const PLAYLIST_NFT_ADDRESS = '0x1234567890123456789012345678901234567890'; // Replace with actual address
+export const PLAYLIST_NFT_ADDRESS = '0x0177102d27753957EBD4221e1b0Cf4777c2A2Bf2';
 
 // Create a public client
 export const publicClient = createPublicClient({
@@ -32,12 +32,11 @@ export const TREASURY_ABI = parseAbi([
   'function owner() view returns (address)',
 ]);
 
-// ABI for PlaylistNFT (Updated for ERC1155 with proper struct definition)
+// ABI for PlaylistNFT
 export const PLAYLIST_NFT_ABI = parseAbi([
   'function mintSong(address to, string title, string artist, string ipfsHash, string metadataUri) payable returns (uint256)',
   'function uri(uint256 tokenId) view returns (string)',
-  'struct SongMetadata { string title; string artist; string ipfsHash; address creator; uint256 timestamp; }',
-  'function getSongMetadata(uint256 tokenId) view returns (tuple(string title, string artist, string ipfsHash, address creator, uint256 timestamp) memory)',
+  'function getCurrentTokenId() view returns (uint256)',
   'function balanceOf(address account, uint256 id) view returns (uint256)',
   'function isApprovedForAll(address account, address operator) view returns (bool)',
   'function setApprovalForAll(address operator, bool approved)',
