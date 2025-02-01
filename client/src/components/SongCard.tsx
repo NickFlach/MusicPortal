@@ -10,7 +10,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { MoreVertical, Plus, ListMusic, Coins, Edit } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { getPlaylistNFTContract } from "@/lib/contracts";
+import { getPlaylistNFTContract, connectWallet } from "@/lib/contracts";
 import { EditSongDialog } from "./EditSongDialog";
 import { useState } from "react";
 import { ethers } from "ethers";
@@ -66,18 +66,15 @@ export function SongCard({ song, onClick, variant = "ghost", showDelete = false 
     try {
       setIsMinting(true);
 
-      // Get contract instance
-      const contract = getPlaylistNFTContract();
-      if (!contract) {
-        throw new Error("Please connect your wallet first");
-      }
+      // Get wallet connection first
+      const { signer } = await connectWallet();
 
-      // Get the current signer's address
-      const address = await contract.runner.getAddress();
+      // Get contract instance with signer
+      const contract = getPlaylistNFTContract(signer);
 
       // Mint NFT
       const tx = await contract.mintSong(
-        address,
+        await signer.getAddress(),
         song.title,
         song.artist,
         song.ipfsHash,

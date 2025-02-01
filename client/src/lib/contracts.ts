@@ -9,40 +9,59 @@ export const PLAYLIST_NFT_ADDRESS = '0x0177102d27753957EBD4221e1b0Cf4777c2A2Bf2'
 export const NEO_CHAIN_ID = 1;
 export const NEO_RPC_URL = 'https://mainnet.neo.org/';
 
-let provider: ethers.BrowserProvider | null = null;
-let signer: ethers.JsonRpcSigner | null = null;
-
 export async function connectWallet() {
   if (typeof window.ethereum === 'undefined') {
     throw new Error('MetaMask is not installed');
   }
 
   try {
-    provider = new ethers.BrowserProvider(window.ethereum);
-    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-    signer = await provider.getSigner();
-    return accounts[0];
+    // Request account access - this triggers the MetaMask popup
+    const accounts = await window.ethereum.request({ 
+      method: 'eth_requestAccounts'
+    });
+
+    // Create provider and signer after successful connection
+    const provider = new ethers.BrowserProvider(window.ethereum);
+    const signer = await provider.getSigner();
+
+    // Switch to NEO X chain if not already on it
+    try {
+      await window.ethereum.request({
+        method: 'wallet_switchEthereumChain',
+        params: [{ chainId: `0x${NEO_CHAIN_ID.toString(16)}` }],
+      });
+    } catch (error: any) {
+      if (error.code === 4902) {
+        await window.ethereum.request({
+          method: 'wallet_addEthereumChain',
+          params: [{
+            chainId: `0x${NEO_CHAIN_ID.toString(16)}`,
+            chainName: 'NEO X',
+            nativeCurrency: {
+              name: 'NEO',
+              symbol: 'NEO',
+              decimals: 18
+            },
+            rpcUrls: [NEO_RPC_URL]
+          }]
+        });
+      } else {
+        throw error;
+      }
+    }
+
+    return {
+      address: accounts[0],
+      provider,
+      signer
+    };
   } catch (error) {
     console.error('Error connecting to wallet:', error);
     throw error;
   }
 }
 
-export function getProvider() {
-  if (!provider) {
-    throw new Error('Provider not initialized. Call connectWallet() first.');
-  }
-  return provider;
-}
-
-export function getSigner() {
-  if (!signer) {
-    throw new Error('Signer not initialized. Call connectWallet() first.');
-  }
-  return signer;
-}
-
-// ABI definitions
+// Contract ABIs
 export const PFORK_TOKEN_ABI = [
   'function balanceOf(address owner) view returns (uint256)',
   'function transfer(address to, uint256 amount) returns (bool)',
@@ -73,14 +92,14 @@ export const PLAYLIST_NFT_ABI = [
 ] as const;
 
 // Contract instance getters
-export function getPFORKTokenContract() {
-  return new ethers.Contract(PFORK_TOKEN_ADDRESS, PFORK_TOKEN_ABI, getSigner());
+export function getPFORKTokenContract(signer: ethers.Signer) {
+  return new ethers.Contract(PFORK_TOKEN_ADDRESS, PFORK_TOKEN_ABI, signer);
 }
 
-export function getTreasuryContract() {
-  return new ethers.Contract(TREASURY_ADDRESS, TREASURY_ABI, getSigner());
+export function getTreasuryContract(signer: ethers.Signer) {
+  return new ethers.Contract(TREASURY_ADDRESS, TREASURY_ABI, signer);
 }
 
-export function getPlaylistNFTContract() {
-  return new ethers.Contract(PLAYLIST_NFT_ADDRESS, PLAYLIST_NFT_ABI, getSigner());
+export function getPlaylistNFTContract(signer: ethers.Signer) {
+  return new ethers.Contract(PLAYLIST_NFT_ADDRESS, PLAYLIST_NFT_ABI, signer);
 }

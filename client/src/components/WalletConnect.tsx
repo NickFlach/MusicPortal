@@ -50,7 +50,7 @@ export function WalletConnect() {
       }
 
       // Connect wallet
-      const userAddress = await connectWallet();
+      const { address: userAddress } = await connectWallet();
       setAddress(userAddress);
 
       try {

@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Play, Plus, Coins } from "lucide-react";
 import { ShareButton } from "@/components/ui/share-button";
 import { useToast } from "@/hooks/use-toast";
-import { getPlaylistNFTContract } from "@/lib/contracts";
+import { getPlaylistNFTContract, connectWallet } from "@/lib/contracts";
 import { ethers } from "ethers";
 import { useState } from "react";
 
@@ -35,14 +35,11 @@ export function PlaylistCard({
     try {
       setIsMinting(true);
 
-      // Get contract instance
-      const contract = getPlaylistNFTContract();
-      if (!contract) {
-        throw new Error("Please connect your wallet first");
-      }
+      // Get wallet connection first
+      const { signer } = await connectWallet();
 
-      // Get the current signer's address
-      const address = await contract.runner.getAddress();
+      // Get contract instance with signer
+      const contract = getPlaylistNFTContract(signer);
 
       if (songCount === 0) {
         throw new Error("Cannot mint empty playlist");
@@ -50,7 +47,7 @@ export function PlaylistCard({
 
       // Mint NFT
       const tx = await contract.mintPlaylist(
-        address,
+        await signer.getAddress(),
         title,
         `ipfs://playlist-${id}`,
         { value: ethers.parseEther("1") }
