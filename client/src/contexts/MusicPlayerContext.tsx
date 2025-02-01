@@ -65,7 +65,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   });
 
   // Check if current page is one where music should play
-  const isAllowedPage = ["/", "/treasury", "/admin", "/landing"].includes(location);
+  const isAllowedPage = ["/", "/home", "/treasury", "/admin"].includes(location);
 
   // Define playNext as a useCallback to ensure stable reference
   const playNext = useCallback(() => {
@@ -134,10 +134,9 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
     if (location === '/landing' && recentSongs?.length && !hasInitializedRef.current) {
       hasInitializedRef.current = true;
       const initialSong = recentSongs[0];
-        setCurrentSong(initialSong);
+      setCurrentSong(initialSong);
     }
   }, [location, recentSongs]);
-
 
   // Reset initialization flag when leaving landing page
   useEffect(() => {
@@ -149,19 +148,19 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   const loadSong = async (songToLoad: Song) => {
     if (!songToLoad) return;
     try {
+      console.log('Loading song:', songToLoad.title);
       const audioData = await getFromIPFS(songToLoad.ipfsHash);
       const blob = new Blob([audioData], { type: 'audio/mp3' });
       const url = URL.createObjectURL(blob);
 
-      const wasPlaying = !audioRef.current.paused;
       audioRef.current.src = url;
       audioRef.current.load();
 
-      if (wasPlaying && isAllowedPage) {
+      if (isPlaying && isAllowedPage) {
         try {
           await audioRef.current.play();
         } catch (error) {
-          console.error('Failed to resume playback:', error);
+          console.error('Failed to play:', error);
           setIsPlaying(false);
         }
       }
@@ -221,6 +220,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
 
   const playSong = async (song: Song) => {
     if (!isAllowedPage) return;
+    console.log('Playing song:', song.title);
     setCurrentSong(song);
     setIsPlaying(true);
     await playMutation.mutate(song.id);
