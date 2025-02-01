@@ -12,7 +12,7 @@ export function Layout({ children }: LayoutProps) {
     <div className="min-h-screen bg-background relative overflow-hidden">
       {/* Background Image with Overlay */}
       <div
-        className="absolute inset-0 z-0"
+        className="absolute inset-0 z-[-1]"
         style={{
           backgroundImage: 'url("/neo_token_logo_flaukowski.png")',
           backgroundSize: 'cover',
@@ -41,7 +41,7 @@ export function Layout({ children }: LayoutProps) {
           <WalletConnect />
         </div>
       </header>
-      <main className="container mx-auto pt-24 pb-40">
+      <main className="container mx-auto pt-24 pb-40 relative z-10">
         {children}
       </main>
       <MusicPlayer />
