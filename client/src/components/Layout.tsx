@@ -37,7 +37,10 @@ export function Layout({ children }: LayoutProps) {
         {children}
       </main>
 
-      <MusicPlayer />
+      {/* Fixed Music Player at bottom */}
+      <div className="fixed bottom-0 left-0 right-0 z-50">
+        <MusicPlayer />
+      </div>
     </div>
   );
 }
