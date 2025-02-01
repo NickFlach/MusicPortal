@@ -106,6 +106,39 @@ export function registerRoutes(app: Express) {
     }
   });
 
+  // Add new PATCH endpoint for editing songs
+  app.patch("/api/songs/:id", async (req, res) => {
+    const songId = parseInt(req.params.id);
+    const userAddress = req.headers['x-wallet-address'] as string;
+    const { title, artist } = req.body;
+
+    if (!userAddress) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    // Check if the song belongs to the user
+    const song = await db.query.songs.findFirst({
+      where: eq(songs.id, songId),
+    });
+
+    if (!song || song.uploadedBy !== userAddress.toLowerCase()) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+
+    // Update the song
+    const [updatedSong] = await db
+      .update(songs)
+      .set({
+        title,
+        artist,
+      })
+      .where(eq(songs.id, songId))
+      .returning();
+
+    res.json(updatedSong);
+  });
+
+
   // Playlists
   app.get("/api/playlists", async (req, res) => {
     const userAddress = req.headers['x-wallet-address'] as string;

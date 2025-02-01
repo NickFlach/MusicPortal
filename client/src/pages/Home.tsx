@@ -11,6 +11,7 @@ import { Upload, ListMusic, Library } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { useAccount } from 'wagmi';
 import { SongCard } from "@/components/SongCard";
+import { EditSongDialog } from "@/components/EditSongDialog";
 
 interface Song {
   id: number;
@@ -37,6 +38,8 @@ interface PlaylistWithSongs extends Playlist {
 
 export default function Home() {
   const [currentSong, setCurrentSong] = useState<Song>();
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [pendingUpload, setPendingUpload] = useState<File>();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { address } = useAccount();
@@ -71,15 +74,7 @@ export default function Home() {
   };
 
   const uploadMutation = useMutation({
-    mutationFn: async (data: FormData) => {
-      const file = data.get("file") as File;
-      const title = data.get("title") as string;
-      const artist = data.get("artist") as string;
-
-      if (!file || !title || !artist) {
-        throw new Error("Missing required fields");
-      }
-
+    mutationFn: async ({ file, title, artist }: { file: File; title: string; artist: string }) => {
       // First ensure user is registered
       try {
         await apiRequest("POST", "/api/users/register");
@@ -109,13 +104,13 @@ export default function Home() {
       }
     },
     onSuccess: () => {
-      // Invalidate both recent songs and library queries
       queryClient.invalidateQueries({ queryKey: ["/api/songs/library"] });
       queryClient.invalidateQueries({ queryKey: ["/api/songs/recent"] });
       toast({
         title: "Success",
         description: "Song uploaded successfully!",
       });
+      setPendingUpload(undefined);
     },
     onError: (error: Error) => {
       toast({
@@ -175,12 +170,8 @@ export default function Home() {
       return;
     }
 
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("title", file.name.replace(/\.[^/.]+$/, "")); // Remove extension
-    formData.append("artist", "Unknown Artist");
-
-    uploadMutation.mutate(formData);
+    setPendingUpload(file);
+    setUploadDialogOpen(true);
   };
 
   return (
@@ -296,6 +287,23 @@ export default function Home() {
           const currentIndex = recentSongs.findIndex((s) => s.id === currentSong.id);
           const prevSong = recentSongs[(currentIndex - 1 + recentSongs.length) % recentSongs.length];
           handlePlaySong(prevSong);
+        }}
+      />
+       <EditSongDialog
+        open={uploadDialogOpen}
+        onOpenChange={(open) => {
+          setUploadDialogOpen(open);
+          if (!open) setPendingUpload(undefined);
+        }}
+        mode="create"
+        onSubmit={({ title, artist }) => {
+          if (pendingUpload) {
+            uploadMutation.mutate({
+              file: pendingUpload,
+              title,
+              artist,
+            });
+          }
         }}
       />
     </Layout>
