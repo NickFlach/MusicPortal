@@ -4,8 +4,8 @@ import feedRoutes from './feed';
 import metadataRoutes from './metadata';
 
 export function registerRoutes(app: Express) {
-  // Add a simple health check route
-  app.get('/api/health', (_req, res) => {
+  // Health check route
+  app.get('/health', (_req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
   });
 
@@ -14,6 +14,11 @@ export function registerRoutes(app: Express) {
 
   // Register the metadata routes
   app.use(metadataRoutes);
+
+  // Handle 404 for non-existent API routes
+  app.use('/api/*', (_req, res) => {
+    res.status(404).json({ error: 'API endpoint not found' });
+  });
 
   const server = createServer(app);
   return server;
