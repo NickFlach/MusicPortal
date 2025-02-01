@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { useMusicPlayer } from "@/contexts/MusicPlayerContext";
-import { type MusicMood, detectMood } from "@/lib/moodDetection";
+import { type MusicMood, detectMood, moodBackgrounds } from "@/lib/moodDetection";
 import { analyzeMoodWithAI } from "@/lib/moodAnalysis";
 
 export function MusicVisualizer() {
@@ -100,54 +100,84 @@ export function MusicVisualizer() {
 
   if (!currentSong) return null;
 
-  // Animation variants based on mood
-  const moodAnimations = {
-    energetic: {
-      rotate: [0, 360],
-      scale: [1, 1.2 + audioLevel * 0.3],
-    },
-    calm: {
-      rotate: [-10, 10],
-      scale: [1, 1.1 + audioLevel * 0.2],
-    },
-    happy: {
-      rotate: [-20, 20],
-      scale: [1, 1.15 + audioLevel * 0.25],
-    },
-    melancholic: {
-      rotate: [-5, 5],
-      scale: [1, 1.05 + audioLevel * 0.15],
-    },
-    mysterious: {
-      rotate: [0, 180],
-      scale: [1, 1.1 + audioLevel * 0.2],
-    },
-    romantic: {
-      rotate: [-15, 15],
-      scale: [1, 1.12 + audioLevel * 0.22],
-    },
-  };
+  const background = moodBackgrounds[mood];
 
   return (
-    <div className="relative w-full h-64 bg-background/80 backdrop-blur rounded-lg overflow-hidden">
-      <div className="absolute inset-0 flex items-center justify-center">
+    <div className="relative -mx-6 -mt-24 h-[60vh] overflow-hidden">
+      {/* Animated background */}
+      <motion.div
+        className="absolute inset-0 z-0"
+        animate={{
+          background: background.gradient,
+          filter: `blur(${50 + audioLevel * 50}px)`,
+        }}
+        transition={{
+          duration: 2,
+          ease: "easeInOut",
+        }}
+      />
+
+      {/* Pattern overlay */}
+      <div 
+        className="absolute inset-0 z-10 opacity-30"
+        style={{
+          backgroundImage: "radial-gradient(circle at center, white 1px, transparent 1px)",
+          backgroundSize: "50px 50px",
+          transform: `scale(${1 + audioLevel * 0.5})`,
+          transition: "transform 0.2s ease-out"
+        }}
+      />
+
+      {/* Content */}
+      <div className="relative z-20 flex flex-col items-center justify-center h-full gap-8">
         <motion.img 
           src="/neo_token_logo_flaukowski.png" 
           alt="NEO Token"
-          className="w-32 h-32"
-          animate={moodAnimations[mood]}
+          className="w-40 h-40 drop-shadow-2xl"
+          animate={{
+            rotate: audioLevel > 0.1 ? [0, 360] : 0,
+            scale: 1 + audioLevel * 0.3,
+          }}
           transition={{
-            duration: 2,
+            duration: 4,
             repeat: Infinity,
             repeatType: "reverse",
             ease: "easeInOut",
           }}
         />
-      </div>
-      <div className="absolute inset-x-0 bottom-8 text-center">
-        <h2 className="text-4xl font-bold bg-gradient-to-r from-primary to-purple-500 bg-clip-text text-transparent">
+
+        <motion.h2 
+          className="text-6xl font-bold"
+          style={{
+            background: background.gradient,
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+            textShadow: "0 0 30px rgba(0,0,0,0.2)"
+          }}
+          animate={{
+            scale: 1 + audioLevel * 0.1,
+          }}
+          transition={{
+            duration: 0.2
+          }}
+        >
           {mood.charAt(0).toUpperCase() + mood.slice(1)} Vibes
-        </h2>
+        </motion.h2>
+
+        {/* Visual audio level indicator */}
+        <div className="flex gap-1 mt-4">
+          {Array.from({ length: 20 }).map((_, i) => (
+            <motion.div
+              key={i}
+              className="w-1 rounded-full bg-white/30"
+              animate={{
+                height: `${Math.max(4, (audioLevel * 100) * (1 - Math.abs(i - 10) / 10))}px`,
+                opacity: audioLevel > i / 20 ? 1 : 0.3,
+              }}
+              transition={{ type: "spring", stiffness: 300, damping: 20 }}
+            />
+          ))}
+        </div>
       </div>
     </div>
   );
