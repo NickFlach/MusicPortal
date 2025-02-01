@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { useMusicPlayer } from "@/contexts/MusicPlayerContext";
 import { type MusicMood } from "@/lib/moodDetection";
 import { analyzeMoodWithAI } from "@/lib/moodAnalysis";
@@ -10,6 +10,7 @@ export function MusicVisualizer() {
   const [bars, setBars] = useState<number[]>(Array(20).fill(0));
   const audioContextRef = useRef<AudioContext>();
   const analyserRef = useRef<AnalyserNode>();
+  const sourceRef = useRef<MediaElementAudioSourceNode>();
   const animationFrameRef = useRef<number>();
 
   useEffect(() => {
@@ -30,6 +31,18 @@ export function MusicVisualizer() {
   }, [currentSong]);
 
   useEffect(() => {
+    // Cleanup function to handle audio context and animation frame
+    return () => {
+      if (audioContextRef.current?.state !== 'closed') {
+        audioContextRef.current?.close();
+      }
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
+  }, []); // Empty dependency array for cleanup on unmount
+
+  useEffect(() => {
     if (!isPlaying || !currentSong) {
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
@@ -38,31 +51,36 @@ export function MusicVisualizer() {
       return;
     }
 
+    // Find the audio element
+    const audioElements = document.getElementsByTagName('audio');
+    if (!audioElements.length) return;
+    const audio = audioElements[0];
+
+    // Initialize audio context if needed
     if (!audioContextRef.current) {
       audioContextRef.current = new AudioContext();
       analyserRef.current = audioContextRef.current.createAnalyser();
       analyserRef.current.fftSize = 64;
     }
 
-    const audioElements = document.getElementsByTagName('audio');
-    if (audioElements.length === 0) return;
-
-    const audio = audioElements[0];
-    const source = audioContextRef.current.createMediaElementSource(audio);
-    source.connect(analyserRef.current);
-    analyserRef.current.connect(audioContextRef.current.destination);
+    // Only create a new source if we haven't connected to this audio element
+    if (!sourceRef.current) {
+      sourceRef.current = audioContextRef.current.createMediaElementSource(audio);
+      sourceRef.current.connect(analyserRef.current);
+      analyserRef.current.connect(audioContextRef.current.destination);
+    }
 
     function updateBars() {
       if (!analyserRef.current) return;
-      
+
       const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
       analyserRef.current.getByteFrequencyData(dataArray);
-      
+
       // Get every third value for smoother visualization
       const newBars = Array.from({ length: 20 }, (_, i) => 
         dataArray[i * 3] ? dataArray[i * 3] / 255 : 0
       );
-      
+
       setBars(newBars);
       animationFrameRef.current = requestAnimationFrame(updateBars);
     }
