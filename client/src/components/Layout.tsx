@@ -2,6 +2,7 @@ import { WalletConnect } from "@/components/WalletConnect";
 import { Navigation } from "@/components/Navigation";
 import { MusicPlayer } from "@/components/MusicPlayer";
 import { Link } from "wouter";
+import { DynamicBackground } from "@/components/DynamicBackground";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -10,19 +11,7 @@ interface LayoutProps {
 export function Layout({ children }: LayoutProps) {
   return (
     <div className="min-h-screen bg-background">
-      {/* Background Image with Overlay */}
-      <div
-        className="fixed inset-0 pointer-events-none"
-        style={{
-          backgroundImage: 'url("/neo_token_logo_flaukowski.png")',
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          filter: 'blur(8px)',
-          transform: 'scale(1.1)',
-          opacity: '0.2',
-          zIndex: -1
-        }}
-      />
+      <DynamicBackground />
 
       <header className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
         <div className="container mx-auto py-4 flex items-center justify-between">
