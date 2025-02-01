@@ -12,8 +12,21 @@ export default function Landing() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-8">
+    <div className="min-h-screen bg-background relative overflow-hidden">
+      {/* Background Image with Overlay */}
+      <div
+        className="absolute inset-0 z-0"
+        style={{
+          backgroundImage: 'url("/neo_token_logo_flaukowski.png")',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          filter: 'blur(8px)',
+          transform: 'scale(1.1)',
+          opacity: '0.15'
+        }}
+      />
+
+      <div className="container mx-auto px-4 py-8 relative z-10">
         <div className="flex items-center justify-between mb-12">
           <div className="flex items-center gap-2">
             <img 
@@ -50,12 +63,9 @@ export default function Landing() {
                 • Earn PFORK tokens through community participation
               </li>
             </ul>
-            <div className="pt-4">
-              <WalletConnect />
-            </div>
           </div>
 
-          <div className="relative">
+          <div className="relative hidden lg:block">
             <div className="absolute -inset-4 rounded-lg bg-gradient-to-r from-primary/20 to-purple-500/20 blur-3xl" />
             <div className="relative aspect-square rounded-lg bg-card p-4 shadow-xl">
               <img 
