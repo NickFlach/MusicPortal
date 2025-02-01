@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useMusicPlayer } from "@/contexts/MusicPlayerContext";
-import { type MusicMood, detectMood, moodBackgrounds } from "@/lib/moodDetection";
+import { detectMood, type MusicMood, moodBackgrounds } from "@/lib/moodDetection";
 import { analyzeMoodWithAI } from "@/lib/moodAnalysis";
 import { VideoBackgroundGenerator } from "./VideoBackgroundGenerator";
 
@@ -20,8 +20,7 @@ export function MusicVisualizer() {
     async function updateMood() {
       try {
         // Start with basic detection immediately
-        const basicMood = detectMood(currentSong);
-        setMood(basicMood);
+        setMood(detectMood(currentSong));
 
         // Then try AI analysis if API key exists
         if (import.meta.env.VITE_OPENAI_API_KEY) {
@@ -129,7 +128,7 @@ export function MusicVisualizer() {
         <motion.h2 
           className="text-6xl font-bold"
           style={{
-            background: background.gradient,
+            background: `linear-gradient(135deg, ${background.colors[0]}, ${background.colors[1]})`,
             WebkitBackgroundClip: "text",
             WebkitTextFillColor: "transparent",
             textShadow: "0 0 30px rgba(0,0,0,0.2)"

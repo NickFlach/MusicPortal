@@ -10,7 +10,7 @@ const openai = new OpenAI({
 export async function analyzeMoodWithAI(song: Song): Promise<MusicMood> {
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-4",  // Using standard gpt-4 model instead
+      model: "gpt-4-turbo-preview",
       messages: [
         {
           role: "system",
