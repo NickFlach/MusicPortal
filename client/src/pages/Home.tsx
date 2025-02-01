@@ -2,14 +2,13 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { MusicPlayer } from "@/components/MusicPlayer";
 import { PlaylistCard } from "@/components/PlaylistCard";
-import { WalletConnect } from "@/components/WalletConnect";
 import { Button } from "@/components/ui/button";
 import { uploadToIPFS } from "@/lib/ipfs";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Upload, ListMusic } from "lucide-react";
-import { Navigation } from "@/components/Navigation";
+import { Layout } from "@/components/Layout";
 
 interface Song {
   id: number;
@@ -74,79 +73,65 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
-        <div className="container mx-auto py-4 flex items-center justify-between">
-          <div className="flex items-center">
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-purple-500 bg-clip-text text-transparent">
-              Decentralized Music
-            </h1>
-            <Navigation />
-          </div>
-          <WalletConnect />
+    <Layout>
+      <section className="mb-12">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-semibold">Your Playlists</h2>
+          <Button variant="outline">
+            <ListMusic className="mr-2 h-4 w-4" />
+            New Playlist
+          </Button>
         </div>
-      </header>
 
-      <main className="container mx-auto pt-24 pb-32">
-        <section className="mb-12">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-semibold">Your Playlists</h2>
-            <Button variant="outline">
-              <ListMusic className="mr-2 h-4 w-4" />
-              New Playlist
-            </Button>
-          </div>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+          {playlists?.map((playlist) => (
+            <PlaylistCard
+              key={playlist.id}
+              title={playlist.name}
+              songCount={0}
+              onPlay={() => {}}
+              onAddSong={() => {}}
+            />
+          ))}
+        </div>
+      </section>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-            {playlists?.map((playlist) => (
-              <PlaylistCard
-                key={playlist.id}
-                title={playlist.name}
-                songCount={0}
-                onPlay={() => {}}
-                onAddSong={() => {}}
-              />
-            ))}
-          </div>
-        </section>
-
-        <section>
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-semibold">Recent Songs</h2>
-            <div className="flex items-center gap-4">
-              <Input
-                type="file"
-                accept=".mp3"
-                onChange={handleFileUpload}
-                className="hidden"
-                id="song-upload"
-              />
-              <label htmlFor="song-upload">
-                <Button variant="outline" asChild>
-                  <span>
-                    <Upload className="mr-2 h-4 w-4" />
-                    Upload Song
-                  </span>
-                </Button>
-              </label>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            {songs?.map((song) => (
-              <Button
-                key={song.id}
-                variant="ghost"
-                className="w-full justify-start"
-                onClick={() => setCurrentSong(song)}
-              >
-                <span className="truncate">{song.title}</span>
-                <span className="ml-2 text-muted-foreground">- {song.artist}</span>
+      <section>
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-semibold">Recent Songs</h2>
+          <div className="flex items-center gap-4">
+            <Input
+              type="file"
+              accept=".mp3"
+              onChange={handleFileUpload}
+              className="hidden"
+              id="song-upload"
+            />
+            <label htmlFor="song-upload">
+              <Button variant="outline" asChild>
+                <span>
+                  <Upload className="mr-2 h-4 w-4" />
+                  Upload Song
+                </span>
               </Button>
-            ))}
+            </label>
           </div>
-        </section>
-      </main>
+        </div>
+
+        <div className="space-y-2">
+          {songs?.map((song) => (
+            <Button
+              key={song.id}
+              variant="ghost"
+              className="w-full justify-start"
+              onClick={() => setCurrentSong(song)}
+            >
+              <span className="truncate">{song.title}</span>
+              <span className="ml-2 text-muted-foreground">- {song.artist}</span>
+            </Button>
+          ))}
+        </div>
+      </section>
 
       <MusicPlayer
         currentSong={currentSong}
@@ -161,6 +146,6 @@ export default function Home() {
           setCurrentSong(songs[(currentIndex - 1 + songs.length) % songs.length]);
         }}
       />
-    </div>
+    </Layout>
   );
 }
