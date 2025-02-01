@@ -1,5 +1,6 @@
-import { createPublicClient, http, parseAbi } from 'viem';
+import { createPublicClient, http } from 'viem';
 import { mainnet } from 'viem/chains';
+import type { Abi } from 'viem';
 
 // Contract addresses
 export const PFORK_TOKEN_ADDRESS = '0x216490C8E6b33b4d8A2390dADcf9f433E30da60F';
@@ -12,15 +13,15 @@ export const publicClient = createPublicClient({
 });
 
 // ABI for PFORKToken
-export const PFORK_TOKEN_ABI = parseAbi([
+export const PFORK_TOKEN_ABI = [
   'function balanceOf(address owner) view returns (uint256)',
   'function transfer(address to, uint256 amount) returns (bool)',
   'function approve(address spender, uint256 amount) returns (bool)',
   'function allowance(address owner, address spender) view returns (uint256)',
-]);
+] as const;
 
 // ABI for MusicTreasury
-export const TREASURY_ABI = parseAbi([
+export const TREASURY_ABI = [
   'function claimUploadReward() external',
   'function claimPlaylistReward() external',
   'function claimNFTReward() external',
@@ -29,21 +30,21 @@ export const TREASURY_ABI = parseAbi([
   'function hasClaimedNFT(address) view returns (bool)',
   'function transferTreasury(address) external',
   'function owner() view returns (address)',
-]);
+] as const;
 
 // Contract interaction functions
 export function getPFORKTokenContract() {
   return {
-    address: PFORK_TOKEN_ADDRESS,
-    abi: PFORK_TOKEN_ABI,
+    address: PFORK_TOKEN_ADDRESS as `0x${string}`,
+    abi: PFORK_TOKEN_ABI as Abi,
     publicClient,
   };
 }
 
 export function getTreasuryContract() {
   return {
-    address: TREASURY_ADDRESS,
-    abi: TREASURY_ABI,
+    address: TREASURY_ADDRESS as `0x${string}`,
+    abi: TREASURY_ABI as Abi,
     publicClient,
   };
 }

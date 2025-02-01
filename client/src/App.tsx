@@ -1,20 +1,18 @@
 import { Switch, Route, Redirect } from "wouter";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { WagmiConfig } from 'wagmi';
 import { queryClient } from "./lib/queryClient";
-import { config } from "./lib/web3";
 import { Toaster } from "@/components/ui/toaster";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
 import Treasury from "@/pages/Treasury";
 import Admin from "@/pages/Admin";
 import Landing from "@/pages/Landing";
-import { useAccount } from 'wagmi';
+import { useWallet } from '@/hooks/use-wallet';
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
-  const { address } = useAccount();
+  const { isConnected } = useWallet();
 
-  if (!address) {
+  if (!isConnected) {
     return <Redirect to="/landing" />;
   }
 
@@ -41,12 +39,10 @@ function Router() {
 
 function App() {
   return (
-    <WagmiConfig config={config}>
-      <QueryClientProvider client={queryClient}>
-        <Router />
-        <Toaster />
-      </QueryClientProvider>
-    </WagmiConfig>
+    <QueryClientProvider client={queryClient}>
+      <Router />
+      <Toaster />
+    </QueryClientProvider>
   );
 }
 

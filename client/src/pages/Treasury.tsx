@@ -4,9 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Layout } from "@/components/Layout";
 import { useToast } from "@/hooks/use-toast";
-import { useAccount, useContractRead, useContractWrite } from 'wagmi';
+import { useWallet } from "@/hooks/use-wallet";
 import { Coins, Send } from "lucide-react";
 import { useState } from "react";
+import { web3Client } from "@/lib/web3";
 import { TREASURY_ADDRESS, TREASURY_ABI, PFORK_TOKEN_ADDRESS, PFORK_TOKEN_ABI } from "@/lib/contracts";
 
 interface TreasuryData {
@@ -16,15 +17,21 @@ interface TreasuryData {
 
 export default function Treasury() {
   const { toast } = useToast();
-  const { address } = useAccount();
+  const { address } = useWallet();
   const [newTreasurerAddress, setNewTreasurerAddress] = useState("");
 
   // Read PFORK balance of Treasury contract
-  const { data: pforkBalance } = useContractRead({
-    address: PFORK_TOKEN_ADDRESS,
-    abi: PFORK_TOKEN_ABI,
-    functionName: 'balanceOf',
-    args: [TREASURY_ADDRESS],
+  const { data: pforkBalance } = useQuery({
+    queryKey: ["pforkBalance", TREASURY_ADDRESS],
+    queryFn: async () => {
+      const data = await web3Client.readContract({
+        address: PFORK_TOKEN_ADDRESS,
+        abi: PFORK_TOKEN_ABI,
+        functionName: 'balanceOf',
+        args: [TREASURY_ADDRESS],
+      });
+      return data;
+    },
   });
 
   // Get treasurer status
@@ -32,20 +39,19 @@ export default function Treasury() {
     queryKey: ["/api/treasury/treasurer"],
   });
 
-  // Contract write mutation for transferring treasury control
-  const { write: transferTreasury } = useContractWrite({
-    address: TREASURY_ADDRESS,
-    abi: TREASURY_ABI,
-    functionName: 'transferTreasury',
-  });
-
   // Mutation for updating treasurer address
   const updateTreasurerMutation = useMutation({
     mutationFn: async () => {
       if (!address) throw new Error("No wallet connected");
-      return transferTreasury({
+
+      const result = await web3Client.writeContract({
+        address: TREASURY_ADDRESS,
+        abi: TREASURY_ABI,
+        functionName: 'transferTreasury',
         args: [newTreasurerAddress],
       });
+
+      return result;
     },
     onSuccess: () => {
       toast({

@@ -1,7 +1,5 @@
-import { createConfig, http } from 'wagmi';
-import { mainnet } from 'wagmi/chains';
-import { injected } from 'wagmi/connectors';
-import { createPublicClient, walletClient } from 'viem';
+import { createPublicClient, createWalletClient, custom, http, type Abi } from 'viem';
+import { mainnet } from 'viem/chains';
 
 // Create a public client
 const publicClient = createPublicClient({
@@ -9,40 +7,68 @@ const publicClient = createPublicClient({
   transport: http(),
 });
 
-// Create wagmi config
-export const config = createConfig({
-  chains: [mainnet],
-  transports: {
-    [mainnet.id]: http(),
-  },
-  connectors: [
-    injected({
-      target: 'metaMask',
-    }),
-  ],
-  client: {
-    public: publicClient,
-  },
-});
+// Create a wallet client when MetaMask is available
+function getWalletClient() {
+  if (typeof window.ethereum === 'undefined') {
+    throw new Error('MetaMask is not installed');
+  }
 
-// Helper functions
-export const isConnected = () => {
-  return Boolean(config.state.connections.size);
+  return createWalletClient({
+    chain: mainnet,
+    transport: custom(window.ethereum),
+  });
+}
+
+// Contract interaction functions
+export async function writeContract(params: {
+  address: `0x${string}`;
+  abi: Abi;
+  functionName: string;
+  args: any[];
+}) {
+  const walletClient = getWalletClient();
+  const [address] = await walletClient.getAddresses();
+
+  const { request } = await publicClient.simulateContract({
+    ...params,
+    account: address,
+  });
+
+  return walletClient.writeContract(request);
+}
+
+export async function readContract(params: {
+  address: `0x${string}`;
+  abi: Abi;
+  functionName: string;
+  args: any[];
+}) {
+  return publicClient.readContract(params);
+}
+
+export async function getBalance(address: `0x${string}`): Promise<bigint> {
+  try {
+    return await publicClient.getBalance({ address });
+  } catch (error) {
+    console.error('Error getting balance:', error);
+    return BigInt(0);
+  }
+}
+
+export const web3Client = {
+  readContract,
+  writeContract,
+  getBalance,
 };
 
-export const getAccount = () => {
-  if (!isConnected()) return null;
-  const connections = Array.from(config.state.connections);
-  if (!connections.length) return null;
-  const [, connection] = connections[0];
-  return connection?.accounts[0];
-};
-
-export const getBalance = async (address: string) => {
-  if (!isConnected()) return BigInt(0);
-  const connections = Array.from(config.state.connections);
-  if (!connections.length) return BigInt(0);
-  const [, connection] = connections[0];
-  if (!connection) return BigInt(0);
-  return publicClient.getBalance({ address });
-};
+// Type declarations for window.ethereum
+declare global {
+  interface Window {
+    ethereum?: {
+      request: (args: { method: string; params?: any[] }) => Promise<any>;
+      on: (event: string, callback: any) => void;
+      removeListener: (event: string, callback: any) => void;
+      selectedAddress: string | null;
+    };
+  }
+}

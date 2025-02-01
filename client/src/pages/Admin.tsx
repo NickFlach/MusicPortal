@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Ban, Coins, Wallet } from "lucide-react";
 import { Layout } from "@/components/Layout";
-import { useAccount } from "wagmi";
+import { useWallet } from "@/hooks/use-wallet";
 
 interface AdminUser {
   address: string;
@@ -23,7 +23,7 @@ interface TreasuryData {
 export default function Admin() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { address } = useAccount();
+  const { address } = useWallet();
 
   const { data: users, isLoading: usersLoading } = useQuery<AdminUser[]>({
     queryKey: ["/api/admin/users"],
