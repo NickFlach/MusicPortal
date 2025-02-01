@@ -29,7 +29,7 @@ export default function Home() {
   const [pendingUpload, setPendingUpload] = useState<File>();
   const { toast } = useToast();
   const { address } = useAccount();
-  const { playSong, recentSongs } = useMusicPlayer();
+  const { playSong, currentSong, recentSongs } = useMusicPlayer();
   const queryClient = useQueryClient();
 
   // Only fetch library songs when wallet is connected
@@ -58,9 +58,9 @@ export default function Home() {
     }
 
     try {
-      // Attempt to register user first if needed
-      await apiRequest("POST", "/api/users/register", { address });
+      // Play the song first
       playSong(song);
+      // Then update play count
       await playMutation.mutate(song.id);
     } catch (error) {
       console.error('Error playing song:', error);
@@ -194,6 +194,7 @@ export default function Home() {
                       song={song}
                       onClick={() => handlePlaySong(song)}
                       showDelete={true}
+                      isPlaying={currentSong?.id === song.id}
                     />
                   ))
                 )}
@@ -216,6 +217,7 @@ export default function Home() {
                     key={song.id}
                     song={song}
                     onClick={() => handlePlaySong(song)}
+                    isPlaying={currentSong?.id === song.id}
                   />
                 ))
               )}

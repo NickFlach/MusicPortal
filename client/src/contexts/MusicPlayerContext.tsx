@@ -64,6 +64,27 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
     enabled: true // Always enabled
   });
 
+  // When wallet connects, register the user and update play count if there's a current song
+  useEffect(() => {
+    async function handleWalletConnection() {
+      if (address && currentSong) {
+        try {
+          // Register user first
+          await apiRequest("POST", "/api/users/register", { address });
+          // Update play count for current song
+          await apiRequest("POST", `/api/songs/play/${currentSong.id}`);
+          // Refresh recent songs list
+          queryClient.invalidateQueries({ queryKey: ["/api/songs/recent"] });
+        } catch (error) {
+          console.error('Error handling wallet connection:', error);
+        }
+      }
+    }
+
+    handleWalletConnection();
+  }, [address, currentSong]);
+
+
   // Track play mutation - only used when wallet is connected
   const playMutation = useMutation({
     mutationFn: async (songId: number) => {
