@@ -109,7 +109,9 @@ export default function Home() {
       }
     },
     onSuccess: () => {
+      // Invalidate both recent songs and library queries
       queryClient.invalidateQueries({ queryKey: ["/api/songs/library"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/songs/recent"] });
       toast({
         title: "Success",
         description: "Song uploaded successfully!",
