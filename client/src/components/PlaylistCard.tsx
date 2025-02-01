@@ -53,7 +53,7 @@ export function PlaylistCard({
       <CardHeader className="relative p-0">
         <div className="aspect-square overflow-hidden">
           <img
-            src={image || "/neo_token_logo_flaukowski.png"}
+            src={"/neo_token_logo_flaukowski.png"}
             alt={title}
             className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-300"
           />
@@ -68,7 +68,7 @@ export function PlaylistCard({
         </div>
       </CardHeader>
       <CardContent className="p-4">
-        <div className="flex items-start justify-between">
+        <div className="space-y-4">
           <div>
             <CardTitle className="text-lg mb-1">{title}</CardTitle>
             <p className="text-sm text-muted-foreground">{songCount} songs</p>
@@ -78,7 +78,7 @@ export function PlaylistCard({
               </p>
             )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-end gap-2">
             {!isNft && (
               <Button
                 size="sm"
