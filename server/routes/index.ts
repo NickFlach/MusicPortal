@@ -2,6 +2,7 @@ import { Express } from "express";
 import { createServer } from "http";
 import feedRoutes from './feed';
 import metadataRoutes from './metadata';
+import userRoutes from './users';
 
 export function registerRoutes(app: Express) {
   // Health check route
@@ -14,6 +15,9 @@ export function registerRoutes(app: Express) {
 
   // Register the metadata routes
   app.use(metadataRoutes);
+
+  // Register the user routes
+  app.use(userRoutes);
 
   // Handle 404 for non-existent API routes
   app.use('/api/*', (_req, res) => {

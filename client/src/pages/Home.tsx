@@ -32,6 +32,7 @@ export default function Home() {
   const { playSong, recentSongs } = useMusicPlayer();
   const queryClient = useQueryClient();
 
+  // Only fetch library songs when wallet is connected
   const { data: librarySongs, isLoading: libraryLoading } = useQuery<Song[]>({
     queryKey: ["/api/songs/library"],
     enabled: !!address,
@@ -59,13 +60,16 @@ export default function Home() {
     try {
       // Attempt to register user first if needed
       await apiRequest("POST", "/api/users/register", { address });
+      playSong(song);
+      await playMutation.mutate(song.id);
     } catch (error) {
-      console.error('User registration error:', error);
-      // Continue even if registration fails as the user might already be registered
+      console.error('Error playing song:', error);
+      toast({
+        title: "Error",
+        description: "Failed to play song. Please try again.",
+        variant: "destructive",
+      });
     }
-
-    playSong(song);
-    await playMutation.mutate(song.id);
   };
 
   const uploadMutation = useMutation({
@@ -75,7 +79,7 @@ export default function Home() {
       }
 
       try {
-        // Register user first
+        // Register user first if needed
         await apiRequest("POST", "/api/users/register", { address });
       } catch (error) {
         console.error('User registration error:', error);
@@ -89,13 +93,11 @@ export default function Home() {
 
       try {
         const ipfsHash = await uploadToIPFS(file);
-
         const response = await apiRequest("POST", "/api/songs", {
           title,
           artist,
           ipfsHash,
         });
-
         return await response.json();
       } catch (error) {
         console.error('Upload error:', error);
@@ -153,7 +155,7 @@ export default function Home() {
         </section>
 
         <div className="flex-1 grid grid-cols-1 gap-6 mb-24">
-          {address && (
+          {address ? (
             <section className="px-4">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-2xl font-semibold">Your Library</h2>
@@ -197,7 +199,7 @@ export default function Home() {
                 )}
               </div>
             </section>
-          )}
+          ) : null}
 
           <section className="px-4">
             <div className="flex items-center justify-between mb-4">
