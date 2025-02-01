@@ -50,6 +50,28 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   const { address } = useAccount();
   const [location] = useLocation();
 
+  // Fetch recent songs regardless of wallet connection for landing page
+  const { data: recentSongs } = useQuery<Song[]>({
+    queryKey: ["/api/songs/recent"],
+    queryFn: async () => {
+      const headers: Record<string, string> = {};
+      if (!address && location === '/') {
+        headers['X-Internal-Token'] = 'landing-page';
+      }
+      const response = await apiRequest("GET", "/api/songs/recent", undefined, { headers });
+      return response.json();
+    },
+    enabled: true // Always enabled to support landing page
+  });
+
+  // Initialize first song on landing page
+  useEffect(() => {
+    if (location === '/' && recentSongs?.length && !currentSong) {
+      const initialSong = recentSongs[0];
+      setCurrentSong(initialSong);
+    }
+  }, [location, recentSongs, currentSong]);
+
   // Reset player state when wallet disconnects
   useEffect(() => {
     if (!address) {
@@ -59,10 +81,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
     }
   }, [address]);
 
-  const { data: recentSongs } = useQuery<Song[]>({
-    queryKey: ["/api/songs/recent"],
-    enabled: !!address, // Only fetch when wallet is connected
-  });
+
 
   const playMutation = useMutation({
     mutationFn: async (songId: number) => {

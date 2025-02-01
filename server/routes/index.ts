@@ -4,7 +4,27 @@ import feedRoutes from './feed';
 import metadataRoutes from './metadata';
 import userRoutes from './users';
 
+// Middleware to check for internal token or user authentication
+const authMiddleware = (req: any, res: any, next: any) => {
+  const internalToken = req.headers['x-internal-token'];
+
+  // Allow internal access from landing page
+  if (internalToken === 'landing-page') {
+    return next();
+  }
+
+  // Otherwise require wallet address
+  if (!req.body?.address) {
+    return res.status(400).json({ message: "Wallet address is required" });
+  }
+
+  next();
+};
+
 export function registerRoutes(app: Express) {
+  // Apply auth middleware to all API routes
+  app.use('/api', authMiddleware);
+
   // Health check route
   app.get('/health', (_req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
