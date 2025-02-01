@@ -129,41 +129,15 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
     };
   }, [playNext, volume]);
 
-  // Auto-start playing the most recent song when on landing page
+  // Remove auto-play functionality from landing page
   useEffect(() => {
     if (location === '/landing' && recentSongs?.length && !hasInitializedRef.current) {
       hasInitializedRef.current = true;
       const initialSong = recentSongs[0];
-
-      const initializePlayback = async () => {
-        try {
-          setCurrentSong(initialSong);
-          await playMutation.mutateAsync(initialSong.id);
-
-          const audioData = await getFromIPFS(initialSong.ipfsHash);
-          const blob = new Blob([audioData], { type: 'audio/mp3' });
-          const url = URL.createObjectURL(blob);
-
-          audioRef.current.src = url;
-          audioRef.current.load();
-
-          // Use the play() promise to handle autoplay
-          try {
-            await audioRef.current.play();
-            setIsPlaying(true);
-          } catch (error) {
-            console.error('Autoplay prevented:', error);
-            setIsPlaying(false);
-          }
-        } catch (error) {
-          console.error('Failed to initialize playback:', error);
-          setIsPlaying(false);
-        }
-      };
-
-      initializePlayback();
+        setCurrentSong(initialSong);
     }
   }, [location, recentSongs]);
+
 
   // Reset initialization flag when leaving landing page
   useEffect(() => {
