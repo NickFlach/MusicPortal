@@ -125,76 +125,80 @@ export default function Home() {
 
   return (
     <Layout>
-      <section className="mb-12">
-        <MusicVisualizer />
-      </section>
-
-      {address && (
-        <section className="mb-12">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-semibold">Your Library</h2>
-            <div className="flex items-center gap-4">
-              <div className="flex items-center text-muted-foreground">
-                <Library className="mr-2 h-4 w-4" />
-                {librarySongs?.length || 0} songs
-              </div>
-              <Input
-                type="file"
-                accept="audio/*"
-                onChange={handleFileUpload}
-                className="hidden"
-                id="song-upload"
-              />
-              <label htmlFor="song-upload">
-                <Button variant="outline" asChild>
-                  <span>
-                    <Upload className="mr-2 h-4 w-4" />
-                    Upload Song
-                  </span>
-                </Button>
-              </label>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            {libraryLoading ? (
-              <p className="text-muted-foreground">Loading your library...</p>
-            ) : librarySongs?.length === 0 ? (
-              <p className="text-muted-foreground">No songs in your library yet</p>
-            ) : (
-              librarySongs?.map((song) => (
-                <SongCard
-                  key={song.id}
-                  song={song}
-                  onClick={() => handlePlaySong(song)}
-                  showDelete={true}
-                />
-              ))
-            )}
-          </div>
+      <div className="flex flex-col min-h-screen">
+        <section className="h-[30vh] mb-6">
+          <MusicVisualizer />
         </section>
-      )}
 
-      <section className="container mx-auto px-4 mb-8">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-semibold">Recent Songs</h2>
-          <p className="text-sm text-muted-foreground">Last 20 played</p>
-        </div>
+        <div className="flex-1 grid grid-cols-1 gap-6 mb-24">
+          {address && (
+            <section className="px-4">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-2xl font-semibold">Your Library</h2>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center text-muted-foreground">
+                    <Library className="mr-2 h-4 w-4" />
+                    {librarySongs?.length || 0} songs
+                  </div>
+                  <Input
+                    type="file"
+                    accept="audio/*"
+                    onChange={handleFileUpload}
+                    className="hidden"
+                    id="song-upload"
+                  />
+                  <label htmlFor="song-upload">
+                    <Button variant="outline" asChild>
+                      <span>
+                        <Upload className="mr-2 h-4 w-4" />
+                        Upload Song
+                      </span>
+                    </Button>
+                  </label>
+                </div>
+              </div>
 
-        <div className="space-y-2">
-          {recentSongs?.length === 0 ? (
-            <p className="text-muted-foreground">No songs played yet</p>
-          ) : (
-            recentSongs?.map((song) => (
-              <SongCard
-                key={song.id}
-                song={song}
-                onClick={() => handlePlaySong(song)}
-              />
-            ))
+              <div className="space-y-2">
+                {libraryLoading ? (
+                  <p className="text-muted-foreground">Loading your library...</p>
+                ) : librarySongs?.length === 0 ? (
+                  <p className="text-muted-foreground">No songs in your library yet</p>
+                ) : (
+                  librarySongs?.map((song) => (
+                    <SongCard
+                      key={song.id}
+                      song={song}
+                      onClick={() => handlePlaySong(song)}
+                      showDelete={true}
+                    />
+                  ))
+                )}
+              </div>
+            </section>
           )}
+
+          <section className="px-4">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-2xl font-semibold">Recent Songs</h2>
+              <p className="text-sm text-muted-foreground">Last 20 played</p>
+            </div>
+
+            <div className="grid gap-2">
+              {recentSongs?.length === 0 ? (
+                <p className="text-muted-foreground">No songs played yet</p>
+              ) : (
+                recentSongs?.map((song) => (
+                  <SongCard
+                    key={song.id}
+                    song={song}
+                    onClick={() => handlePlaySong(song)}
+                  />
+                ))
+              )}
+            </div>
+          </section>
         </div>
-      </section>
+      </div>
 
       <EditSongDialog
         open={uploadDialogOpen}

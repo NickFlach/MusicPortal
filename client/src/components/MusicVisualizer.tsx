@@ -8,7 +8,7 @@ export function MusicVisualizer() {
   if (!currentSong) return null;
 
   return (
-    <div className="relative -mx-6 -mt-6 h-[60vh] overflow-hidden">
+    <div className="relative h-full overflow-hidden">
       {/* Background Logo */}
       <div
         className="absolute inset-0 z-10 opacity-15"
@@ -22,9 +22,9 @@ export function MusicVisualizer() {
       />
 
       {/* Content */}
-      <div className="relative z-20 flex flex-col items-center justify-between h-full py-12">
+      <div className="relative z-20 flex items-center justify-center h-full">
         {/* Waveform Section */}
-        <div className="w-full max-w-3xl px-6 my-8">
+        <div className="w-full max-w-3xl px-6">
           <WaveformVisualizer />
         </div>
       </div>
