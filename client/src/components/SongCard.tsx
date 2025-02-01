@@ -10,10 +10,11 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { MoreVertical, Plus, Trash2, ListMusic, Coins, Edit } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { useContractWrite } from 'wagmi';
+import { useContractWrite, useAccount } from 'wagmi';
 import { PLAYLIST_NFT_ADDRESS, PLAYLIST_NFT_ABI } from "@/lib/contracts";
 import { EditSongDialog } from "./EditSongDialog";
 import { useState } from "react";
+import { parseEther } from "viem";
 
 interface Song {
   id: number;
@@ -43,13 +44,14 @@ export function SongCard({ song, onClick, variant = "ghost", showDelete = false 
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const { address } = useAccount();
 
   const { data: playlists } = useQuery<Playlist[]>({
     queryKey: ["/api/playlists"],
   });
 
   // Contract write for minting NFT
-  const { write: mintSongNFT } = useContractWrite({
+  const { writeAsync: mintSongNFT } = useContractWrite({
     address: PLAYLIST_NFT_ADDRESS,
     abi: PLAYLIST_NFT_ABI,
     functionName: 'mintSong',
@@ -78,20 +80,27 @@ export function SongCard({ song, onClick, variant = "ghost", showDelete = false 
   const mintNFTMutation = useMutation({
     mutationFn: async () => {
       if (!mintSongNFT) throw new Error("Contract write not ready");
+      if (!address) throw new Error("Wallet not connected");
 
-      // Create metadata URI (could be enhanced to store more metadata on IPFS)
       const metadataUri = `ipfs://${song.ipfsHash}`;
 
-      mintSongNFT({
-        args: [
-          song.uploadedBy as `0x${string}`,
-          song.title,
-          song.artist,
-          song.ipfsHash,
-          metadataUri
-        ],
-        value: BigInt(1000000000000000000), // 1 GAS
-      });
+      try {
+        const tx = await mintSongNFT({
+          args: [
+            address,
+            song.title,
+            song.artist,
+            song.ipfsHash,
+            metadataUri
+          ],
+          value: parseEther("1"), // 1 GAS
+        });
+
+        // Wait for transaction confirmation
+        await tx.wait();
+      } catch (error: any) {
+        throw new Error(error.message || "Failed to mint NFT");
+      }
     },
     onSuccess: () => {
       toast({
@@ -188,7 +197,7 @@ export function SongCard({ song, onClick, variant = "ghost", showDelete = false 
                   mintNFTMutation.mutate();
                 }
               }}
-              disabled={mintNFTMutation.isPending}
+              disabled={mintNFTMutation.isPending || !address}
             >
               <Coins className="mr-2 h-4 w-4" />
               Mint as NFT

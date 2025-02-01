@@ -4,7 +4,9 @@ import { Play, Plus, Coins } from "lucide-react";
 import { ShareButton } from "@/components/ui/share-button";
 import { useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+import { useContractWrite, useAccount } from 'wagmi';
+import { PLAYLIST_NFT_ADDRESS, PLAYLIST_NFT_ABI } from "@/lib/contracts";
+import { parseEther } from "viem";
 
 interface PlaylistCardProps {
   title: string;
@@ -28,15 +30,40 @@ export function PlaylistCard({
   isNft = false,
 }: PlaylistCardProps) {
   const { toast } = useToast();
+  const { address } = useAccount();
+
+  // Contract write for minting NFT
+  const { writeAsync: mintPlaylistNFT } = useContractWrite({
+    address: PLAYLIST_NFT_ADDRESS,
+    abi: PLAYLIST_NFT_ABI,
+    functionName: 'mintPlaylist',
+  });
 
   const mintNftMutation = useMutation({
-    mutationFn: async (playlistId: number) => {
-      await apiRequest("POST", `/api/playlists/${playlistId}/mint-nft`);
+    mutationFn: async () => {
+      if (!mintPlaylistNFT) throw new Error("Contract write not ready");
+      if (!address) throw new Error("Wallet not connected");
+
+      try {
+        const tx = await mintPlaylistNFT({
+          args: [
+            address,
+            title,
+            `ipfs://placeholder-metadata-uri-${id}`, // You might want to generate proper metadata
+          ],
+          value: parseEther("1"), // 1 GAS
+        });
+
+        // Wait for transaction confirmation
+        await tx.wait();
+      } catch (error: any) {
+        throw new Error(error.message || "Failed to mint NFT");
+      }
     },
     onSuccess: () => {
       toast({
         title: "Success",
-        description: "NFT minted successfully! You've earned 3 PFORK tokens.",
+        description: "Playlist NFT minting initiated! You've earned 3 PFORK tokens.",
       });
     },
     onError: (error: Error) => {
@@ -83,8 +110,12 @@ export function PlaylistCard({
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => mintNftMutation.mutate(id)}
-                disabled={mintNftMutation.isPending || songCount === 0}
+                onClick={() => {
+                  if (window.confirm("Minting an NFT costs 1 GAS. Continue?")) {
+                    mintNftMutation.mutate();
+                  }
+                }}
+                disabled={mintNftMutation.isPending || !address || songCount === 0}
               >
                 <Coins className="h-4 w-4 mr-2" />
                 Mint NFT
