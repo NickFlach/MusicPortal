@@ -25,19 +25,30 @@ export function WalletConnect() {
         return;
       }
 
-      // First connect the wallet and wait for it to complete
+      // Connect the wallet
       await connect({ 
         connector: injected({
           target: 'metaMask'
         })
       });
 
-      // Wait a brief moment for the wallet address to be available
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Wait for the wallet address to be available
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Get the current address
+      const currentAddress = window.ethereum.selectedAddress;
+      if (!currentAddress) {
+        throw new Error("Failed to get wallet address");
+      }
 
       try {
-        // Try to register user after connection
-        const response = await apiRequest("POST", "/api/users/register");
+        // Register user with lowercase address
+        const response = await apiRequest("POST", "/api/users/register", {}, {
+          headers: {
+            'x-wallet-address': currentAddress.toLowerCase()
+          }
+        });
+
         const userData = await response.json();
         console.log('User registered:', userData);
 
@@ -52,10 +63,15 @@ export function WalletConnect() {
         });
       } catch (error) {
         console.error('User registration error:', error);
+        toast({
+          title: "Registration Error",
+          description: "Failed to register user. Please try again.",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error('Wallet connection error:', error);
-      if (error instanceof Error && !error.message.includes('Failed to get wallet address')) {
+      if (error instanceof Error) {
         toast({
           title: "Error",
           description: error.message,
