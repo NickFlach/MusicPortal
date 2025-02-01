@@ -1,11 +1,5 @@
 import { useEffect, useRef } from "react";
-import { motion } from "framer-motion";
 import { useMusicPlayer } from "@/contexts/MusicPlayerContext";
-
-interface AudioFeatures {
-  frequencies: Uint8Array;
-  volume: number;
-}
 
 export function WaveformVisualizer() {
   const { currentSong, isPlaying } = useMusicPlayer();
@@ -24,22 +18,31 @@ export function WaveformVisualizer() {
     }
 
     const audioElements = document.getElementsByTagName('audio');
-    if (!audioElements.length) return;
+    if (!audioElements.length) {
+      console.log('No audio element found');
+      return;
+    }
+
     const audio = audioElements[0];
+    console.log('Found audio element:', audio.src);
 
     const setup = async () => {
       try {
         if (!audioContextRef.current) {
           audioContextRef.current = new AudioContext();
+          console.log('Created new AudioContext');
         }
 
         if (audioContextRef.current.state === 'suspended') {
           await audioContextRef.current.resume();
+          console.log('Resumed AudioContext');
         }
 
         if (!analyserRef.current) {
           analyserRef.current = audioContextRef.current.createAnalyser();
-          analyserRef.current.fftSize = 64;
+          analyserRef.current.fftSize = 128; // Reduced for better performance
+          analyserRef.current.smoothingTimeConstant = 0.8;
+          console.log('Created new AnalyserNode');
         }
 
         if (sourceRef.current) {
@@ -49,6 +52,7 @@ export function WaveformVisualizer() {
         sourceRef.current = audioContextRef.current.createMediaElementSource(audio);
         sourceRef.current.connect(analyserRef.current);
         analyserRef.current.connect(audioContextRef.current.destination);
+        console.log('Connected audio nodes');
       } catch (error) {
         console.error('Error setting up audio context:', error);
       }
@@ -74,11 +78,9 @@ export function WaveformVisualizer() {
     if (!ctx) return;
 
     const resize = () => {
-      const rect = canvas.parentElement?.getBoundingClientRect();
-      if (rect) {
-        canvas.width = rect.width;
-        canvas.height = rect.height;
-      }
+      canvas.width = canvas.offsetWidth;
+      canvas.height = canvas.offsetHeight;
+      console.log('Canvas resized:', canvas.width, canvas.height);
     };
 
     resize();
@@ -87,7 +89,8 @@ export function WaveformVisualizer() {
     function draw() {
       if (!ctx || !analyserRef.current) return;
 
-      ctx.fillStyle = 'rgb(0, 0, 0)';
+      // Clear canvas with a dark background
+      ctx.fillStyle = '#1a1a1a';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
       const bufferLength = analyserRef.current.frequencyBinCount;
@@ -97,13 +100,19 @@ export function WaveformVisualizer() {
       const barWidth = (canvas.width / bufferLength) * 2.5;
       let x = 0;
 
+      // Draw frequency bars with a gradient effect
       for (let i = 0; i < bufferLength; i++) {
-        const barHeight = (dataArray[i] / 255) * canvas.height;
+        const barHeight = (dataArray[i] / 255) * canvas.height * 0.8;
 
-        const hue = (i / bufferLength) * 360;
-        ctx.fillStyle = `hsl(${hue}, 80%, 50%)`;
+        // Create gradient for each bar
+        const gradient = ctx.createLinearGradient(x, canvas.height, x, canvas.height - barHeight);
+        gradient.addColorStop(0, `hsl(${(i / bufferLength) * 360}, 100%, 50%)`);
+        gradient.addColorStop(1, `hsl(${(i / bufferLength) * 360}, 100%, 80%)`);
 
-        ctx.fillRect(x, canvas.height - barHeight, barWidth - 1, barHeight);
+        ctx.fillStyle = gradient;
+
+        const y = canvas.height - barHeight;
+        ctx.fillRect(x, y, barWidth - 1, barHeight);
         x += barWidth;
       }
 
@@ -111,6 +120,7 @@ export function WaveformVisualizer() {
     }
 
     draw();
+    console.log('Started animation frame');
 
     return () => {
       window.removeEventListener('resize', resize);
@@ -123,7 +133,7 @@ export function WaveformVisualizer() {
   if (!currentSong) return null;
 
   return (
-    <div className="relative w-full h-32">
+    <div className="relative w-full h-32 bg-background rounded-lg overflow-hidden border border-border">
       <canvas
         ref={canvasRef}
         className="absolute inset-0 w-full h-full"
