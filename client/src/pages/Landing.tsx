@@ -1,15 +1,12 @@
 import { useAccount } from 'wagmi';
 import { WalletConnect } from "@/components/WalletConnect";
 import { useLocation } from 'wouter';
-import { useMusicPlayer } from "@/contexts/MusicPlayerContext";
-import { Volume2, VolumeX } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { MusicPlayer } from "@/components/MusicPlayer";
 import { useEffect } from 'react';
 
 export default function Landing() {
   const { address } = useAccount();
   const [, setLocation] = useLocation();
-  const { currentSong, isPlaying, togglePlay } = useMusicPlayer();
 
   useEffect(() => {
     if (address) {
@@ -64,29 +61,11 @@ export default function Landing() {
               className="w-64 h-64 object-contain hover:animate-pulse"
             />
           </a>
-
-          {/* Play/Pause Toggle Button */}
-          <div className="flex flex-col items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={togglePlay}
-              className="hover:scale-110 transition-transform"
-            >
-              {isPlaying ? (
-                <VolumeX className="h-6 w-6" />
-              ) : (
-                <Volume2 className="h-6 w-6" />
-              )}
-            </Button>
-            {currentSong && (
-              <p className="text-sm text-muted-foreground animate-pulse">
-                Now Playing: {currentSong.title} - {currentSong.artist}
-              </p>
-            )}
-          </div>
         </div>
       </div>
+
+      {/* Use the MusicPlayer component */}
+      <MusicPlayer />
     </div>
   );
 }
