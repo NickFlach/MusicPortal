@@ -30,6 +30,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const { address } = useAccount();
   const isLandingPage = !address;
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // Fetch initial song list
   const { data: recentSongs } = useQuery<Song[]>({
@@ -47,16 +48,11 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   // Initialize music once on load - only if we're on landing page
   useEffect(() => {
     async function initializeMusic() {
-      // Only initialize if:
-      // 1. We have songs
-      // 2. Audio isn't already set up
-      // 3. We're on landing page OR we have a wallet connected
       if (!recentSongs?.length || audioRef.current?.src) return;
 
       try {
         const firstSong = recentSongs[0];
         console.log('Initializing music with:', firstSong.title);
-
         await playSong(firstSong);
       } catch (error) {
         console.error('Error initializing music:', error);
@@ -70,29 +66,55 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
 
   const playSong = async (song: Song) => {
     try {
+      // Cancel any existing fetch request
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+
+      // Create new abort controller for this request
+      abortControllerRef.current = new AbortController();
+
       console.log('Fetching from IPFS gateway:', song.ipfsHash);
       const audioData = await getFromIPFS(song.ipfsHash);
+
+      // Check if request was aborted
+      if (abortControllerRef.current.signal.aborted) {
+        console.log('IPFS fetch was aborted');
+        return;
+      }
+
       const blob = new Blob([audioData], { type: 'audio/mp3' });
       const url = URL.createObjectURL(blob);
 
-      if (!audioRef.current) {
-        audioRef.current = new Audio();
+      // Clean up old audio element completely
+      if (audioRef.current) {
+        audioRef.current.pause();
+        if (audioRef.current.src) {
+          URL.revokeObjectURL(audioRef.current.src);
+        }
+        audioRef.current.src = '';
+        audioRef.current.load();
       }
 
-      // Clean up old audio URL if it exists
-      if (audioRef.current.src) {
-        URL.revokeObjectURL(audioRef.current.src);
-      }
+      // Create new audio element
+      const newAudio = new Audio();
+      newAudio.src = url;
+      await newAudio.load();
+      audioRef.current = newAudio;
 
-      audioRef.current.src = url;
-      audioRef.current.load();
       await audioRef.current.play();
       setIsPlaying(true);
       setCurrentSong(song);
-      console.log('IPFS fetch successful');
+      console.log('IPFS fetch and playback successful');
     } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.log('IPFS fetch aborted');
+        return;
+      }
       console.error('Error playing song:', error);
       throw error;
+    } finally {
+      abortControllerRef.current = null;
     }
   };
 
@@ -114,6 +136,9 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   // Clean up on unmount
   useEffect(() => {
     return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
       if (audioRef.current?.src) {
         URL.revokeObjectURL(audioRef.current.src);
       }
