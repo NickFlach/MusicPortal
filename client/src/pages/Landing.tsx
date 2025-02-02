@@ -51,7 +51,7 @@ export default function Landing() {
         {/* Centered Logo as Music Player Toggle */}
         <div className="flex flex-col items-center justify-center mt-24 space-y-6">
           <button 
-            onClick={() => togglePlayer()}
+            onClick={togglePlayer}
             className="transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background rounded-lg"
           >
             <img 
