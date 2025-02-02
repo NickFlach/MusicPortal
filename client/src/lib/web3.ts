@@ -5,7 +5,7 @@ import { createPublicClient, defineChain } from 'viem';
 
 // Define NEO X network
 export const neoXChain = defineChain({
-  id: 2970385, // NEO X Chain ID
+  id: 47763, // NEO X Chain ID
   network: 'neo-x',
   name: 'NEO X',
   nativeCurrency: {
@@ -40,7 +40,7 @@ export const config = createConfig({
   },
   connectors: [
     injected({
-      target: 'metaMask',
+      target: 'metaMask'
     }),
   ],
 });
