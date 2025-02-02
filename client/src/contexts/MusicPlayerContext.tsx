@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useQuery } from "@tanstack/react-query";
+import { getFromIPFS } from "@/lib/ipfs";
 
 interface Song {
   id: number;
@@ -34,7 +35,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   const [audioUrl, setAudioUrl] = useState('');
   const [isPlayerVisible, setIsPlayerVisible] = useState(false);
 
-  // Fetch recent songs without any dependencies
+  // Fetch recent songs
   const { data: recentSongs } = useQuery<Song[]>({
     queryKey: ["/api/songs/recent"],
     queryFn: async () => {
@@ -65,13 +66,16 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
 
     const nextSong = recentSongs[(currentIndex + 1) % recentSongs.length];
     if (nextSong) {
-      playSong(nextSong).catch(console.error);
+      playSong(nextSong).catch(error => {
+        console.error('Error playing next song:', error);
+      });
     }
   };
 
   const playSong = async (song: Song) => {
     try {
       console.log('Starting to play song:', song.title);
+      console.log('Fetching from IPFS gateway:', song.ipfsHash);
 
       // Clean up previous audio URL
       if (audioUrl) {
@@ -79,38 +83,48 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
         setAudioUrl(''); // Clear the URL first to trigger a proper reload
       }
 
-      const audioData = await getFromIPFS(song.ipfsHash);
-      if (!audioData) {
-        throw new Error('Failed to fetch audio data');
-      }
-
-      console.log('Creating blob for song:', song.title);
-      const blob = new Blob([audioData], { type: 'audio/mp3' });
-      const url = URL.createObjectURL(blob);
-
-      // Set the current song first
-      setCurrentSong(song);
-
-      // Then set the audio URL and start playing
-      setAudioUrl(url);
-      setIsPlaying(true);
-      setIsPlayerVisible(true); // Show player when a song starts playing
-
-      // Update play count with internal token to ensure it works consistently
-      fetch(`/api/songs/play/${song.id}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Internal-Token': 'landing-page'
+      try {
+        const audioData = await getFromIPFS(song.ipfsHash);
+        if (!audioData || audioData.length === 0) {
+          throw new Error('Failed to fetch audio data from IPFS');
         }
-      }).catch(error => {
-        console.error('Error updating play count:', error);
-      });
 
-      console.log('Song setup complete:', song.title);
+        console.log('Creating blob for song:', song.title);
+        const blob = new Blob([audioData], { type: 'audio/mp3' });
+        const url = URL.createObjectURL(blob);
+
+        // Set the current song first
+        setCurrentSong(song);
+
+        // Then set the audio URL and start playing
+        setAudioUrl(url);
+        setIsPlaying(true);
+        setIsPlayerVisible(true); // Show player when a song starts playing
+
+        // Update play count with internal token
+        try {
+          await fetch(`/api/songs/play/${song.id}`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Internal-Token': 'landing-page'
+            }
+          });
+        } catch (error) {
+          console.error('Error updating play count:', error);
+          // Don't throw here as it's not critical to playback
+        }
+
+        console.log('Song setup complete:', song.title);
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown IPFS error';
+        console.error('IPFS error:', errorMessage);
+        throw new Error(`Failed to load audio: ${errorMessage}`);
+      }
     } catch (error) {
-      console.error('Error playing song:', error);
-      throw error;
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('Error playing song:', errorMessage);
+      throw new Error(`Playback failed: ${errorMessage}`);
     }
   };
 
@@ -120,7 +134,9 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
 
     // If toggling on and no song is playing, try to play the first available song
     if (!isPlayerVisible && !currentSong && recentSongs?.length) {
-      playSong(recentSongs[0]).catch(console.error);
+      playSong(recentSongs[0]).catch(error => {
+        console.error('Error auto-playing first song:', error);
+      });
     }
   };
 
@@ -136,7 +152,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
         URL.revokeObjectURL(audioUrl);
       }
     };
-  }, []);
+  }, [audioUrl]);
 
   return (
     <MusicPlayerContext.Provider
