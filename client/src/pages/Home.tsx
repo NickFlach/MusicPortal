@@ -47,7 +47,7 @@ export default function Home() {
     },
   });
 
-  const handlePlaySong = async (song: Song) => {
+  const handlePlaySong = async (song: Song, context: 'library' | 'feed' = 'feed') => {
     if (!address) {
       toast({
         title: "Connect Wallet",
@@ -58,8 +58,8 @@ export default function Home() {
     }
 
     try {
-      // Play the song first
-      playSong(song);
+      // Play the song with the specified context
+      playSong(song, context);
       // Then update play count
       await playMutation.mutate(song.id);
     } catch (error) {
@@ -166,6 +166,7 @@ export default function Home() {
         <div className="flex-1 grid grid-cols-1 gap-6 mb-24">
           {address ? (
             <section className="px-4">
+              {/* Library section - pass 'library' context */}
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-2xl font-semibold">Your Library</h2>
                 <div className="flex items-center gap-4">
@@ -201,7 +202,7 @@ export default function Home() {
                     <SongCard
                       key={song.id}
                       song={song}
-                      onClick={() => handlePlaySong(song)}
+                      onClick={() => handlePlaySong(song, 'library')}
                       showDelete={true}
                       isPlaying={currentSong?.id === song.id}
                     />
@@ -212,6 +213,7 @@ export default function Home() {
           ) : null}
 
           <section className="px-4">
+            {/* Discovery Feed section - pass 'feed' context */}
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-2xl font-semibold">Discovery Feed</h2>
               <p className="text-sm text-muted-foreground">Latest plays from the community</p>
@@ -225,7 +227,7 @@ export default function Home() {
                   <SongCard
                     key={song.id}
                     song={song}
-                    onClick={() => handlePlaySong(song)}
+                    onClick={() => handlePlaySong(song, 'feed')}
                     isPlaying={currentSong?.id === song.id}
                   />
                 ))

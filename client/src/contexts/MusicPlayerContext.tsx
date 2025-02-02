@@ -13,13 +13,16 @@ interface Song {
   votes: number | null;
 }
 
+type PlaylistContext = 'landing' | 'library' | 'feed';
+
 interface MusicPlayerContextType {
   currentSong: Song | undefined;
   isPlaying: boolean;
   togglePlay: () => void;
-  playSong: (song: Song) => Promise<void>;
+  playSong: (song: Song, context?: PlaylistContext) => Promise<void>;
   recentSongs?: Song[];
   isLandingPage: boolean;
+  currentContext: PlaylistContext;
 }
 
 const MusicPlayerContext = createContext<MusicPlayerContextType | undefined>(undefined);
@@ -27,12 +30,13 @@ const MusicPlayerContext = createContext<MusicPlayerContextType | undefined>(und
 export function MusicPlayerProvider({ children }: { children: React.ReactNode }) {
   const [currentSong, setCurrentSong] = useState<Song>();
   const [isPlaying, setIsPlaying] = useState(true);
+  const [currentContext, setCurrentContext] = useState<PlaylistContext>('landing');
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
   const { address } = useAccount();
   const isLandingPage = !address;
-  const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Fetch initial song list
+  // Fetch landing page feed (recent songs)
   const { data: recentSongs } = useQuery<Song[]>({
     queryKey: ["/api/songs/recent"],
     queryFn: async () => {
@@ -45,6 +49,13 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
     }
   });
 
+  // Reset to landing context when wallet disconnects
+  useEffect(() => {
+    if (!address) {
+      setCurrentContext('landing');
+    }
+  }, [address]);
+
   // Initialize music once on load - only if we're on landing page
   useEffect(() => {
     async function initializeMusic() {
@@ -53,7 +64,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
       try {
         const firstSong = recentSongs[0];
         console.log('Initializing music with:', firstSong.title);
-        await playSong(firstSong);
+        await playSong(firstSong, 'landing');
       } catch (error) {
         console.error('Error initializing music:', error);
       }
@@ -64,7 +75,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
     }
   }, [recentSongs, isLandingPage]);
 
-  const playSong = async (song: Song) => {
+  const playSong = async (song: Song, context?: PlaylistContext) => {
     try {
       // Cancel any existing fetch request
       if (abortControllerRef.current) {
@@ -73,6 +84,21 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
 
       // Create new abort controller for this request
       abortControllerRef.current = new AbortController();
+
+      // Update context if provided
+      if (context) {
+        setCurrentContext(context);
+      }
+
+      // Clean up old audio element completely
+      if (audioRef.current) {
+        audioRef.current.pause();
+        if (audioRef.current.src) {
+          URL.revokeObjectURL(audioRef.current.src);
+        }
+        audioRef.current.src = '';
+        audioRef.current.load();
+      }
 
       console.log('Fetching from IPFS gateway:', song.ipfsHash);
       const audioData = await getFromIPFS(song.ipfsHash);
@@ -85,16 +111,6 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
 
       const blob = new Blob([audioData], { type: 'audio/mp3' });
       const url = URL.createObjectURL(blob);
-
-      // Clean up old audio element completely
-      if (audioRef.current) {
-        audioRef.current.pause();
-        if (audioRef.current.src) {
-          URL.revokeObjectURL(audioRef.current.src);
-        }
-        audioRef.current.src = '';
-        audioRef.current.load();
-      }
 
       // Create new audio element
       const newAudio = new Audio();
@@ -153,7 +169,8 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
         togglePlay,
         playSong,
         recentSongs,
-        isLandingPage
+        isLandingPage,
+        currentContext
       }}
     >
       {/* Only render audio element on landing page */}
