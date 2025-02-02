@@ -32,6 +32,11 @@ export default function Home() {
   const { playSong, currentSong, recentSongs } = useMusicPlayer();
   const queryClient = useQueryClient();
 
+  // Handler for background click
+  const handleBackgroundClick = () => {
+    window.location.href = 'https://pitchfork-economy-nikolaiflaukows.replit.app/';
+  };
+
   // Only fetch library songs when wallet is connected
   const { data: librarySongs, isLoading: libraryLoading } = useQuery<Song[]>({
     queryKey: ["/api/songs/library"],
@@ -161,14 +166,25 @@ export default function Home() {
   return (
     <Layout>
       <div className="flex flex-col min-h-screen">
-        <section className="h-[30vh] mb-6">
+        {/* Add clickable background div */}
+        <div 
+          onClick={handleBackgroundClick}
+          className="absolute inset-0 z-0 cursor-pointer"
+          style={{ 
+            top: '64px', // Height of the header
+            bottom: 'auto',
+            height: 'calc(30vh)', // Match the height of the MusicVisualizer section
+          }}
+        />
+
+        <section className="h-[30vh] mb-6 relative">
           <MusicVisualizer />
         </section>
 
-        <div className="flex-1 grid grid-cols-1 gap-6 mb-24">
+        {/* Rest of the JSX remains unchanged */}
+        <div className="flex-1 grid grid-cols-1 gap-6 mb-24 relative z-10">
           {address ? (
             <section className="px-4">
-              {/* Library section - pass 'library' context */}
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-2xl font-semibold">Your Library</h2>
                 <div className="flex items-center gap-4">
@@ -215,7 +231,6 @@ export default function Home() {
           ) : null}
 
           <section className="px-4">
-            {/* Discovery Feed section - pass 'feed' context */}
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-2xl font-semibold">Discovery Feed</h2>
               <p className="text-sm text-muted-foreground">Latest plays from the community</p>
