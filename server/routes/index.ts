@@ -3,6 +3,8 @@ import { createServer } from "http";
 import feedRoutes from './feed';
 import metadataRoutes from './metadata';
 import userRoutes from './users';
+import roomRoutes from './rooms';
+import { ListeningRoomService } from '../services/websocket';
 
 // Middleware to check for internal token or user authentication
 const authMiddleware = (req: any, res: any, next: any) => {
@@ -39,11 +41,18 @@ export function registerRoutes(app: Express) {
   // Register the user routes
   app.use(userRoutes);
 
+  // Register the room routes
+  app.use(roomRoutes);
+
   // Handle 404 for non-existent API routes
   app.use('/api/*', (_req, res) => {
     res.status(404).json({ error: 'API endpoint not found' });
   });
 
   const server = createServer(app);
+
+  // Initialize WebSocket service
+  new ListeningRoomService(server);
+
   return server;
 }
