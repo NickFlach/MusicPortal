@@ -17,10 +17,7 @@ interface MusicPlayerContextType {
   isPlaying: boolean;
   volume: number;
   audioUrl: string;
-  playSong: (song: Song) => Promise<void>;
   playNext: () => void;
-  playPrevious: () => void;
-  togglePlay: () => void;
   setVolume: (volume: number) => void;
   recentSongs?: Song[];
 }
@@ -29,7 +26,7 @@ const MusicPlayerContext = createContext<MusicPlayerContextType | undefined>(und
 
 export function MusicPlayerProvider({ children }: { children: React.ReactNode }) {
   const [currentSong, setCurrentSong] = useState<Song>();
-  const [isPlaying, setIsPlaying] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(true);
   const [volume, setVolume] = useState(0.7);
   const [audioUrl, setAudioUrl] = useState('');
 
@@ -84,24 +81,6 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
     }
   };
 
-  const playPrevious = () => {
-    if (!recentSongs?.length) return;
-
-    const currentIndex = currentSong 
-      ? recentSongs.findIndex(s => s.id === currentSong.id)
-      : 0;
-
-    const prevIndex = (currentIndex - 1 + recentSongs.length) % recentSongs.length;
-    const prevSong = recentSongs[prevIndex];
-
-    if (prevSong) {
-      playSong(prevSong).catch(console.error);
-    }
-  };
-
-  const togglePlay = () => {
-    setIsPlaying(!isPlaying);
-  };
 
   const playSong = async (song: Song) => {
     try {
@@ -134,7 +113,6 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
       });
     } catch (error) {
       console.error('Error playing song:', error);
-      setIsPlaying(false);
       throw error;
     }
   };
@@ -155,10 +133,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
         isPlaying,
         volume,
         audioUrl,
-        playSong,
         playNext,
-        playPrevious,
-        togglePlay,
         setVolume,
         recentSongs,
       }}
