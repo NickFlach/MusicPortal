@@ -36,22 +36,17 @@ export default function Rooms() {
   });
 
   const createRoomMutation = useMutation({
-    mutationFn: async ({ name, description, isPrivate }: {
+    mutationFn: async (data: {
       name: string;
       description?: string;
       isPrivate?: boolean;
     }) => {
-      const response = await apiRequest("POST", "/api/rooms", {
-        name,
-        description,
-        isPrivate,
+      const response = await apiRequest("POST", "/rooms", {
+        ...data,
         address,
       });
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Failed to create room");
-      }
-      return response.json();
+      const result = await response.json();
+      return result;
     },
     onSuccess: (room) => {
       queryClient.invalidateQueries({ queryKey: ["/api/rooms"] });
