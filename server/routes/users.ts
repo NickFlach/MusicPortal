@@ -2,6 +2,12 @@ import { Router } from 'express';
 import { db } from '@db';
 import { users, recentlyPlayed } from '@db/schema';
 import { eq, desc } from 'drizzle-orm';
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+// ES Module equivalent of __dirname if needed
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const router = Router();
 
