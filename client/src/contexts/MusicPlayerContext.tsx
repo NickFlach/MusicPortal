@@ -123,11 +123,18 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   };
 
   const togglePlayer = () => {
-    console.log('Toggling player visibility:', !isPlayerVisible);
-    setIsPlayerVisible(!isPlayerVisible);
-    // If hiding player, also pause the music
+    console.log('Toggling player visibility from:', isPlayerVisible, 'to:', !isPlayerVisible);
     if (isPlayerVisible) {
+      // If we're hiding the player, pause playback
       setIsPlaying(false);
+      setIsPlayerVisible(false);
+    } else {
+      // If we're showing the player
+      setIsPlayerVisible(true);
+      // Only auto-play if there's a current song
+      if (currentSong) {
+        setIsPlaying(true);
+      }
     }
   };
 

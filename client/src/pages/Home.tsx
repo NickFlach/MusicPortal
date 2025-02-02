@@ -34,7 +34,15 @@ export default function Home() {
 
   const { data: librarySongs, isLoading: libraryLoading } = useQuery<Song[]>({
     queryKey: ["/api/songs/library"],
+    queryFn: async () => {
+      const response = await fetch("/api/songs/library");
+      if (!response.ok) {
+        throw new Error("Failed to fetch library");
+      }
+      return response.json();
+    },
     enabled: !!address,
+    retry: false,
   });
 
   const handlePlaySong = async (song: Song) => {
@@ -53,7 +61,7 @@ export default function Home() {
       console.error('Error playing song:', error);
       toast({
         title: "Error",
-        description: "Failed to play song. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to play song. Please try again.",
         variant: "destructive",
       });
     }
