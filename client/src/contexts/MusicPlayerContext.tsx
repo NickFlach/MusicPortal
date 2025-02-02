@@ -75,7 +75,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   const playNext = () => {
     if (!recentSongs?.length) return;
 
-    const currentIndex = currentSong 
+    const currentIndex = currentSong
       ? recentSongs.findIndex(s => s.id === currentSong.id)
       : -1;
 
@@ -132,7 +132,13 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
 
   const togglePlayer = () => {
     setIsPlayerVisible(!isPlayerVisible);
+
+    // If toggling on and no song is playing, try to play the first available song
+    if (!isPlayerVisible && !currentSong && recentSongs?.length) {
+      playSong(recentSongs[0]).catch(console.error);
+    }
   };
+
 
   // Cleanup on unmount
   useEffect(() => {
