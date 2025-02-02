@@ -32,9 +32,12 @@ export default function Home() {
   const { playSong, currentSong, recentSongs } = useMusicPlayer();
   const queryClient = useQueryClient();
 
-  // Handler for background click
   const handleBackgroundClick = () => {
-    window.location.href = 'https://pitchfork-economy-nikolaiflaukows.replit.app/';
+    const baseUrl = 'https://pitchfork-economy-nikolaiflaukows.replit.app/';
+    const redirectUrl = address 
+      ? `${baseUrl}?wallet=${address}`
+      : baseUrl;
+    window.location.href = redirectUrl;
   };
 
   // Only fetch library songs when wallet is connected
