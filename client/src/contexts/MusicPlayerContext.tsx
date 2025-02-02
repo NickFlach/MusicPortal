@@ -61,6 +61,17 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
     enabled: true
   });
 
+  // Initialize music on first load
+  useEffect(() => {
+    async function initializeMusic() {
+      if (!currentSong && recentSongs?.length) {
+        console.log('Initializing music with first song:', recentSongs[0].title);
+        await playSong(recentSongs[0]);
+      }
+    }
+    initializeMusic();
+  }, [recentSongs]);
+
   // Track play count
   const playMutation = useMutation({
     mutationFn: async (songId: number) => {
