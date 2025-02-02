@@ -1,11 +1,13 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import path from "path";
 
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
+// Request logging middleware
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
@@ -40,6 +42,7 @@ app.use((req, res, next) => {
   try {
     const server = registerRoutes(app);
 
+    // Error handling middleware
     app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
       const status = err.status || err.statusCode || 500;
       const message = err.message || "Internal Server Error";
@@ -50,7 +53,19 @@ app.use((req, res, next) => {
     if (app.get("env") === "development") {
       await setupVite(app, server);
     } else {
-      serveStatic(app);
+      // Production mode - serve static files and handle client routing
+      const distPath = path.resolve(__dirname, "public");
+      app.use(express.static(distPath));
+
+      // Handle 404 for non-existent API routes
+      app.use('/api/*', (_req, res) => {
+        res.status(404).json({ error: 'API endpoint not found' });
+      });
+
+      // Serve index.html for all other routes to support client-side routing
+      app.get('*', (_req, res) => {
+        res.sendFile(path.join(distPath, 'index.html'));
+      });
     }
 
     // Ensure cleanup of existing connections before starting
