@@ -7,10 +7,10 @@ import { createPublicClient, defineChain } from 'viem';
 export const neoXChain = defineChain({
   id: 2970385, // NEO X Chain ID
   network: 'neo-x',
-  name: 'NEO X',
+  name: 'NEO X TestNet',
   nativeCurrency: {
-    name: 'NEO',
-    symbol: 'NEO',
+    name: 'GAS',
+    symbol: 'GAS',
     decimals: 18,
   },
   rpcUrls: {
@@ -23,7 +23,7 @@ export const neoXChain = defineChain({
       url: 'https://explorer.neo-x.network',
     },
   },
-  testnet: false,
+  testnet: true,
 });
 
 // Create a public client
