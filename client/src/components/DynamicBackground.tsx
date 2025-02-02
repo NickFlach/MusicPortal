@@ -15,7 +15,7 @@ export function DynamicBackground() {
           if (import.meta.env.VITE_OPENAI_API_KEY) {
             // Only try AI analysis if we have an API key
             const mood = await analyzeMoodWithAI(currentSong);
-            setCurrentMood(mood);
+            if (mood) setCurrentMood(mood as MusicMood);
           } else {
             // Fallback to basic detection if no API key
             const mood = detectMood(currentSong);
@@ -42,7 +42,7 @@ export function DynamicBackground() {
         initial={{ opacity: 0 }}
         animate={{ 
           opacity: 0.6,
-          background: background.gradient
+          background: `linear-gradient(to bottom right, ${background.colors[0]}, ${background.colors[1]})`
         }}
         exit={{ opacity: 0 }}
         transition={{ 

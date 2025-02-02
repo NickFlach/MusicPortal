@@ -1,7 +1,7 @@
 import { WalletConnect } from "@/components/WalletConnect";
 import { Navigation } from "@/components/Navigation";
-import { MusicPlayer } from "@/components/MusicPlayer";
 import { Link } from "wouter";
+import { MusicPlayer } from "@/components/MusicPlayer";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -33,14 +33,12 @@ export function Layout({ children }: LayoutProps) {
         </div>
       </header>
 
-      <main className="relative z-10 container mx-auto pt-24 pb-40">
+      <main className="relative z-10 container mx-auto pt-24 pb-24">
         {children}
       </main>
 
-      {/* Fixed Music Player at bottom */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t">
-        <MusicPlayer />
-      </div>
+      {/* Floating Music Player */}
+      <MusicPlayer />
     </div>
   );
 }

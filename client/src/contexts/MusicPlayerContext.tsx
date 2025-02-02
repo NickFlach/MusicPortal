@@ -2,8 +2,6 @@ import React, { createContext, useContext, useState, useRef, useEffect, useCallb
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { getFromIPFS } from "@/lib/ipfs";
-import { useAccount } from 'wagmi';
-import { useLocation } from 'wouter';
 
 interface Song {
   id: number;
@@ -47,74 +45,36 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   const [isMuted, setIsMuted] = useState(false);
   const audioRef = useRef(globalAudio);
   const queryClient = useQueryClient();
-  const { address } = useAccount();
-  const [location] = useLocation();
 
-  // Fetch recent songs regardless of wallet connection
+  // Always fetch recent songs with landing page token
   const { data: recentSongs } = useQuery<Song[]>({
     queryKey: ["/api/songs/recent"],
     queryFn: async () => {
-      const headers: Record<string, string> = {};
-      if (!address && location === '/') {
-        headers['X-Internal-Token'] = 'landing-page';
-      }
       const response = await apiRequest("GET", "/api/songs/recent", {
         method: "GET",
-        headers
+        headers: {
+          'X-Internal-Token': 'landing-page'
+        }
       });
       return response.json();
     },
-    enabled: true // Always enabled
+    enabled: true
   });
 
-  // When wallet connects, register the user and update play count if there's a current song
-  useEffect(() => {
-    async function handleWalletConnection() {
-      if (address && currentSong) {
-        try {
-          // Register user first
-          await apiRequest("POST", "/api/users/register", { address });
-          // Update play count for current song
-          await apiRequest("POST", `/api/songs/play/${currentSong.id}`, {
-            method: "POST"
-          });
-          // Refresh recent songs list
-          queryClient.invalidateQueries({ queryKey: ["/api/songs/recent"] });
-        } catch (error) {
-          console.error('Error handling wallet connection:', error);
-        }
-      }
-    }
-
-    handleWalletConnection();
-  }, [address, currentSong]);
-
-  // Keep playing current song when wallet disconnects
-  useEffect(() => {
-    if (!address && currentSong && isPlaying) {
-      // Continue playing the current song
-      audioRef.current.play().catch(error => {
-        console.error('Error continuing playback:', error);
-      });
-    }
-  }, [address, currentSong, isPlaying]);
-
-  // Track play mutation - only used when wallet is connected
+  // Track play count
   const playMutation = useMutation({
     mutationFn: async (songId: number) => {
-      if (!address) return; // Skip if no wallet connected
       await apiRequest("POST", `/api/songs/play/${songId}`, {
         method: "POST",
-        headers: address ? {} : { 'X-Internal-Token': 'landing-page' }
+        headers: {
+          'X-Internal-Token': 'landing-page'
+        }
       });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/songs/recent"] });
     },
   });
-
-  // Define which pages should have music playback enabled
-  const isAllowedPage = ["/", "/home", "/treasury", "/admin"].includes(location);
 
   const playNext = useCallback(() => {
     if (!recentSongs?.length || !currentSong) return;
@@ -189,7 +149,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
       audioRef.current.src = url;
       audioRef.current.load();
 
-      if (isPlaying && isAllowedPage) {
+      if (isPlaying) {
         try {
           await audioRef.current.play();
         } catch (error) {
@@ -248,16 +208,10 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   };
 
   const playSong = async (song: Song) => {
-    if (!isAllowedPage) return;
-
     console.log('Playing song:', song.title);
     setCurrentSong(song);
     setIsPlaying(true);
-
-    // Only track plays when wallet is connected
-    if (address) {
-      await playMutation.mutate(song.id);
-    }
+    await playMutation.mutate(song.id);
   };
 
   return (

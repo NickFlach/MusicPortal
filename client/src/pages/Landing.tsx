@@ -5,37 +5,11 @@ import { useMusicPlayer } from "@/contexts/MusicPlayerContext";
 import { Volume2, VolumeX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useEffect } from 'react';
-import { apiRequest } from "@/lib/queryClient";
 
 export default function Landing() {
   const { address } = useAccount();
   const [, setLocation] = useLocation();
-  const { isMuted, toggleMute, currentSong, playSong } = useMusicPlayer();
-
-  // Initialize music on page load if no song is playing
-  useEffect(() => {
-    async function initializeMusic() {
-      try {
-        // Only fetch and play if no song is currently playing
-        if (!currentSong) {
-          const response = await apiRequest("GET", "/api/songs/recent", {
-            method: "GET",
-            headers: {
-              'X-Internal-Token': 'landing-page'
-            }
-          });
-          const songs = await response.json();
-          if (songs?.[0]) {
-            playSong(songs[0]);
-          }
-        }
-      } catch (error) {
-        console.error('Error initializing music:', error);
-      }
-    }
-
-    initializeMusic();
-  }, [currentSong, playSong]);
+  const { isMuted, toggleMute, currentSong } = useMusicPlayer();
 
   useEffect(() => {
     if (address) {
