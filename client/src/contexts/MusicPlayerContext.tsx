@@ -23,13 +23,14 @@ interface MusicPlayerContextType {
   playSong: (song: Song) => Promise<void>;
   isPlayerVisible: boolean;
   togglePlayer: () => void;
+  togglePlayPause: () => void;
 }
 
 const MusicPlayerContext = createContext<MusicPlayerContextType | undefined>(undefined);
 
 export function MusicPlayerProvider({ children }: { children: React.ReactNode }) {
   const [currentSong, setCurrentSong] = useState<Song>();
-  const [isPlaying, setIsPlaying] = useState(true);
+  const [isPlaying, setIsPlaying] = useState(false);
   const [volume, setVolume] = useState(0.7);
   const [audioUrl, setAudioUrl] = useState('');
   const [isPlayerVisible, setIsPlayerVisible] = useState(false);
@@ -123,6 +124,10 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
     }
   };
 
+  const togglePlayPause = () => {
+    setIsPlaying(!isPlaying);
+  };
+
   // Auto-play first song when songs are loaded
   useEffect(() => {
     const autoPlayFirstSong = async () => {
@@ -161,6 +166,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
         playSong,
         isPlayerVisible,
         togglePlayer,
+        togglePlayPause,
       }}
     >
       {children}

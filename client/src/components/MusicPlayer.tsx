@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { Volume2, VolumeX } from "lucide-react";
+import { Volume2, VolumeX, Play, Pause } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { useMusicPlayer } from "@/contexts/MusicPlayerContext";
 import { useState, useEffect, useRef } from "react";
@@ -14,6 +14,7 @@ export function MusicPlayer() {
     setVolume,
     audioUrl,
     isPlayerVisible,
+    togglePlayPause,
   } = useMusicPlayer();
 
   const [currentTime, setCurrentTime] = useState(0);
@@ -29,9 +30,11 @@ export function MusicPlayer() {
     const playAudio = async () => {
       try {
         audio.load(); // Force reload with new source
-        const playPromise = audio.play();
-        if (playPromise !== undefined) {
-          await playPromise;
+        if (isPlaying) {
+          const playPromise = audio.play();
+          if (playPromise !== undefined) {
+            await playPromise;
+          }
         }
       } catch (error) {
         console.error('Error playing audio:', error);
@@ -39,7 +42,7 @@ export function MusicPlayer() {
     };
 
     playAudio();
-  }, [audioUrl]);
+  }, [audioUrl, isPlaying]);
 
   // Setup audio event listeners
   useEffect(() => {
@@ -92,7 +95,6 @@ export function MusicPlayer() {
         ref={audioRef}
         src={audioUrl}
         preload="auto"
-        autoPlay
       />
       <Card className="fixed bottom-4 right-4 p-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border shadow-lg w-72 z-50">
         <div className="flex items-center justify-between gap-2">
@@ -100,6 +102,14 @@ export function MusicPlayer() {
             <h3 className="font-semibold truncate">{currentSong.title}</h3>
             <p className="text-sm text-muted-foreground truncate">{currentSong.artist}</p>
           </div>
+
+          <Button variant="ghost" size="icon" onClick={togglePlayPause}>
+            {isPlaying ? (
+              <Pause className="h-4 w-4" />
+            ) : (
+              <Play className="h-4 w-4" />
+            )}
+          </Button>
 
           <Button variant="ghost" size="icon" onClick={handleMuteToggle}>
             {isMuted ? (
