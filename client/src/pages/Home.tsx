@@ -32,19 +32,9 @@ export default function Home() {
   const { playSong, currentSong, recentSongs } = useMusicPlayer();
   const queryClient = useQueryClient();
 
-  // Only fetch library songs when wallet is connected
   const { data: librarySongs, isLoading: libraryLoading } = useQuery<Song[]>({
     queryKey: ["/api/songs/library"],
     enabled: !!address,
-  });
-
-  const playMutation = useMutation({
-    mutationFn: async (songId: number) => {
-      await apiRequest("POST", `/api/songs/play/${songId}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/songs/recent"] });
-    },
   });
 
   const handlePlaySong = async (song: Song) => {
@@ -76,11 +66,9 @@ export default function Home() {
       }
 
       try {
-        // Register user first if needed
         await apiRequest("POST", "/api/users/register", { address });
       } catch (error) {
         console.error('User registration error:', error);
-        // Continue if error is due to user already being registered
       }
 
       toast({

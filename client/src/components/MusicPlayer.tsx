@@ -20,6 +20,26 @@ export function MusicPlayer() {
   const [isMuted, setIsMuted] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
 
+  // Handle when audioUrl changes - set up new audio
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio || !audioUrl) return;
+
+    const playAudio = async () => {
+      try {
+        audio.load(); // Force reload with new source
+        const playPromise = audio.play();
+        if (playPromise !== undefined) {
+          await playPromise;
+        }
+      } catch (error) {
+        console.error('Error playing audio:', error);
+      }
+    };
+
+    playAudio();
+  }, [audioUrl]);
+
   // Setup audio event listeners
   useEffect(() => {
     const audio = audioRef.current;
@@ -34,22 +54,8 @@ export function MusicPlayer() {
       playNext();
     };
 
-    const handleCanPlay = () => {
-      try {
-        const playPromise = audio.play();
-        if (playPromise !== undefined) {
-          playPromise.catch((error) => {
-            console.error("Playback failed:", error);
-          });
-        }
-      } catch (error) {
-        console.error("Error during canplay handler:", error);
-      }
-    };
-
     audio.addEventListener('timeupdate', handleTimeUpdate);
     audio.addEventListener('ended', handleEnded);
-    audio.addEventListener('canplay', handleCanPlay);
 
     // Set initial volume
     audio.volume = isMuted ? 0 : volume;
@@ -57,7 +63,6 @@ export function MusicPlayer() {
     return () => {
       audio.removeEventListener('timeupdate', handleTimeUpdate);
       audio.removeEventListener('ended', handleEnded);
-      audio.removeEventListener('canplay', handleCanPlay);
     };
   }, [playNext, volume, isMuted]);
 
@@ -86,8 +91,7 @@ export function MusicPlayer() {
         ref={audioRef}
         src={audioUrl}
         preload="auto"
-        autoPlay={true}
-        onError={(e) => console.error('Audio error:', e)}
+        autoPlay
       />
       <Card className="fixed bottom-4 right-4 p-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border shadow-lg w-72 z-50">
         <div className="flex items-center justify-between gap-2">
