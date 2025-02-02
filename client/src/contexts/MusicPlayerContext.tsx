@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { useQuery } from "@tanstack/react-query";
 import { getFromIPFS } from "@/lib/ipfs";
+import { useAccount } from 'wagmi';
 
 interface Song {
   id: number;
@@ -17,6 +18,7 @@ interface MusicPlayerContextType {
   isPlaying: boolean;
   togglePlay: () => void;
   recentSongs?: Song[];
+  isLandingPage: boolean;
 }
 
 const MusicPlayerContext = createContext<MusicPlayerContextType | undefined>(undefined);
@@ -25,6 +27,8 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   const [currentSong, setCurrentSong] = useState<Song>();
   const [isPlaying, setIsPlaying] = useState(true);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const { address } = useAccount();
+  const isLandingPage = !address;
 
   // Fetch initial song list
   const { data: recentSongs } = useQuery<Song[]>({
@@ -39,9 +43,13 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
     }
   });
 
-  // Initialize music once on load
+  // Initialize music once on load - only if we're on landing page
   useEffect(() => {
     async function initializeMusic() {
+      // Only initialize if:
+      // 1. We have songs
+      // 2. Audio isn't already set up
+      // 3. We're on landing page OR we have a wallet connected
       if (!recentSongs?.length || audioRef.current?.src) return;
 
       try {
@@ -63,18 +71,27 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
       }
     }
 
-    initializeMusic();
-  }, [recentSongs]);
+    if (isLandingPage) {
+      initializeMusic();
+    }
+  }, [recentSongs, isLandingPage]);
 
-  // Volume control based on isPlaying state
-  useEffect(() => {
-    if (!audioRef.current) return;
-    audioRef.current.volume = isPlaying ? 1 : 0;
-  }, [isPlaying]);
-
+  // Simple volume toggle for landing page
   const togglePlay = () => {
     setIsPlaying(!isPlaying);
+    if (audioRef.current) {
+      audioRef.current.volume = !isPlaying ? 1 : 0;
+    }
   };
+
+  // Clean up on unmount
+  useEffect(() => {
+    return () => {
+      if (audioRef.current?.src) {
+        URL.revokeObjectURL(audioRef.current.src);
+      }
+    };
+  }, []);
 
   return (
     <MusicPlayerContext.Provider
@@ -83,14 +100,18 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
         isPlaying,
         togglePlay,
         recentSongs,
+        isLandingPage
       }}
     >
-      <audio
-        ref={audioRef}
-        loop
-        preload="auto"
-        onError={(e) => console.error('Audio error:', e)}
-      />
+      {/* Only render audio element on landing page */}
+      {isLandingPage && (
+        <audio
+          ref={audioRef}
+          loop
+          preload="auto"
+          onError={(e) => console.error('Audio error:', e)}
+        />
+      )}
       {children}
     </MusicPlayerContext.Provider>
   );
