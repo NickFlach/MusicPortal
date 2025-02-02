@@ -37,23 +37,6 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
 
   const { data: recentSongs } = useQuery<Song[]>({
     queryKey: ["/api/songs/recent"],
-    queryFn: async () => {
-      try {
-        const response = await fetch("/api/songs/recent", {
-          headers: {
-            'X-Internal-Token': 'landing-page'
-          }
-        });
-        if (!response.ok) {
-          throw new Error('Failed to fetch recent songs');
-        }
-        return response.json();
-      } catch (error) {
-        console.error('Error fetching recent songs:', error);
-        return [];
-      }
-    },
-    staleTime: 30000
   });
 
   const playNext = () => {
@@ -74,7 +57,6 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   const playSong = async (song: Song) => {
     try {
       console.log('Starting to play song:', song.title);
-      console.log('Fetching from IPFS gateway:', song.ipfsHash);
 
       // Clean up previous audio URL
       if (audioUrl) {
@@ -91,13 +73,8 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
       const blob = new Blob([audioData], { type: 'audio/mpeg' });
       const url = URL.createObjectURL(blob);
 
-      // Set the current song first
       setCurrentSong(song);
-
-      // Then set the audio URL
       setAudioUrl(url);
-
-      // Make player visible and start playing
       setIsPlayerVisible(true);
       setIsPlaying(true);
 
@@ -107,7 +84,6 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'X-Internal-Token': 'landing-page'
           }
         });
       } catch (error) {
@@ -116,30 +92,19 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
 
       console.log('Song setup complete:', song.title);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error('Error playing song:', errorMessage);
-      throw new Error(`Playback failed: ${errorMessage}`);
+      console.error('Error playing song:', error);
+      throw new Error(error instanceof Error ? error.message : 'Failed to play song');
     }
   };
 
   const togglePlayer = () => {
-    console.log('Toggling player visibility from:', isPlayerVisible, 'to:', !isPlayerVisible);
+    setIsPlayerVisible(!isPlayerVisible);
     if (isPlayerVisible) {
-      // If we're hiding the player, pause playback
       setIsPlaying(false);
-      setIsPlayerVisible(false);
-    } else {
-      // If we're showing the player
-      setIsPlayerVisible(true);
-      // Only auto-play if there's a current song
-      if (currentSong) {
-        setIsPlaying(true);
-      }
     }
   };
 
   const togglePlayPause = () => {
-    console.log('Toggling play/pause:', !isPlaying);
     setIsPlaying(!isPlaying);
   };
 

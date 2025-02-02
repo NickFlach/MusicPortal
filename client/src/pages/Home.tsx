@@ -32,6 +32,25 @@ export default function Home() {
   const { playSong, currentSong, recentSongs } = useMusicPlayer();
   const queryClient = useQueryClient();
 
+  // Register user when wallet is connected
+  useQuery({
+    queryKey: ["registerUser", address],
+    queryFn: async () => {
+      if (!address) return null;
+      try {
+        await apiRequest("POST", "/users/register", { address });
+        return true;
+      } catch (error) {
+        // Ignore 409 Conflict (user already exists)
+        if (error instanceof Error && !error.message.includes("409")) {
+          console.error('User registration error:', error);
+        }
+        return false;
+      }
+    },
+    enabled: !!address,
+  });
+
   const { data: librarySongs, isLoading: libraryLoading } = useQuery<Song[]>({
     queryKey: ["/api/songs/library"],
     enabled: !!address,
@@ -63,23 +82,6 @@ export default function Home() {
     mutationFn: async ({ file, title, artist }: { file: File; title: string; artist: string }) => {
       if (!address) {
         throw new Error("Please connect your wallet to upload songs");
-      }
-
-      try {
-        const registerResponse = await fetch("/api/users/register", {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ address }),
-        });
-
-        if (!registerResponse.ok) {
-          const error = await registerResponse.text();
-          console.error('User registration error:', error);
-        }
-      } catch (error) {
-        console.error('User registration network error:', error);
       }
 
       toast({
@@ -190,8 +192,8 @@ export default function Home() {
                       key={song.id}
                       song={song}
                       onClick={() => handlePlaySong(song)}
-                      isPlaying={currentSong?.id === song.id}
                       showDelete={true}
+                      variant="default"
                     />
                   ))
                 )}
@@ -214,7 +216,7 @@ export default function Home() {
                     key={song.id}
                     song={song}
                     onClick={() => handlePlaySong(song)}
-                    isPlaying={currentSong?.id === song.id}
+                    variant="default"
                   />
                 ))
               )}
