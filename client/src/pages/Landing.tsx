@@ -9,7 +9,7 @@ import { useEffect } from 'react';
 export default function Landing() {
   const { address } = useAccount();
   const [, setLocation] = useLocation();
-  const { isMuted, toggleMute, currentSong } = useMusicPlayer();
+  const { currentSong, isPlaying, togglePlay } = useMusicPlayer();
 
   useEffect(() => {
     if (address) {
@@ -65,15 +65,15 @@ export default function Landing() {
             />
           </a>
 
-          {/* Mute Toggle Button */}
+          {/* Play/Pause Toggle Button */}
           <div className="flex flex-col items-center gap-2">
             <Button
               variant="ghost"
               size="icon"
-              onClick={toggleMute}
+              onClick={togglePlay}
               className="hover:scale-110 transition-transform"
             >
-              {isMuted ? (
+              {isPlaying ? (
                 <VolumeX className="h-6 w-6" />
               ) : (
                 <Volume2 className="h-6 w-6" />

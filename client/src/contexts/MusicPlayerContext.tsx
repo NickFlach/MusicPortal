@@ -36,6 +36,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
     return savedVolume ? parseFloat(savedVolume) : 0.7;
   });
   const [audioUrl, setAudioUrl] = useState('');
+  const [isInitialized, setIsInitialized] = useState(false);
 
   // Always fetch recent songs with landing page token
   const { data: recentSongs } = useQuery<Song[]>({
@@ -70,9 +71,14 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
     let mounted = true;
 
     async function initializeMusic() {
-      if (!currentSong && recentSongs?.length && mounted) {
+      if (!isInitialized && recentSongs?.length && mounted) {
         console.log('Initializing music with first song:', recentSongs[0].title);
-        await playSong(recentSongs[0]);
+        try {
+          await playSong(recentSongs[0]);
+          setIsInitialized(true);
+        } catch (error) {
+          console.error('Error initializing music:', error);
+        }
       }
     }
 
@@ -81,7 +87,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
     return () => {
       mounted = false;
     };
-  }, [recentSongs, currentSong]);
+  }, [recentSongs, isInitialized]);
 
   const playNext = () => {
     if (!recentSongs?.length) return;
