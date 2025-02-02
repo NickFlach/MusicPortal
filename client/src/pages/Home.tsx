@@ -34,15 +34,7 @@ export default function Home() {
 
   const { data: librarySongs, isLoading: libraryLoading } = useQuery<Song[]>({
     queryKey: ["/api/songs/library"],
-    queryFn: async () => {
-      const response = await fetch("/api/songs/library");
-      if (!response.ok) {
-        throw new Error("Failed to fetch library");
-      }
-      return response.json();
-    },
     enabled: !!address,
-    retry: false,
   });
 
   const handlePlaySong = async (song: Song) => {
@@ -61,7 +53,7 @@ export default function Home() {
       console.error('Error playing song:', error);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to play song. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to play song",
         variant: "destructive",
       });
     }
@@ -74,9 +66,20 @@ export default function Home() {
       }
 
       try {
-        await apiRequest("POST", "/api/users/register", { address });
+        const registerResponse = await fetch("/api/users/register", {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ address }),
+        });
+
+        if (!registerResponse.ok) {
+          const error = await registerResponse.text();
+          console.error('User registration error:', error);
+        }
       } catch (error) {
-        console.error('User registration error:', error);
+        console.error('User registration network error:', error);
       }
 
       toast({
@@ -90,6 +93,7 @@ export default function Home() {
           title,
           artist,
           ipfsHash,
+          address,
         });
         return await response.json();
       } catch (error) {
