@@ -29,7 +29,7 @@ const MusicPlayerContext = createContext<MusicPlayerContextType | undefined>(und
 
 export function MusicPlayerProvider({ children }: { children: React.ReactNode }) {
   const [currentSong, setCurrentSong] = useState<Song>();
-  const [isPlaying, setIsPlaying] = useState(true);
+  const [isPlaying, setIsPlaying] = useState(false);
   const [currentContext, setCurrentContext] = useState<PlaylistContext>('landing');
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -64,9 +64,31 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
       try {
         const firstSong = recentSongs[0];
         console.log('Initializing music with:', firstSong.title);
+
+        // Create audio context to handle autoplay
+        const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+        const audioContext = new AudioContext();
+
+        // Try to resume audio context (required for autoplay)
+        if (audioContext.state === 'suspended') {
+          await audioContext.resume();
+        }
+
         await playSong(firstSong, 'landing');
+
+        // Handle autoplay failure
+        if (audioRef.current) {
+          const playPromise = audioRef.current.play();
+          if (playPromise !== undefined) {
+            playPromise.catch(error => {
+              console.log('Autoplay prevented:', error);
+              setIsPlaying(false);
+            });
+          }
+        }
       } catch (error) {
         console.error('Error initializing music:', error);
+        setIsPlaying(false);
       }
     }
 
@@ -117,6 +139,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
       newAudio.addEventListener('error', (event) => {
         const error = event.currentTarget as HTMLAudioElement;
         console.error('Audio playback error:', error.error?.message || 'Unknown error');
+        setIsPlaying(false);
       });
 
       newAudio.addEventListener('loadeddata', () => {
@@ -132,16 +155,25 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
       });
 
       audioRef.current = newAudio;
-      await audioRef.current.play();
-      setIsPlaying(true);
-      setCurrentSong(song);
-      console.log('IPFS fetch and playback successful');
+      const playPromise = audioRef.current.play();
+
+      if (playPromise !== undefined) {
+        playPromise.then(() => {
+          setIsPlaying(true);
+          setCurrentSong(song);
+          console.log('IPFS fetch and playback successful');
+        }).catch(error => {
+          console.error('Playback prevented:', error);
+          setIsPlaying(false);
+        });
+      }
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
         console.log('IPFS fetch aborted');
         return;
       }
       console.error('Error playing song:', error);
+      setIsPlaying(false);
       throw error;
     } finally {
       abortControllerRef.current = null;
@@ -149,17 +181,24 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   };
 
   // Simple volume toggle for landing page
-  const togglePlay = () => {
+  const togglePlay = async () => {
     if (!audioRef.current) return;
 
-    setIsPlaying(!isPlaying);
-    if (audioRef.current) {
+    try {
       if (isPlaying) {
-        audioRef.current.volume = 0;
+        audioRef.current.pause();
+        setIsPlaying(false);
       } else {
-        audioRef.current.volume = 1;
-        audioRef.current.play().catch(console.error);
+        const playPromise = audioRef.current.play();
+        if (playPromise !== undefined) {
+          await playPromise;
+          audioRef.current.volume = 1;
+          setIsPlaying(true);
+        }
       }
+    } catch (error) {
+      console.error('Error toggling play:', error);
+      setIsPlaying(false);
     }
   };
 

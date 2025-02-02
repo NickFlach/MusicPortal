@@ -12,25 +12,51 @@ export function WalletConnect() {
   const { toast } = useToast();
   const [location, setLocation] = useLocation();
 
+  // Check if the device is mobile
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
   const handleConnect = async () => {
     try {
-      // Check if MetaMask is installed
-      if (typeof window.ethereum === 'undefined') {
-        window.open('https://metamask.io/download/', '_blank');
-        toast({
-          title: "MetaMask Required",
-          description: "Please install MetaMask to connect your wallet",
-          variant: "destructive",
-        });
-        return;
-      }
+      // Check if we're on mobile
+      if (isMobile) {
+        // Check if MetaMask app is installed via deep link
+        const metamaskAppDeepLink = 'https://metamask.app.link/dapp/' + window.location.host;
 
-      // First connect the wallet and wait for it to complete
-      await connect({ 
-        connector: injected({
-          target: 'metaMask'
-        })
-      });
+        // First try to connect to injected provider in case MetaMask is available
+        if (typeof window.ethereum !== 'undefined') {
+          await connect({ 
+            connector: injected({
+              target: 'metaMask'
+            })
+          });
+        } else {
+          // If no injected provider, redirect to MetaMask app
+          window.location.href = metamaskAppDeepLink;
+          toast({
+            title: "Opening MetaMask App",
+            description: "Please open this site in the MetaMask browser after installation",
+          });
+          return;
+        }
+      } else {
+        // Desktop flow - check for MetaMask extension
+        if (typeof window.ethereum === 'undefined') {
+          window.open('https://metamask.io/download/', '_blank');
+          toast({
+            title: "MetaMask Required",
+            description: "Please install MetaMask extension to connect your wallet",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        // Connect using the extension
+        await connect({ 
+          connector: injected({
+            target: 'metaMask'
+          })
+        });
+      }
 
       // Wait a brief moment for the wallet address to be available
       await new Promise(resolve => setTimeout(resolve, 500));
