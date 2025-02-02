@@ -33,7 +33,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   const [isPlaying, setIsPlaying] = useState(false);
   const [volume, setVolume] = useState(0.7);
   const [audioUrl, setAudioUrl] = useState('');
-  const [isPlayerVisible, setIsPlayerVisible] = useState(false);
+  const [isPlayerVisible, setIsPlayerVisible] = useState(true);
 
   const { data: recentSongs } = useQuery<Song[]>({
     queryKey: ["/api/songs/recent"],
@@ -56,8 +56,6 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
 
   const playSong = async (song: Song) => {
     try {
-      console.log('Starting to play song:', song.title);
-
       // Clean up previous audio URL
       if (audioUrl) {
         URL.revokeObjectURL(audioUrl);
@@ -69,7 +67,6 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
         throw new Error('Failed to fetch audio data from IPFS');
       }
 
-      console.log('Creating blob for song:', song.title);
       const blob = new Blob([audioData], { type: 'audio/mpeg' });
       const url = URL.createObjectURL(blob);
 
@@ -89,8 +86,6 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
       } catch (error) {
         console.error('Error updating play count:', error);
       }
-
-      console.log('Song setup complete:', song.title);
     } catch (error) {
       console.error('Error playing song:', error);
       throw new Error(error instanceof Error ? error.message : 'Failed to play song');
@@ -98,14 +93,11 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   };
 
   const togglePlayer = () => {
-    setIsPlayerVisible(!isPlayerVisible);
-    if (isPlayerVisible) {
-      setIsPlaying(false);
-    }
+    setIsPlayerVisible(prev => !prev);
   };
 
   const togglePlayPause = () => {
-    setIsPlaying(!isPlaying);
+    setIsPlaying(prev => !prev);
   };
 
   // Cleanup on unmount

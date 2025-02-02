@@ -22,38 +22,6 @@ export function MusicPlayer() {
   const [isMuted, setIsMuted] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
 
-  // Handle when audioUrl changes - set up new audio
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio || !audioUrl) return;
-
-    console.log('Setting up audio with URL:', audioUrl);
-
-    const playAudio = async () => {
-      try {
-        audio.load(); // Force reload with new source
-        if (isPlaying) {
-          console.log('Attempting to play audio...');
-          try {
-            const playPromise = audio.play();
-            if (playPromise !== undefined) {
-              await playPromise;
-              console.log('Audio playing successfully');
-            }
-          } catch (e) {
-            console.error('Error in play():', e);
-          }
-        } else {
-          console.log('Audio loaded but not playing (isPlaying is false)');
-        }
-      } catch (error) {
-        console.error('Error in playAudio:', error);
-      }
-    };
-
-    playAudio();
-  }, [audioUrl, isPlaying]);
-
   // Setup audio event listeners
   useEffect(() => {
     const audio = audioRef.current;
@@ -85,9 +53,13 @@ export function MusicPlayer() {
     const audio = audioRef.current;
     if (!audio) return;
 
-    console.log('Play/Pause status changed:', isPlaying);
     if (isPlaying) {
-      audio.play().catch(error => console.error('Error playing:', error));
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(error => {
+          console.error('Error playing:', error);
+        });
+      }
     } else {
       audio.pause();
     }
