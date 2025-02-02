@@ -11,7 +11,7 @@ export function WalletConnect() {
   const { connect } = useConnect();
   const { disconnect } = useDisconnect();
   const { toast } = useToast();
-  const [location, setLocation] = useLocation();
+  const [, setLocation] = useLocation();
 
   // Check if the device is mobile
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
@@ -59,14 +59,30 @@ export function WalletConnect() {
         });
       }
 
-      // Check and switch to NEO X network
+      // Check if already on NEO X network first
       const isCorrectNetwork = await isNeoXNetwork();
       if (!isCorrectNetwork) {
-        toast({
-          title: "Network Switch Required",
-          description: "Switching to NEO X network...",
-        });
-        await switchToNeoXNetwork();
+        try {
+          toast({
+            title: "Network Setup",
+            description: "Adding and switching to NEO X network...",
+          });
+          await switchToNeoXNetwork();
+
+          // Verify the switch was successful
+          const networkVerified = await isNeoXNetwork();
+          if (!networkVerified) {
+            throw new Error("Failed to switch to NEO X network");
+          }
+        } catch (error: any) {
+          // Don't throw here, just show a warning and continue
+          console.warn('Network switch warning:', error);
+          toast({
+            title: "Network Warning",
+            description: "Please make sure you're connected to the NEO X network",
+            variant: "destructive",
+          });
+        }
       }
 
       // Initial delay to allow wallet connection to settle
