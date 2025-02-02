@@ -115,6 +115,13 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
       // Create new audio element
       const newAudio = new Audio();
       newAudio.src = url;
+
+      // Handle audio errors
+      newAudio.onerror = (event) => {
+        const error = event.currentTarget.error;
+        console.error('Audio playback error:', error?.message || 'Unknown error');
+      };
+
       await newAudio.load();
       audioRef.current = newAudio;
 
@@ -173,15 +180,6 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
         currentContext
       }}
     >
-      {/* Only render audio element on landing page */}
-      {isLandingPage && (
-        <audio
-          ref={audioRef}
-          loop
-          preload="auto"
-          onError={(e) => console.error('Audio error:', e)}
-        />
-      )}
       {children}
     </MusicPlayerContext.Provider>
   );

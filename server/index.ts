@@ -2,6 +2,11 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import path from "path";
+import { fileURLToPath } from 'url';
+
+// ES Module equivalent of __dirname
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 app.use(express.json());
@@ -54,7 +59,7 @@ app.use((req, res, next) => {
       await setupVite(app, server);
     } else {
       // Production mode - serve static files and handle client routing
-      const distPath = path.resolve(__dirname, "public");
+      const distPath = path.resolve(__dirname, "..", "dist", "public");
       app.use(express.static(distPath));
 
       // Handle 404 for non-existent API routes
