@@ -4,6 +4,7 @@ import { useAccount, useConnect, useDisconnect } from 'wagmi';
 import { injected } from 'wagmi/connectors';
 import { apiRequest } from "@/lib/queryClient";
 import { useLocation } from 'wouter';
+import { switchToNeoXNetwork, isNeoXNetwork } from "@/lib/web3";
 
 export function WalletConnect() {
   const { address } = useAccount();
@@ -56,6 +57,16 @@ export function WalletConnect() {
             target: 'metaMask'
           })
         });
+      }
+
+      // Check and switch to NEO X network
+      const isCorrectNetwork = await isNeoXNetwork();
+      if (!isCorrectNetwork) {
+        toast({
+          title: "Network Switch Required",
+          description: "Switching to NEO X network...",
+        });
+        await switchToNeoXNetwork();
       }
 
       // Initial delay to allow wallet connection to settle
