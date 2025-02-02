@@ -7,7 +7,7 @@ import { useEffect } from 'react';
 export default function Landing() {
   const { address } = useAccount();
   const [, setLocation] = useLocation();
-  const { togglePlayer } = useMusicPlayer();
+  const { togglePlayer, currentSong, isPlayerVisible } = useMusicPlayer();
 
   useEffect(() => {
     if (address) {
@@ -52,7 +52,7 @@ export default function Landing() {
         <div className="flex flex-col items-center justify-center mt-24 space-y-6">
           <button 
             onClick={togglePlayer}
-            className="transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background rounded-lg"
+            className={`transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background rounded-lg ${isPlayerVisible ? 'ring-2 ring-primary' : ''}`}
           >
             <img 
               src="/neo_token_logo_flaukowski.png" 
@@ -60,6 +60,9 @@ export default function Landing() {
               className="w-64 h-64 object-contain hover:animate-pulse"
             />
           </button>
+          <p className="text-sm text-muted-foreground">
+            {currentSong ? `Now Playing: ${currentSong.title}` : 'Click to play music'}
+          </p>
         </div>
       </div>
     </div>

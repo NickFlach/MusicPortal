@@ -56,22 +56,6 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
     staleTime: 30000
   });
 
-  // Auto-play first song when songs are loaded
-  useEffect(() => {
-    const autoPlayFirstSong = async () => {
-      if (recentSongs?.length && !currentSong) {
-        try {
-          console.log('Auto-playing first song:', recentSongs[0].title);
-          await playSong(recentSongs[0]);
-        } catch (error) {
-          console.error('Error auto-playing first song:', error);
-        }
-      }
-    };
-
-    autoPlayFirstSong();
-  }, [recentSongs]);
-
   const playNext = () => {
     if (!recentSongs?.length) return;
 
@@ -139,6 +123,21 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
     }
   };
 
+  // Auto-play first song when songs are loaded
+  useEffect(() => {
+    const autoPlayFirstSong = async () => {
+      if (recentSongs?.length && !currentSong && isPlayerVisible) {
+        try {
+          console.log('Auto-playing first song:', recentSongs[0].title);
+          await playSong(recentSongs[0]);
+        } catch (error) {
+          console.error('Error auto-playing first song:', error);
+        }
+      }
+    };
+
+    autoPlayFirstSong();
+  }, [recentSongs, isPlayerVisible]);
 
   // Cleanup on unmount
   useEffect(() => {
