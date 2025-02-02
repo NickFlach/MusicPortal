@@ -58,48 +58,73 @@ export function WalletConnect() {
         });
       }
 
-      // Wait for the wallet address to be available
+      // Initial delay to allow wallet connection to settle
+      await new Promise(resolve => setTimeout(resolve, 1500));
+
+      // Get wallet address with retries
       let connectedAddress = null;
-      for (let i = 0; i < 10; i++) { // Try for up to 5 seconds (10 * 500ms)
-        connectedAddress = await window.ethereum.request({ method: 'eth_accounts' })
-          .then(accounts => accounts[0]);
-        if (connectedAddress) break;
-        await new Promise(resolve => setTimeout(resolve, 500));
+      for (let i = 0; i < 5; i++) { // Try for up to 5 seconds (5 * 1000ms)
+        try {
+          const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+          connectedAddress = accounts[0];
+          if (connectedAddress) break;
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        } catch (err) {
+          console.log('Attempt', i + 1, 'to get address failed:', err);
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
       }
 
       if (!connectedAddress) {
         throw new Error("Failed to get wallet address after connection");
       }
 
-      try {
-        // Register/update user after connection
-        const response = await apiRequest("POST", "/api/users/register", { 
-          address: connectedAddress 
-        });
-        const data = await response.json();
+      console.log('Making request with wallet address:', connectedAddress);
 
-        if (!data || !data.user) {
-          throw new Error("Invalid response from server");
+      // Registration with retries
+      let registrationSuccess = false;
+      for (let i = 0; i < 3; i++) { // Try registration up to 3 times
+        try {
+          const response = await apiRequest("POST", "/api/users/register", { 
+            address: connectedAddress 
+          });
+          const data = await response.json();
+
+          if (!data || !data.user) {
+            throw new Error("Invalid response from server");
+          }
+
+          console.log('User registered:', data.user);
+          console.log('Recent songs:', data.recentSongs);
+
+          // Redirect to home page
+          setLocation('/home');
+
+          toast({
+            title: "Connected",
+            description: data.user.lastSeen ? "Welcome back!" : "Wallet connected successfully!",
+          });
+
+          registrationSuccess = true;
+          break;
+        } catch (error) {
+          console.error('Registration attempt', i + 1, 'failed:', error);
+          if (i === 2) { // Only show error toast on final attempt
+            toast({
+              title: "Registration Error",
+              description: "Failed to register wallet. Please try again.",
+              variant: "destructive",
+            });
+            throw error; // Re-throw on final attempt
+          }
+          await new Promise(resolve => setTimeout(resolve, 1000));
         }
-
-        console.log('User registered:', data.user);
-        console.log('Recent songs:', data.recentSongs);
-
-        // Redirect to home page
-        setLocation('/home');
-
-        toast({
-          title: "Connected",
-          description: data.user.lastSeen ? "Welcome back!" : "Wallet connected successfully!",
-        });
-      } catch (error) {
-        console.error('User registration error:', error);
-        toast({
-          title: "Registration Error",
-          description: "Failed to register wallet. Please try again.",
-          variant: "destructive",
-        });
       }
+
+      if (!registrationSuccess) {
+        throw new Error("Failed to register after multiple attempts");
+      }
+
     } catch (error) {
       console.error('Wallet connection error:', error);
       if (error instanceof Error && !error.message.includes('Failed to get wallet address')) {
