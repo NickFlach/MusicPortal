@@ -49,6 +49,17 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
     }
   });
 
+  // Function to get next song in the current context
+  const getNextSong = (currentSongId: number): Song | undefined => {
+    if (!recentSongs?.length) return undefined;
+
+    const currentIndex = recentSongs.findIndex(song => song.id === currentSongId);
+    if (currentIndex === -1) return recentSongs[0];
+
+    // Get next song, or loop back to the beginning
+    return recentSongs[(currentIndex + 1) % recentSongs.length];
+  };
+
   // Reset to landing context when wallet disconnects
   useEffect(() => {
     if (!address) {
@@ -144,6 +155,15 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
 
       newAudio.addEventListener('loadeddata', () => {
         console.log('Audio data loaded successfully');
+      });
+
+      // Add ended event listener to play next song
+      newAudio.addEventListener('ended', async () => {
+        console.log('Song ended, playing next song');
+        const nextSong = getNextSong(song.id);
+        if (nextSong) {
+          await playSong(nextSong, currentContext);
+        }
       });
 
       // Set source and load
