@@ -18,7 +18,8 @@ export default function Landing() {
       try {
         // Only fetch and play if no song is currently playing
         if (!currentSong) {
-          const response = await apiRequest("GET", "/api/songs/recent", undefined, {
+          const response = await apiRequest("GET", "/api/songs/recent", {
+            method: "GET",
             headers: {
               'X-Internal-Token': 'landing-page'
             }
@@ -42,7 +43,8 @@ export default function Landing() {
     }
   }, [address, setLocation]);
 
-  if (address) return null;
+  // Don't redirect away from landing if already here
+  if (address && window.location.pathname === '/') return null;
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">

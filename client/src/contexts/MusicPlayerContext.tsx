@@ -58,7 +58,10 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
       if (!address && location === '/') {
         headers['X-Internal-Token'] = 'landing-page';
       }
-      const response = await apiRequest("GET", "/api/songs/recent", undefined, { headers });
+      const response = await apiRequest("GET", "/api/songs/recent", {
+        method: "GET",
+        headers
+      });
       return response.json();
     },
     enabled: true // Always enabled
@@ -72,7 +75,9 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
           // Register user first
           await apiRequest("POST", "/api/users/register", { address });
           // Update play count for current song
-          await apiRequest("POST", `/api/songs/play/${currentSong.id}`);
+          await apiRequest("POST", `/api/songs/play/${currentSong.id}`, {
+            method: "POST"
+          });
           // Refresh recent songs list
           queryClient.invalidateQueries({ queryKey: ["/api/songs/recent"] });
         } catch (error) {
@@ -84,12 +89,22 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
     handleWalletConnection();
   }, [address, currentSong]);
 
+  // Keep playing current song when wallet disconnects
+  useEffect(() => {
+    if (!address && currentSong && isPlaying) {
+      // Continue playing the current song
+      audioRef.current.play().catch(error => {
+        console.error('Error continuing playback:', error);
+      });
+    }
+  }, [address, currentSong, isPlaying]);
 
   // Track play mutation - only used when wallet is connected
   const playMutation = useMutation({
     mutationFn: async (songId: number) => {
       if (!address) return; // Skip if no wallet connected
-      await apiRequest("POST", `/api/songs/play/${songId}`, undefined, {
+      await apiRequest("POST", `/api/songs/play/${songId}`, {
+        method: "POST",
         headers: address ? {} : { 'X-Internal-Token': 'landing-page' }
       });
     },
