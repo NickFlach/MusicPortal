@@ -30,15 +30,10 @@ const MusicPlayerContext = createContext<MusicPlayerContextType | undefined>(und
 export function MusicPlayerProvider({ children }: { children: React.ReactNode }) {
   const [currentSong, setCurrentSong] = useState<Song>();
   const [isPlaying, setIsPlaying] = useState(false);
-  const [volume, setVolume] = useState(() => {
-    // Try to restore volume from localStorage
-    const savedVolume = localStorage.getItem('musicPlayerVolume');
-    return savedVolume ? parseFloat(savedVolume) : 0.7;
-  });
+  const [volume, setVolume] = useState(0.7);
   const [audioUrl, setAudioUrl] = useState('');
-  const [isInitialized, setIsInitialized] = useState(false);
 
-  // Always fetch recent songs with landing page token
+  // Fetch recent songs without any dependencies
   const { data: recentSongs } = useQuery<Song[]>({
     queryKey: ["/api/songs/recent"],
     queryFn: async () => {
@@ -57,48 +52,33 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
         return [];
       }
     },
-    staleTime: 30000, // Cache for 30 seconds
-    retry: 3
+    staleTime: 30000
   });
 
-  // Save volume to localStorage when it changes
+  // Auto-play first song when songs are loaded
   useEffect(() => {
-    localStorage.setItem('musicPlayerVolume', volume.toString());
-  }, [volume]);
-
-  // Initialize music on first load
-  useEffect(() => {
-    let mounted = true;
-
-    async function initializeMusic() {
-      if (!isInitialized && recentSongs?.length && mounted) {
-        console.log('Initializing music with first song:', recentSongs[0].title);
+    const autoPlayFirstSong = async () => {
+      if (recentSongs?.length && !currentSong) {
         try {
+          console.log('Auto-playing first song:', recentSongs[0].title);
           await playSong(recentSongs[0]);
-          setIsInitialized(true);
         } catch (error) {
-          console.error('Error initializing music:', error);
+          console.error('Error auto-playing first song:', error);
         }
       }
-    }
-
-    initializeMusic();
-
-    return () => {
-      mounted = false;
     };
-  }, [recentSongs, isInitialized]);
+
+    autoPlayFirstSong();
+  }, [recentSongs]);
 
   const playNext = () => {
     if (!recentSongs?.length) return;
 
     const currentIndex = currentSong 
-      ? recentSongs.findIndex((s) => s.id === currentSong.id)
+      ? recentSongs.findIndex(s => s.id === currentSong.id)
       : -1;
 
-    const nextIndex = (currentIndex + 1) % recentSongs.length;
-    const nextSong = recentSongs[nextIndex];
-
+    const nextSong = recentSongs[(currentIndex + 1) % recentSongs.length];
     if (nextSong) {
       playSong(nextSong).catch(console.error);
     }
@@ -108,13 +88,10 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
     if (!recentSongs?.length) return;
 
     const currentIndex = currentSong 
-      ? recentSongs.findIndex((s) => s.id === currentSong.id)
-      : -1;
+      ? recentSongs.findIndex(s => s.id === currentSong.id)
+      : 0;
 
-    const prevIndex = currentIndex === -1 
-      ? recentSongs.length - 1 
-      : (currentIndex - 1 + recentSongs.length) % recentSongs.length;
-
+    const prevIndex = (currentIndex - 1 + recentSongs.length) % recentSongs.length;
     const prevSong = recentSongs[prevIndex];
 
     if (prevSong) {
@@ -123,62 +100,46 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   };
 
   const togglePlay = () => {
-    setIsPlaying(prev => !prev);
-  };
-
-  const loadSong = async (songToLoad: Song): Promise<string> => {
-    if (!songToLoad?.ipfsHash) {
-      throw new Error('Invalid song data');
-    }
-
-    try {
-      console.log('Loading song:', songToLoad.title);
-      const audioData = await getFromIPFS(songToLoad.ipfsHash);
-      if (!audioData) {
-        throw new Error('Failed to fetch audio data from IPFS');
-      }
-
-      const blob = new Blob([audioData], { type: 'audio/mp3' });
-      return URL.createObjectURL(blob);
-    } catch (error) {
-      console.error('Error loading song:', error);
-      throw error;
-    }
+    setIsPlaying(!isPlaying);
   };
 
   const playSong = async (song: Song) => {
     try {
-      // Clean up previous audio URL before creating a new one
+      // Clean up previous audio URL
       if (audioUrl) {
         URL.revokeObjectURL(audioUrl);
       }
 
-      const newAudioUrl = await loadSong(song);
-      setAudioUrl(newAudioUrl);
+      console.log('Loading song:', song.title);
+      const audioData = await getFromIPFS(song.ipfsHash);
+      if (!audioData) {
+        throw new Error('Failed to fetch audio data');
+      }
+
+      const blob = new Blob([audioData], { type: 'audio/mp3' });
+      const url = URL.createObjectURL(blob);
+
+      setAudioUrl(url);
       setCurrentSong(song);
       setIsPlaying(true);
 
-      // Update play count
-      try {
-        await fetch(`/api/songs/play/${song.id}`, {
-          method: 'POST',
-          headers: {
-            'X-Internal-Token': 'landing-page'
-          }
-        });
-      } catch (error) {
-        // Non-critical error, just log it
+      // Update play count (non-blocking)
+      fetch(`/api/songs/play/${song.id}`, {
+        method: 'POST',
+        headers: {
+          'X-Internal-Token': 'landing-page'
+        }
+      }).catch(error => {
         console.error('Error updating play count:', error);
-      }
+      });
     } catch (error) {
       console.error('Error playing song:', error);
       setIsPlaying(false);
-      // Re-throw to allow handling by caller
       throw error;
     }
   };
 
-  // Clean up object URLs when component unmounts
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (audioUrl) {
