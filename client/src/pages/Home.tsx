@@ -204,8 +204,8 @@ export default function Home() {
 
           <section className="px-4">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-semibold">Recent Songs</h2>
-              <p className="text-sm text-muted-foreground">Last 20 played</p>
+              <h2 className="text-2xl font-semibold">Discovery Feed</h2>
+              <p className="text-sm text-muted-foreground">Latest plays from the community</p>
             </div>
 
             <div className="grid gap-2">
