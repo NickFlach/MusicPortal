@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useQuery } from "@tanstack/react-query";
-import { getFromIPFS } from "@/lib/ipfs";
 
 interface Song {
   id: number;
@@ -92,7 +91,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
       // Set the current song first
       setCurrentSong(song);
 
-      // Then set the audio URL
+      // Then set the audio URL and start playing
       setAudioUrl(url);
       setIsPlaying(true);
       setIsPlayerVisible(true); // Show player when a song starts playing
@@ -116,6 +115,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   };
 
   const togglePlayer = () => {
+    console.log('Toggling player visibility:', !isPlayerVisible);
     setIsPlayerVisible(!isPlayerVisible);
 
     // If toggling on and no song is playing, try to play the first available song
@@ -125,24 +125,9 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   };
 
   const togglePlayPause = () => {
+    console.log('Toggling play/pause:', !isPlaying);
     setIsPlaying(!isPlaying);
   };
-
-  // Auto-play first song when songs are loaded
-  useEffect(() => {
-    const autoPlayFirstSong = async () => {
-      if (recentSongs?.length && !currentSong && isPlayerVisible) {
-        try {
-          console.log('Auto-playing first song:', recentSongs[0].title);
-          await playSong(recentSongs[0]);
-        } catch (error) {
-          console.error('Error auto-playing first song:', error);
-        }
-      }
-    };
-
-    autoPlayFirstSong();
-  }, [recentSongs, isPlayerVisible]);
 
   // Cleanup on unmount
   useEffect(() => {
