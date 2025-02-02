@@ -35,10 +35,14 @@ function PublicRoute({ component: Component }: { component: React.ComponentType 
   const [, setLocation] = useLocation();
 
   useEffect(() => {
+    // If we have an address and we're on the landing page, redirect to home
     if (address && window.location.pathname === '/') {
       setLocation('/home');
     }
   }, [address, setLocation]);
+
+  // Don't redirect away from landing if already here
+  if (address && window.location.pathname === '/') return null;
 
   return <Component />;
 }
@@ -58,7 +62,9 @@ function Router() {
       <Route path="/admin">
         <ProtectedRoute component={Admin} />
       </Route>
-      <Route component={NotFound} />
+      <Route>
+        <NotFound />
+      </Route>
     </Switch>
   );
 }
