@@ -84,22 +84,28 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
 
   const playSong = async (song: Song) => {
     try {
+      console.log('Starting to play song:', song.title);
+
       // Clean up previous audio URL
       if (audioUrl) {
         URL.revokeObjectURL(audioUrl);
+        setAudioUrl(''); // Clear the URL first to trigger a proper reload
       }
 
-      console.log('Loading song:', song.title);
       const audioData = await getFromIPFS(song.ipfsHash);
       if (!audioData) {
         throw new Error('Failed to fetch audio data');
       }
 
+      console.log('Creating blob for song:', song.title);
       const blob = new Blob([audioData], { type: 'audio/mp3' });
       const url = URL.createObjectURL(blob);
 
-      setAudioUrl(url);
+      // Set the current song first
       setCurrentSong(song);
+
+      // Then set the audio URL
+      setAudioUrl(url);
       setIsPlaying(true);
 
       // Update play count (non-blocking)
@@ -111,6 +117,8 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
       }).catch(error => {
         console.error('Error updating play count:', error);
       });
+
+      console.log('Song setup complete:', song.title);
     } catch (error) {
       console.error('Error playing song:', error);
       throw error;
