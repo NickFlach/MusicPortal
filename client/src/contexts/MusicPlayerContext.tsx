@@ -93,11 +93,9 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
       // Clean up old audio element completely
       if (audioRef.current) {
         audioRef.current.pause();
-        if (audioRef.current.src) {
-          URL.revokeObjectURL(audioRef.current.src);
-        }
-        audioRef.current.src = '';
+        audioRef.current.removeAttribute('src');
         audioRef.current.load();
+        audioRef.current = null;
       }
 
       console.log('Fetching from IPFS gateway:', song.ipfsHash);
@@ -114,17 +112,26 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
 
       // Create new audio element
       const newAudio = new Audio();
+
+      // Set up event handlers before setting src
+      newAudio.addEventListener('error', (event) => {
+        const error = event.currentTarget as HTMLAudioElement;
+        console.error('Audio playback error:', error.error?.message || 'Unknown error');
+      });
+
+      newAudio.addEventListener('loadeddata', () => {
+        console.log('Audio data loaded successfully');
+      });
+
+      // Set source and load
       newAudio.src = url;
+      await new Promise((resolve, reject) => {
+        newAudio.addEventListener('loadeddata', resolve);
+        newAudio.addEventListener('error', reject);
+        newAudio.load();
+      });
 
-      // Handle audio errors
-      newAudio.onerror = (event) => {
-        const error = event.currentTarget.error;
-        console.error('Audio playback error:', error?.message || 'Unknown error');
-      };
-
-      await newAudio.load();
       audioRef.current = newAudio;
-
       await audioRef.current.play();
       setIsPlaying(true);
       setCurrentSong(song);
@@ -162,8 +169,13 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
-      if (audioRef.current?.src) {
-        URL.revokeObjectURL(audioRef.current.src);
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.removeAttribute('src');
+        audioRef.current.load();
+        if (audioRef.current.src) {
+          URL.revokeObjectURL(audioRef.current.src);
+        }
       }
     };
   }, []);
