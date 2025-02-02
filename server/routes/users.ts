@@ -16,7 +16,10 @@ router.post('/api/users/register', async (req, res) => {
     const { address } = req.body;
 
     if (!address) {
-      return res.status(400).json({ message: "Wallet address is required" });
+      return res.status(400).json({ 
+        success: false,
+        message: "Wallet address is required" 
+      });
     }
 
     console.log('Processing registration for address:', address);
@@ -67,15 +70,20 @@ router.post('/api/users/register', async (req, res) => {
     console.log('Retrieved recent songs:', recentSongs);
 
     const response = {
+      success: true,
       user,
       recentSongs: recentSongs.map(item => item.song)
     };
 
     console.log('Sending response:', response);
     res.json(response);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in user registration:', error);
-    res.status(500).json({ message: "Failed to register user", error: error.message });
+    res.status(500).json({ 
+      success: false,
+      message: "Failed to register user", 
+      error: error.message 
+    });
   }
 });
 

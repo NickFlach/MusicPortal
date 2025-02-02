@@ -117,8 +117,12 @@ export function WalletConnect() {
           });
           const data = await response.json();
 
-          if (!data || !data.user) {
-            throw new Error("Invalid response from server");
+          if (!data.success) {
+            throw new Error(data.message || "Registration failed");
+          }
+
+          if (!data.user) {
+            throw new Error("Invalid response from server: missing user data");
           }
 
           console.log('User registered:', data.user);
@@ -139,7 +143,7 @@ export function WalletConnect() {
           if (i === 2) { // Only show error toast on final attempt
             toast({
               title: "Registration Error",
-              description: "Failed to register wallet. Please try again.",
+              description: error instanceof Error ? error.message : "Failed to register wallet. Please try again.",
               variant: "destructive",
             });
             throw error; // Re-throw on final attempt
