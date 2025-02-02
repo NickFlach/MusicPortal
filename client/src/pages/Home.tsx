@@ -92,7 +92,15 @@ export default function Home() {
       });
 
       try {
+        console.log('Starting IPFS upload for file:', {
+          name: file.name,
+          size: file.size,
+          type: file.type
+        });
+
         const ipfsHash = await uploadToIPFS(file);
+        console.log('IPFS upload successful, hash:', ipfsHash);
+
         const response = await apiRequest("POST", "/api/songs", {
           title,
           artist,
@@ -101,7 +109,7 @@ export default function Home() {
         return await response.json();
       } catch (error) {
         console.error('Upload error:', error);
-        throw error;
+        throw error instanceof Error ? error : new Error('Unknown upload error');
       }
     },
     onSuccess: () => {
@@ -115,6 +123,7 @@ export default function Home() {
       setUploadDialogOpen(false);
     },
     onError: (error: Error) => {
+      console.error('Upload mutation error:', error);
       toast({
         title: "Upload Failed",
         description: error.message,
