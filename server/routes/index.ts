@@ -21,6 +21,8 @@ const authMiddleware = (req: any, res: any, next: any) => {
   next();
 };
 
+let server: any = null;
+
 export function registerRoutes(app: Express) {
   // Apply auth middleware to all API routes
   app.use('/api', authMiddleware);
@@ -44,6 +46,24 @@ export function registerRoutes(app: Express) {
     res.status(404).json({ error: 'API endpoint not found' });
   });
 
-  const server = createServer(app);
+  // Cleanup old server if it exists
+  if (server) {
+    server.close();
+  }
+
+  // Create new server
+  server = createServer(app);
+
+  // Error handling for server
+  server.on('error', (error: any) => {
+    if (error.code === 'EADDRINUSE') {
+      console.error('Port 5000 is in use, retrying...');
+      setTimeout(() => {
+        server.close();
+        server.listen(5000, '0.0.0.0');
+      }, 1000);
+    }
+  });
+
   return server;
 }
