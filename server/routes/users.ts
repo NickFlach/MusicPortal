@@ -19,6 +19,8 @@ router.post('/api/users/register', async (req, res) => {
       return res.status(400).json({ message: "Wallet address is required" });
     }
 
+    console.log('Processing registration for address:', address);
+
     // Check if user exists
     const existingUser = await db.select()
       .from(users)
@@ -35,6 +37,7 @@ router.post('/api/users/register', async (req, res) => {
         .where(eq(users.address, address.toLowerCase()))
         .returning();
       user = updatedUser;
+      console.log('Updated existing user:', user);
     } else {
       // Create new user
       const [newUser] = await db.insert(users)
@@ -44,6 +47,11 @@ router.post('/api/users/register', async (req, res) => {
         })
         .returning();
       user = newUser;
+      console.log('Created new user:', user);
+    }
+
+    if (!user) {
+      throw new Error('Failed to create or update user');
     }
 
     // Get user's recent songs
@@ -56,13 +64,18 @@ router.post('/api/users/register', async (req, res) => {
       }
     });
 
-    res.json({
+    console.log('Retrieved recent songs:', recentSongs);
+
+    const response = {
       user,
       recentSongs: recentSongs.map(item => item.song)
-    });
+    };
+
+    console.log('Sending response:', response);
+    res.json(response);
   } catch (error) {
     console.error('Error in user registration:', error);
-    res.status(500).json({ message: "Failed to register user" });
+    res.status(500).json({ message: "Failed to register user", error: error.message });
   }
 });
 

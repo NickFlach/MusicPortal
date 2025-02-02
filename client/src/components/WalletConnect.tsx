@@ -76,16 +76,21 @@ export function WalletConnect() {
         const response = await apiRequest("POST", "/api/users/register", { 
           address: connectedAddress 
         });
-        const { user, recentSongs } = await response.json();
-        console.log('User registered:', user);
-        console.log('Recent songs:', recentSongs);
+        const data = await response.json();
+
+        if (!data || !data.user) {
+          throw new Error("Invalid response from server");
+        }
+
+        console.log('User registered:', data.user);
+        console.log('Recent songs:', data.recentSongs);
 
         // Redirect to home page
         setLocation('/home');
 
         toast({
           title: "Connected",
-          description: user.lastSeen ? "Welcome back!" : "Wallet connected successfully!",
+          description: data.user.lastSeen ? "Welcome back!" : "Wallet connected successfully!",
         });
       } catch (error) {
         console.error('User registration error:', error);
