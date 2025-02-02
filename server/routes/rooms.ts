@@ -5,7 +5,7 @@ import { eq, desc } from 'drizzle-orm';
 
 const router = Router();
 
-router.post('/api/rooms', async (req, res) => {
+router.post('/rooms', async (req, res) => {
   try {
     const { name, description, isPrivate, address } = req.body;
 
@@ -42,7 +42,7 @@ router.post('/api/rooms', async (req, res) => {
   }
 });
 
-router.get('/api/rooms', async (req, res) => {
+router.get('/rooms', async (req, res) => {
   try {
     const rooms = await db.select({
       id: listeningRooms.id,
@@ -66,7 +66,7 @@ router.get('/api/rooms', async (req, res) => {
   }
 });
 
-router.get('/api/rooms/:id', async (req, res) => {
+router.get('/rooms/:id', async (req, res) => {
   try {
     const roomId = parseInt(req.params.id);
     const [room] = await db.select()
