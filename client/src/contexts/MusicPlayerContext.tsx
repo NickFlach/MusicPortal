@@ -108,10 +108,11 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
       setAudioUrl(url);
       setIsPlaying(true);
 
-      // Update play count (non-blocking)
+      // Update play count with internal token to ensure it works consistently
       fetch(`/api/songs/play/${song.id}`, {
         method: 'POST',
         headers: {
+          'Content-Type': 'application/json',
           'X-Internal-Token': 'landing-page'
         }
       }).catch(error => {
