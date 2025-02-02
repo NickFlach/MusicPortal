@@ -47,22 +47,14 @@ export async function getFromIPFS(hash: string): Promise<Uint8Array> {
   try {
     console.log('Fetching from IPFS gateway:', hash);
     const gateway = 'https://gateway.pinata.cloud/ipfs';
-    const response = await fetch(`${gateway}/${hash}`, {
-      headers: {
-        'Accept': 'audio/*',
-      },
-    });
+    const response = await fetch(`${gateway}/${hash}`);
 
     if (!response.ok) {
-      throw new Error(`IPFS fetch failed with status: ${response.status}`);
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
 
     const buffer = await response.arrayBuffer();
-    if (!buffer || buffer.byteLength === 0) {
-      throw new Error('Received empty response from IPFS');
-    }
-
-    console.log('IPFS fetch successful, received bytes:', buffer.byteLength);
+    console.log('IPFS fetch successful');
     return new Uint8Array(buffer);
   } catch (error) {
     console.error('Error getting file from IPFS:', error);

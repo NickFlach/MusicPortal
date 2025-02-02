@@ -5,8 +5,7 @@ export function Navigation() {
   const [location] = useLocation();
 
   const links = [
-    { href: "/home", label: "Home" },
-    { href: "/rooms", label: "Listening Rooms" },
+    // Treasury and Admin routes removed as requested
   ];
 
   return (

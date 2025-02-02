@@ -3,8 +3,6 @@ import { createServer } from "http";
 import feedRoutes from './feed';
 import metadataRoutes from './metadata';
 import userRoutes from './users';
-import roomRoutes from './rooms';
-import { ListeningRoomService } from '../services/websocket';
 
 // Middleware to check for internal token or user authentication
 const authMiddleware = (req: any, res: any, next: any) => {
@@ -32,11 +30,14 @@ export function registerRoutes(app: Express) {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
   });
 
-  // Register the routes
-  app.use('/api', roomRoutes);
-  app.use('/api', feedRoutes);
-  app.use('/api', metadataRoutes);
-  app.use('/api', userRoutes);
+  // Register the feed routes
+  app.use(feedRoutes);
+
+  // Register the metadata routes
+  app.use(metadataRoutes);
+
+  // Register the user routes
+  app.use(userRoutes);
 
   // Handle 404 for non-existent API routes
   app.use('/api/*', (_req, res) => {
@@ -44,9 +45,5 @@ export function registerRoutes(app: Express) {
   });
 
   const server = createServer(app);
-
-  // Initialize WebSocket service
-  new ListeningRoomService(server);
-
   return server;
 }

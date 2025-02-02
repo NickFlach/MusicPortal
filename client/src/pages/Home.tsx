@@ -32,28 +32,19 @@ export default function Home() {
   const { playSong, currentSong, recentSongs } = useMusicPlayer();
   const queryClient = useQueryClient();
 
-  // Register user when wallet is connected
-  useQuery({
-    queryKey: ["registerUser", address],
-    queryFn: async () => {
-      if (!address) return null;
-      try {
-        await apiRequest("POST", "/users/register", { address });
-        return true;
-      } catch (error) {
-        // Ignore 409 Conflict (user already exists)
-        if (error instanceof Error && !error.message.includes("409")) {
-          console.error('User registration error:', error);
-        }
-        return false;
-      }
-    },
-    enabled: !!address,
-  });
-
+  // Only fetch library songs when wallet is connected
   const { data: librarySongs, isLoading: libraryLoading } = useQuery<Song[]>({
     queryKey: ["/api/songs/library"],
     enabled: !!address,
+  });
+
+  const playMutation = useMutation({
+    mutationFn: async (songId: number) => {
+      await apiRequest("POST", `/api/songs/play/${songId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/songs/recent"] });
+    },
   });
 
   const handlePlaySong = async (song: Song) => {
@@ -67,12 +58,15 @@ export default function Home() {
     }
 
     try {
-      await playSong(song);
+      // Play the song first
+      playSong(song);
+      // Then update play count
+      await playMutation.mutate(song.id);
     } catch (error) {
       console.error('Error playing song:', error);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to play song",
+        description: "Failed to play song. Please try again.",
         variant: "destructive",
       });
     }
@@ -82,6 +76,14 @@ export default function Home() {
     mutationFn: async ({ file, title, artist }: { file: File; title: string; artist: string }) => {
       if (!address) {
         throw new Error("Please connect your wallet to upload songs");
+      }
+
+      try {
+        // Register user first if needed
+        await apiRequest("POST", "/api/users/register", { address });
+      } catch (error) {
+        console.error('User registration error:', error);
+        // Continue if error is due to user already being registered
       }
 
       toast({
@@ -95,7 +97,6 @@ export default function Home() {
           title,
           artist,
           ipfsHash,
-          address,
         });
         return await response.json();
       } catch (error) {
@@ -193,7 +194,7 @@ export default function Home() {
                       song={song}
                       onClick={() => handlePlaySong(song)}
                       showDelete={true}
-                      variant="default"
+                      isPlaying={currentSong?.id === song.id}
                     />
                   ))
                 )}
@@ -216,32 +217,32 @@ export default function Home() {
                     key={song.id}
                     song={song}
                     onClick={() => handlePlaySong(song)}
-                    variant="default"
+                    isPlaying={currentSong?.id === song.id}
                   />
                 ))
               )}
             </div>
           </section>
         </div>
-
-        <EditSongDialog
-          open={uploadDialogOpen}
-          onOpenChange={(open) => {
-            setUploadDialogOpen(open);
-            if (!open) setPendingUpload(undefined);
-          }}
-          mode="create"
-          onSubmit={({ title, artist }) => {
-            if (pendingUpload) {
-              uploadMutation.mutate({
-                file: pendingUpload,
-                title,
-                artist,
-              });
-            }
-          }}
-        />
       </div>
+
+      <EditSongDialog
+        open={uploadDialogOpen}
+        onOpenChange={(open) => {
+          setUploadDialogOpen(open);
+          if (!open) setPendingUpload(undefined);
+        }}
+        mode="create"
+        onSubmit={({ title, artist }) => {
+          if (pendingUpload) {
+            uploadMutation.mutate({
+              file: pendingUpload,
+              title,
+              artist,
+            });
+          }
+        }}
+      />
     </Layout>
   );
 }

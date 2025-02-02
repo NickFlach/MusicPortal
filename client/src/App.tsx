@@ -9,8 +9,6 @@ import Home from "@/pages/Home";
 import Treasury from "@/pages/Treasury";
 import Admin from "@/pages/Admin";
 import Landing from "@/pages/Landing";
-import Rooms from "@/pages/Rooms";
-import Room from "@/pages/Room";
 import { useAccount } from 'wagmi';
 import { MusicPlayerProvider } from "@/contexts/MusicPlayerContext";
 
@@ -44,12 +42,6 @@ function Router() {
       </Route>
       <Route path="/admin">
         <ProtectedRoute component={Admin} />
-      </Route>
-      <Route path="/rooms">
-        <ProtectedRoute component={Rooms} />
-      </Route>
-      <Route path="/rooms/:id">
-        <ProtectedRoute component={Room} />
       </Route>
       <Route component={NotFound} />
     </Switch>

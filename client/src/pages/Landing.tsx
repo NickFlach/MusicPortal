@@ -2,12 +2,14 @@ import { useAccount } from 'wagmi';
 import { WalletConnect } from "@/components/WalletConnect";
 import { useLocation } from 'wouter';
 import { useMusicPlayer } from "@/contexts/MusicPlayerContext";
+import { Volume2, VolumeX } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { useEffect } from 'react';
 
 export default function Landing() {
   const { address } = useAccount();
   const [, setLocation] = useLocation();
-  const { togglePlayer, currentSong, isPlayerVisible } = useMusicPlayer();
+  const { isMuted, toggleMute, currentSong } = useMusicPlayer();
 
   useEffect(() => {
     if (address) {
@@ -48,22 +50,41 @@ export default function Landing() {
           <WalletConnect />
         </div>
 
-        {/* Centered Logo as Music Player Toggle */}
+        {/* Centered Logo with Link */}
         <div className="flex flex-col items-center justify-center mt-24 space-y-6">
-          <button 
-            onClick={togglePlayer}
+          <a 
+            href="https://app.pitchforks.social/"
+            target="_blank"
+            rel="noopener noreferrer"
             className="transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background rounded-lg"
           >
             <img 
               src="/neo_token_logo_flaukowski.png" 
-              alt="Toggle Music Player"
+              alt="NEO Token"
               className="w-64 h-64 object-contain hover:animate-pulse"
-              tabIndex={-1} // Prevent focus on the image
             />
-          </button>
-          <p className="text-sm text-muted-foreground">
-            {currentSong ? `Now Playing: ${currentSong.title}` : 'Click to play music'}
-          </p>
+          </a>
+
+          {/* Mute Toggle Button */}
+          <div className="flex flex-col items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleMute}
+              className="hover:scale-110 transition-transform"
+            >
+              {isMuted ? (
+                <VolumeX className="h-6 w-6" />
+              ) : (
+                <Volume2 className="h-6 w-6" />
+              )}
+            </Button>
+            {currentSong && (
+              <p className="text-sm text-muted-foreground animate-pulse">
+                Now Playing: {currentSong.title} - {currentSong.artist}
+              </p>
+            )}
+          </div>
         </div>
       </div>
     </div>

@@ -58,35 +58,7 @@ export const userRewards = pgTable("user_rewards", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const listeningRooms = pgTable("listening_rooms", {
-  id: serial("id").primaryKey(),
-  name: text("name").notNull(),
-  description: text("description"),
-  createdBy: text("created_by").references(() => users.address),
-  currentSongId: integer("current_song_id").references(() => songs.id),
-  isPrivate: boolean("is_private").default(false),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-  songPosition: integer("song_position").default(0),
-  isPlaying: boolean("is_playing").default(false),
-});
-
-export const roomParticipants = pgTable("room_participants", {
-  id: serial("id").primaryKey(),
-  roomId: integer("room_id").references(() => listeningRooms.id),
-  userAddress: text("user_address").references(() => users.address),
-  joinedAt: timestamp("joined_at").defaultNow(),
-  isHost: boolean("is_host").default(false),
-});
-
-export const roomChatMessages = pgTable("room_chat_messages", {
-  id: serial("id").primaryKey(),
-  roomId: integer("room_id").references(() => listeningRooms.id),
-  userAddress: text("user_address").references(() => users.address),
-  message: text("message").notNull(),
-  createdAt: timestamp("created_at").defaultNow(),
-});
-
+// Relations
 export const songsRelations = relations(songs, ({ many, one }) => ({
   recentPlays: many(recentlyPlayed),
   playlistSongs: many(playlistSongs),
@@ -115,53 +87,13 @@ export const playlistSongsRelations = relations(playlistSongs, ({ one }) => ({
   }),
 }));
 
-export const listeningRoomsRelations = relations(listeningRooms, ({ one, many }) => ({
-  creator: one(users, {
-    fields: [listeningRooms.createdBy],
-    references: [users.address],
-  }),
-  currentSong: one(songs, {
-    fields: [listeningRooms.currentSongId],
-    references: [songs.id],
-  }),
-  participants: many(roomParticipants),
-  chatMessages: many(roomChatMessages),
-}));
-
-export const roomParticipantsRelations = relations(roomParticipants, ({ one }) => ({
-  room: one(listeningRooms, {
-    fields: [roomParticipants.roomId],
-    references: [listeningRooms.id],
-  }),
-  user: one(users, {
-    fields: [roomParticipants.userAddress],
-    references: [users.address],
-  }),
-}));
-
-export const roomChatMessagesRelations = relations(roomChatMessages, ({ one }) => ({
-  room: one(listeningRooms, {
-    fields: [roomChatMessages.roomId],
-    references: [listeningRooms.id],
-  }),
-  user: one(users, {
-    fields: [roomChatMessages.userAddress],
-    references: [users.address],
-  }),
-}));
-
-
 export const usersRelations = relations(users, ({ many }) => ({
   followers: many(followers, { relationName: "followers" }),
   following: many(followers, { relationName: "following" }),
   songs: many(songs, { relationName: "uploaded_songs" }),
   playlists: many(playlists, { relationName: "created_playlists" }),
-  rooms: many(listeningRooms, { relationName: "created_rooms" }),
-  participatingRooms: many(roomParticipants, { relationName: "room_participations" }),
-  chatMessages: many(roomChatMessages, { relationName: "chat_messages" }),
   rewards: many(userRewards),
 }));
-
 
 export const recentlyPlayedRelations = relations(recentlyPlayed, ({ one }) => ({
   song: one(songs, {
@@ -174,7 +106,3 @@ export type User = typeof users.$inferSelect;
 export type Song = typeof songs.$inferSelect;
 export type Playlist = typeof playlists.$inferSelect;
 export type UserRewards = typeof userRewards.$inferSelect;
-
-export type ListeningRoom = typeof listeningRooms.$inferSelect;
-export type RoomParticipant = typeof roomParticipants.$inferSelect;
-export type RoomChatMessage = typeof roomChatMessages.$inferSelect;

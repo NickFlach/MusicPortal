@@ -2,15 +2,8 @@ import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
-    const text = await res.text();
-    try {
-      // Try to parse as JSON first
-      const json = JSON.parse(text);
-      throw new Error(json.message || `${res.status}: ${res.statusText}`);
-    } catch {
-      // If not JSON, use the text directly
-      throw new Error(`${res.status}: ${text || res.statusText}`);
-    }
+    const text = (await res.text()) || res.statusText;
+    throw new Error(`${res.status}: ${text}`);
   }
 }
 
@@ -19,15 +12,17 @@ export async function apiRequest(
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
-  // Ensure URL starts with /api
-  const apiUrl = url.startsWith('/api') ? url : `/api${url}`;
+  const walletAddress = window.ethereum?.selectedAddress;
+  console.log('Making request with wallet address:', walletAddress);
 
-  const res = await fetch(apiUrl, {
+  const res = await fetch(url, {
     method,
     headers: {
       ...(data ? { "Content-Type": "application/json" } : {}),
+      "x-wallet-address": walletAddress || "",
     },
-    body: data ? JSON.stringify({ ...data }) : undefined,
+    body: data ? JSON.stringify(data) : undefined,
+    credentials: "include",
   });
 
   await throwIfResNotOk(res);
@@ -40,11 +35,14 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const qKey = queryKey[0] as string;
-    const apiUrl = qKey.startsWith('/api') ? qKey : `/api${qKey}`;
+    const walletAddress = window.ethereum?.selectedAddress;
+    console.log('Making query with wallet address:', walletAddress);
 
-    const res = await fetch(apiUrl, {
+    const res = await fetch(queryKey[0] as string, {
       credentials: "include",
+      headers: {
+        "x-wallet-address": walletAddress || "",
+      },
     });
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {
