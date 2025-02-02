@@ -20,6 +20,7 @@ interface MusicPlayerContextType {
   playNext: () => void;
   setVolume: (volume: number) => void;
   recentSongs?: Song[];
+  playSong: (song: Song) => Promise<void>;
 }
 
 const MusicPlayerContext = createContext<MusicPlayerContextType | undefined>(undefined);
@@ -81,7 +82,6 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
     }
   };
 
-
   const playSong = async (song: Song) => {
     try {
       // Clean up previous audio URL
@@ -136,6 +136,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
         playNext,
         setVolume,
         recentSongs,
+        playSong,
       }}
     >
       {children}

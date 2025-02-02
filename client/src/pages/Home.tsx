@@ -58,10 +58,7 @@ export default function Home() {
     }
 
     try {
-      // Play the song first
-      playSong(song);
-      // Then update play count
-      await playMutation.mutate(song.id);
+      await playSong(song);
     } catch (error) {
       console.error('Error playing song:', error);
       toast({
@@ -193,8 +190,8 @@ export default function Home() {
                       key={song.id}
                       song={song}
                       onClick={() => handlePlaySong(song)}
-                      showDelete={true}
                       isPlaying={currentSong?.id === song.id}
+                      showDelete={true}
                     />
                   ))
                 )}
@@ -224,25 +221,25 @@ export default function Home() {
             </div>
           </section>
         </div>
-      </div>
 
-      <EditSongDialog
-        open={uploadDialogOpen}
-        onOpenChange={(open) => {
-          setUploadDialogOpen(open);
-          if (!open) setPendingUpload(undefined);
-        }}
-        mode="create"
-        onSubmit={({ title, artist }) => {
-          if (pendingUpload) {
-            uploadMutation.mutate({
-              file: pendingUpload,
-              title,
-              artist,
-            });
-          }
-        }}
-      />
+        <EditSongDialog
+          open={uploadDialogOpen}
+          onOpenChange={(open) => {
+            setUploadDialogOpen(open);
+            if (!open) setPendingUpload(undefined);
+          }}
+          mode="create"
+          onSubmit={({ title, artist }) => {
+            if (pendingUpload) {
+              uploadMutation.mutate({
+                file: pendingUpload,
+                title,
+                artist,
+              });
+            }
+          }}
+        />
+      </div>
     </Layout>
   );
 }
