@@ -36,19 +36,18 @@ export function WalletConnect() {
       await new Promise(resolve => setTimeout(resolve, 500));
 
       try {
-        // Try to register user after connection
-        const response = await apiRequest("POST", "/api/users/register");
-        const userData = await response.json();
-        console.log('User registered:', userData);
+        // Register/update user after connection
+        const response = await apiRequest("POST", "/api/users/register", { address });
+        const { user, recentSongs } = await response.json();
+        console.log('User registered:', user);
+        console.log('Recent songs:', recentSongs);
 
-        // Redirect to home page if on landing
-        if (location === '/landing') {
-          setLocation('/');
-        }
+        // Redirect to home page
+        setLocation('/home');
 
         toast({
           title: "Connected",
-          description: "Wallet connected successfully!",
+          description: user.lastSeen ? "Welcome back!" : "Wallet connected successfully!",
         });
       } catch (error) {
         console.error('User registration error:', error);
@@ -68,8 +67,7 @@ export function WalletConnect() {
   const handleDisconnect = async () => {
     try {
       await disconnect();
-      // Redirect to landing page on disconnect
-      setLocation('/landing');
+      setLocation('/');
       toast({
         title: "Disconnected",
         description: "Wallet disconnected successfully!",

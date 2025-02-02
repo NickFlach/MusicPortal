@@ -1,14 +1,14 @@
 import { Router } from 'express';
 import { db } from '@db';
-import { users } from '@db/schema';
-import { eq } from 'drizzle-orm';
+import { users, recentlyPlayed } from '@db/schema';
+import { eq, desc } from 'drizzle-orm';
 
 const router = Router();
 
 router.post('/api/users/register', async (req, res) => {
   try {
     const { address } = req.body;
-    
+
     if (!address) {
       return res.status(400).json({ message: "Wallet address is required" });
     }
@@ -16,22 +16,72 @@ router.post('/api/users/register', async (req, res) => {
     // Check if user exists
     const existingUser = await db.select()
       .from(users)
-      .where(eq(users.address, address))
+      .where(eq(users.address, address.toLowerCase()))
       .limit(1);
 
+    let user;
+
     if (existingUser.length > 0) {
-      return res.json(existingUser[0]);
+      // Update last seen for returning user
+      const [updatedUser] = await db
+        .update(users)
+        .set({ lastSeen: new Date() })
+        .where(eq(users.address, address.toLowerCase()))
+        .returning();
+      user = updatedUser;
+    } else {
+      // Create new user
+      const [newUser] = await db.insert(users)
+        .values({ 
+          address: address.toLowerCase(),
+          lastSeen: new Date()
+        })
+        .returning();
+      user = newUser;
     }
 
-    // Create new user
-    const [newUser] = await db.insert(users)
-      .values({ address })
-      .returning();
+    // Get user's recent songs
+    const recentSongs = await db.query.recentlyPlayed.findMany({
+      where: eq(recentlyPlayed.playedBy, address.toLowerCase()),
+      orderBy: desc(recentlyPlayed.playedAt),
+      limit: 5,
+      with: {
+        song: true,
+      }
+    });
 
-    res.json(newUser);
+    res.json({
+      user,
+      recentSongs: recentSongs.map(item => item.song)
+    });
   } catch (error) {
     console.error('Error in user registration:', error);
     res.status(500).json({ message: "Failed to register user" });
+  }
+});
+
+// Add endpoint to get user's recent activity
+router.get('/api/users/recent', async (req, res) => {
+  try {
+    const address = req.headers['x-wallet-address'] as string;
+
+    if (!address) {
+      return res.status(400).json({ message: "Wallet address is required" });
+    }
+
+    const recentSongs = await db.query.recentlyPlayed.findMany({
+      where: eq(recentlyPlayed.playedBy, address.toLowerCase()),
+      orderBy: desc(recentlyPlayed.playedAt),
+      limit: 10,
+      with: {
+        song: true,
+      }
+    });
+
+    res.json(recentSongs.map(item => item.song));
+  } catch (error) {
+    console.error('Error fetching recent activity:', error);
+    res.status(500).json({ message: "Failed to fetch recent activity" });
   }
 });
 

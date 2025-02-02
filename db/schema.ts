@@ -8,6 +8,7 @@ export const users = pgTable("users", {
   isAdmin: boolean("is_admin").default(false),
   bio: text("bio"),
   avatarUrl: text("avatar_url"),
+  lastSeen: timestamp("last_seen").defaultNow(),
 });
 
 export const followers = pgTable("followers", {
