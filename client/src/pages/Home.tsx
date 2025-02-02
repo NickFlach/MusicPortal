@@ -143,10 +143,12 @@ export default function Home() {
     }
 
     const file = e.target.files[0];
-    if (!file.type.includes('audio')) {
+
+    // Check specifically for MP3 MIME type
+    if (file.type !== 'audio/mpeg') {
       toast({
-        title: "Error",
-        description: "Please select an audio file",
+        title: "Invalid File Type",
+        description: "Please select an MP3 file. Other audio formats are not supported.",
         variant: "destructive",
       });
       return;
@@ -176,7 +178,7 @@ export default function Home() {
                   </div>
                   <Input
                     type="file"
-                    accept="audio/*"
+                    accept=".mp3,audio/mpeg"
                     onChange={handleFileUpload}
                     className="hidden"
                     id="song-upload"
