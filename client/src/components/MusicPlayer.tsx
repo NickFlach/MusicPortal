@@ -34,16 +34,17 @@ export function MusicPlayer() {
         audio.load(); // Force reload with new source
         if (isPlaying) {
           console.log('Attempting to play audio...');
-          const playPromise = audio.play();
-          if (playPromise !== undefined) {
-            await playPromise;
+          try {
+            await audio.play();
             console.log('Audio playing successfully');
+          } catch (e) {
+            console.error('Error in play():', e);
           }
         } else {
           console.log('Audio loaded but not playing (isPlaying is false)');
         }
       } catch (error) {
-        console.error('Error playing audio:', error);
+        console.error('Error in playAudio:', error);
       }
     };
 
@@ -114,6 +115,7 @@ export function MusicPlayer() {
         ref={audioRef}
         src={audioUrl}
         preload="auto"
+        crossOrigin="anonymous"
       />
       <Card className="fixed bottom-4 right-4 p-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border shadow-lg w-72 z-50">
         <div className="flex items-center justify-between gap-2">
@@ -143,7 +145,7 @@ export function MusicPlayer() {
           value={[currentTime]}
           max={duration || 100}
           step={1}
-          className="mt-2 pointer-events-none"
+          className="mt-2"
         />
       </Card>
     </>

@@ -51,13 +51,14 @@ export default function Landing() {
         {/* Centered Logo as Music Player Toggle */}
         <div className="flex flex-col items-center justify-center mt-24 space-y-6">
           <button 
-            onClick={togglePlayer}
-            className={`transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background rounded-lg ${isPlayerVisible ? 'ring-2 ring-primary' : ''}`}
+            onClick={() => togglePlayer()}
+            className="transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background rounded-lg"
           >
             <img 
               src="/neo_token_logo_flaukowski.png" 
               alt="Toggle Music Player"
               className="w-64 h-64 object-contain hover:animate-pulse"
+              tabIndex={-1} // Prevent focus on the image
             />
           </button>
           <p className="text-sm text-muted-foreground">
