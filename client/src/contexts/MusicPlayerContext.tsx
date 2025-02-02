@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { getFromIPFS } from "@/lib/ipfs";
 
@@ -33,21 +33,18 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   const [isPlaying, setIsPlaying] = useState(false);
   const [volume, setVolume] = useState(1);
   const [audioUrl, setAudioUrl] = useState('');
-  const queryClient = useQueryClient();
 
   // Always fetch recent songs with landing page token
   const { data: recentSongs } = useQuery<Song[]>({
     queryKey: ["/api/songs/recent"],
     queryFn: async () => {
-      const response = await apiRequest("GET", "/api/songs/recent", {
-        method: "GET",
+      const response = await fetch("/api/songs/recent", {
         headers: {
           'X-Internal-Token': 'landing-page'
         }
       });
       return response.json();
-    },
-    enabled: true
+    }
   });
 
   // Initialize music on first load
@@ -60,21 +57,6 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
     }
     initializeMusic();
   }, [recentSongs]);
-
-  // Track play count
-  const playMutation = useMutation({
-    mutationFn: async (songId: number) => {
-      await apiRequest("POST", `/api/songs/play/${songId}`, {
-        method: "POST",
-        headers: {
-          'X-Internal-Token': 'landing-page'
-        }
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/songs/recent"] });
-    },
-  });
 
   const playNext = () => {
     if (!recentSongs?.length || !currentSong) return;
@@ -124,7 +106,18 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
     console.log('Playing song:', song.title);
     setCurrentSong(song);
     await loadSong(song);
-    await playMutation.mutate(song.id);
+
+    // Update play count
+    try {
+      await fetch(`/api/songs/play/${song.id}`, {
+        method: 'POST',
+        headers: {
+          'X-Internal-Token': 'landing-page'
+        }
+      });
+    } catch (error) {
+      console.error('Error updating play count:', error);
+    }
   };
 
   // Clean up object URLs when component unmounts or song changes
