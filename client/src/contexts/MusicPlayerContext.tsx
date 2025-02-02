@@ -21,6 +21,8 @@ interface MusicPlayerContextType {
   setVolume: (volume: number) => void;
   recentSongs?: Song[];
   playSong: (song: Song) => Promise<void>;
+  isPlayerVisible: boolean;
+  togglePlayer: () => void;
 }
 
 const MusicPlayerContext = createContext<MusicPlayerContextType | undefined>(undefined);
@@ -30,6 +32,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   const [isPlaying, setIsPlaying] = useState(true);
   const [volume, setVolume] = useState(0.7);
   const [audioUrl, setAudioUrl] = useState('');
+  const [isPlayerVisible, setIsPlayerVisible] = useState(false);
 
   // Fetch recent songs without any dependencies
   const { data: recentSongs } = useQuery<Song[]>({
@@ -107,6 +110,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
       // Then set the audio URL
       setAudioUrl(url);
       setIsPlaying(true);
+      setIsPlayerVisible(true); // Show player when a song starts playing
 
       // Update play count with internal token to ensure it works consistently
       fetch(`/api/songs/play/${song.id}`, {
@@ -124,6 +128,10 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
       console.error('Error playing song:', error);
       throw error;
     }
+  };
+
+  const togglePlayer = () => {
+    setIsPlayerVisible(!isPlayerVisible);
   };
 
   // Cleanup on unmount
@@ -146,6 +154,8 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
         setVolume,
         recentSongs,
         playSong,
+        isPlayerVisible,
+        togglePlayer,
       }}
     >
       {children}

@@ -13,6 +13,7 @@ export function MusicPlayer() {
     volume,
     setVolume,
     audioUrl,
+    isPlayerVisible,
   } = useMusicPlayer();
 
   const [currentTime, setCurrentTime] = useState(0);
@@ -83,7 +84,7 @@ export function MusicPlayer() {
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
-  if (!currentSong) return null;
+  if (!currentSong || !isPlayerVisible) return null;
 
   return (
     <>
