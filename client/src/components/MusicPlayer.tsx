@@ -1,17 +1,9 @@
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { Play, Pause, SkipBack, SkipForward, Volume2, Maximize2, Minimize2 } from "lucide-react";
+import { Play, Pause, SkipBack, SkipForward, Volume2, Maximize2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { useMusicPlayer } from "@/contexts/MusicPlayerContext";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
 import { useState, useEffect, useRef } from "react";
-import { DynamicBackground } from "./DynamicBackground";
 
 export function MusicPlayer() {
   const {
@@ -30,19 +22,17 @@ export function MusicPlayer() {
   const [isExpanded, setIsExpanded] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
 
-  // Initialize audio playback when URL changes
+  // Initialize audio element and handle URL changes
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio || !audioUrl) return;
 
     audio.src = audioUrl;
     audio.load();
-
-    if (isPlaying) {
-      audio.play().catch(console.error);
-    }
+    audio.play().catch(console.error); // Always try to play
   }, [audioUrl]);
 
+  // Handle time updates and song end
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -65,33 +55,12 @@ export function MusicPlayer() {
     };
   }, [playNext]);
 
+  // Update volume based on isPlaying state
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
-
-    if (isPlaying) {
-      audio.play().catch(console.error);
-    } else {
-      audio.pause();
-    }
-  }, [isPlaying]);
-
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    audio.volume = volume;
-  }, [volume]);
-
-  const handleSeek = (value: number[]) => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    audio.currentTime = value[0];
-    setCurrentTime(value[0]);
-  };
-
-  const handleVolumeChange = (value: number[]) => {
-    setVolume(value[0]);
-  };
+    audio.volume = isPlaying ? volume : 0;
+  }, [isPlaying, volume]);
 
   const formatTime = (time: number) => {
     const minutes = Math.floor(time / 60);
@@ -101,38 +70,6 @@ export function MusicPlayer() {
 
   if (!currentSong) return null;
 
-  const MinimizedPlayer = () => (
-    <Card className="fixed bottom-4 right-4 p-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border shadow-lg w-72 z-50">
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex-1 min-w-0">
-          <h3 className="font-semibold truncate">{currentSong.title}</h3>
-          <p className="text-sm text-muted-foreground truncate">{currentSong.artist}</p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" onClick={togglePlay}>
-            {isPlaying ? (
-              <Pause className="h-4 w-4" />
-            ) : (
-              <Play className="h-4 w-4" />
-            )}
-          </Button>
-          <Button variant="ghost" size="icon" onClick={() => setIsExpanded(true)}>
-            <Maximize2 className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
-
-      <Slider
-        value={[currentTime]}
-        max={duration}
-        step={1}
-        onValueChange={handleSeek}
-        className="mt-2"
-      />
-    </Card>
-  );
-
   return (
     <>
       <audio
@@ -140,7 +77,34 @@ export function MusicPlayer() {
         preload="auto"
         onError={(e) => console.error('Audio error:', e)}
       />
-      <MinimizedPlayer />
+      <Card className="fixed bottom-4 right-4 p-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border shadow-lg w-72 z-50">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex-1 min-w-0">
+            <h3 className="font-semibold truncate">{currentSong.title}</h3>
+            <p className="text-sm text-muted-foreground truncate">{currentSong.artist}</p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" onClick={togglePlay}>
+              {isPlaying ? (
+                <Pause className="h-4 w-4" />
+              ) : (
+                <Play className="h-4 w-4" />
+              )}
+            </Button>
+            <Button variant="ghost" size="icon" onClick={() => setIsExpanded(true)}>
+              <Maximize2 className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+
+        <Slider
+          value={[currentTime]}
+          max={duration}
+          step={1}
+          className="mt-2"
+        />
+      </Card>
     </>
   );
 }

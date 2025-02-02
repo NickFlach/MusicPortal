@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useQuery } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
 import { getFromIPFS } from "@/lib/ipfs";
 
 interface Song {
@@ -30,7 +29,7 @@ const MusicPlayerContext = createContext<MusicPlayerContextType | undefined>(und
 
 export function MusicPlayerProvider({ children }: { children: React.ReactNode }) {
   const [currentSong, setCurrentSong] = useState<Song>();
-  const [isPlaying, setIsPlaying] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(true); // Start with music playing
   const [volume, setVolume] = useState(1);
   const [audioUrl, setAudioUrl] = useState('');
 
@@ -47,12 +46,12 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
     }
   });
 
-  // Initialize music on first load
+  // Initialize music on first load - only once
   useEffect(() => {
     async function initializeMusic() {
       if (!currentSong && recentSongs?.length) {
         console.log('Initializing music with first song:', recentSongs[0].title);
-        await playSong(recentSongs[0]);
+        await loadSong(recentSongs[0]);
       }
     }
     initializeMusic();
@@ -82,8 +81,10 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
     }
   };
 
+  // Toggle now just controls volume instead of play/pause
   const togglePlay = () => {
     setIsPlaying(!isPlaying);
+    setVolume(isPlaying ? 0 : 1); // Toggle between mute and full volume
   };
 
   const loadSong = async (songToLoad: Song) => {
@@ -95,10 +96,8 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
       const blob = new Blob([audioData], { type: 'audio/mp3' });
       const url = URL.createObjectURL(blob);
       setAudioUrl(url);
-      setIsPlaying(true);
     } catch (error) {
       console.error('Error loading song:', error);
-      setIsPlaying(false);
     }
   };
 
@@ -107,7 +106,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
     setCurrentSong(song);
     await loadSong(song);
 
-    // Update play count
+    // Update play count silently in background
     try {
       await fetch(`/api/songs/play/${song.id}`, {
         method: 'POST',
