@@ -1,12 +1,13 @@
 import { useAccount } from 'wagmi';
 import { WalletConnect } from "@/components/WalletConnect";
 import { useLocation } from 'wouter';
-import { MusicPlayer } from "@/components/MusicPlayer";
+import { useMusicPlayer } from "@/contexts/MusicPlayerContext";
 import { useEffect } from 'react';
 
 export default function Landing() {
   const { address } = useAccount();
   const [, setLocation] = useLocation();
+  const { togglePlayer } = useMusicPlayer();
 
   useEffect(() => {
     if (address) {
@@ -47,25 +48,20 @@ export default function Landing() {
           <WalletConnect />
         </div>
 
-        {/* Centered Logo with Link */}
+        {/* Centered Logo as Music Player Toggle */}
         <div className="flex flex-col items-center justify-center mt-24 space-y-6">
-          <a 
-            href="https://app.pitchforks.social/"
-            target="_blank"
-            rel="noopener noreferrer"
+          <button 
+            onClick={togglePlayer}
             className="transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background rounded-lg"
           >
             <img 
               src="/neo_token_logo_flaukowski.png" 
-              alt="NEO Token"
+              alt="Toggle Music Player"
               className="w-64 h-64 object-contain hover:animate-pulse"
             />
-          </a>
+          </button>
         </div>
       </div>
-
-      {/* Use the MusicPlayer component */}
-      <MusicPlayer />
     </div>
   );
 }
