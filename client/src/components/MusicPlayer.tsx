@@ -35,8 +35,11 @@ export function MusicPlayer() {
         if (isPlaying) {
           console.log('Attempting to play audio...');
           try {
-            await audio.play();
-            console.log('Audio playing successfully');
+            const playPromise = audio.play();
+            if (playPromise !== undefined) {
+              await playPromise;
+              console.log('Audio playing successfully');
+            }
           } catch (e) {
             console.error('Error in play():', e);
           }
@@ -116,6 +119,7 @@ export function MusicPlayer() {
         src={audioUrl}
         preload="auto"
         crossOrigin="anonymous"
+        className="hidden"
       />
       <Card className="fixed bottom-4 right-4 p-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border shadow-lg w-72 z-50">
         <div className="flex items-center justify-between gap-2">
@@ -139,6 +143,11 @@ export function MusicPlayer() {
               <Volume2 className="h-4 w-4" />
             )}
           </Button>
+        </div>
+
+        <div className="mt-2 text-xs text-muted-foreground flex justify-between">
+          <span>{formatTime(currentTime)}</span>
+          <span>{formatTime(duration)}</span>
         </div>
 
         <Slider

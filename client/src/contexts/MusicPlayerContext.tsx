@@ -35,7 +35,6 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   const [audioUrl, setAudioUrl] = useState('');
   const [isPlayerVisible, setIsPlayerVisible] = useState(false);
 
-  // Fetch recent songs
   const { data: recentSongs } = useQuery<Song[]>({
     queryKey: ["/api/songs/recent"],
     queryFn: async () => {
@@ -80,47 +79,42 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
       // Clean up previous audio URL
       if (audioUrl) {
         URL.revokeObjectURL(audioUrl);
-        setAudioUrl(''); // Clear the URL first to trigger a proper reload
+        setAudioUrl('');
       }
 
+      const audioData = await getFromIPFS(song.ipfsHash);
+      if (!audioData || audioData.length === 0) {
+        throw new Error('Failed to fetch audio data from IPFS');
+      }
+
+      console.log('Creating blob for song:', song.title);
+      const blob = new Blob([audioData], { type: 'audio/mpeg' });
+      const url = URL.createObjectURL(blob);
+
+      // Set the current song first
+      setCurrentSong(song);
+
+      // Then set the audio URL
+      setAudioUrl(url);
+
+      // Make player visible and start playing
+      setIsPlayerVisible(true);
+      setIsPlaying(true);
+
+      // Update play count
       try {
-        const audioData = await getFromIPFS(song.ipfsHash);
-        if (!audioData || audioData.length === 0) {
-          throw new Error('Failed to fetch audio data from IPFS');
-        }
-
-        console.log('Creating blob for song:', song.title);
-        const blob = new Blob([audioData], { type: 'audio/mp3' });
-        const url = URL.createObjectURL(blob);
-
-        // Set the current song first
-        setCurrentSong(song);
-
-        // Then set the audio URL and start playing
-        setAudioUrl(url);
-        setIsPlaying(true);
-        setIsPlayerVisible(true); // Show player when a song starts playing
-
-        // Update play count with internal token
-        try {
-          await fetch(`/api/songs/play/${song.id}`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-Internal-Token': 'landing-page'
-            }
-          });
-        } catch (error) {
-          console.error('Error updating play count:', error);
-          // Don't throw here as it's not critical to playback
-        }
-
-        console.log('Song setup complete:', song.title);
+        await fetch(`/api/songs/play/${song.id}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Internal-Token': 'landing-page'
+          }
+        });
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown IPFS error';
-        console.error('IPFS error:', errorMessage);
-        throw new Error(`Failed to load audio: ${errorMessage}`);
+        console.error('Error updating play count:', error);
       }
+
+      console.log('Song setup complete:', song.title);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error('Error playing song:', errorMessage);
@@ -131,12 +125,9 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   const togglePlayer = () => {
     console.log('Toggling player visibility:', !isPlayerVisible);
     setIsPlayerVisible(!isPlayerVisible);
-
-    // If toggling on and no song is playing, try to play the first available song
-    if (!isPlayerVisible && !currentSong && recentSongs?.length) {
-      playSong(recentSongs[0]).catch(error => {
-        console.error('Error auto-playing first song:', error);
-      });
+    // If hiding player, also pause the music
+    if (isPlayerVisible) {
+      setIsPlaying(false);
     }
   };
 
