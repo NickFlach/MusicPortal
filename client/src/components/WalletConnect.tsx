@@ -58,12 +58,24 @@ export function WalletConnect() {
         });
       }
 
-      // Wait a brief moment for the wallet address to be available
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Wait for the wallet address to be available
+      let connectedAddress = null;
+      for (let i = 0; i < 10; i++) { // Try for up to 5 seconds (10 * 500ms)
+        connectedAddress = await window.ethereum.request({ method: 'eth_accounts' })
+          .then(accounts => accounts[0]);
+        if (connectedAddress) break;
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+
+      if (!connectedAddress) {
+        throw new Error("Failed to get wallet address after connection");
+      }
 
       try {
         // Register/update user after connection
-        const response = await apiRequest("POST", "/api/users/register", { address });
+        const response = await apiRequest("POST", "/api/users/register", { 
+          address: connectedAddress 
+        });
         const { user, recentSongs } = await response.json();
         console.log('User registered:', user);
         console.log('Recent songs:', recentSongs);
@@ -77,6 +89,11 @@ export function WalletConnect() {
         });
       } catch (error) {
         console.error('User registration error:', error);
+        toast({
+          title: "Registration Error",
+          description: "Failed to register wallet. Please try again.",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error('Wallet connection error:', error);
