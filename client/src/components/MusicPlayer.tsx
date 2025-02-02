@@ -9,26 +9,76 @@ import {
   SheetDescription,
   SheetHeader,
   SheetTitle,
-  SheetTrigger,
 } from "@/components/ui/sheet";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { DynamicBackground } from "./DynamicBackground";
 
 export function MusicPlayer() {
   const {
     currentSong,
     isPlaying,
-    duration,
-    currentTime,
-    volume,
     togglePlay,
     playNext,
     playPrevious,
-    handleSeek,
-    handleVolumeChange,
+    volume,
+    setVolume,
+    audioUrl,
   } = useMusicPlayer();
 
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
   const [isExpanded, setIsExpanded] = useState(false);
+  const audioRef = useRef<HTMLAudioElement>(null);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const handleTimeUpdate = () => {
+      setCurrentTime(audio.currentTime);
+      setDuration(audio.duration);
+    };
+
+    const handleEnded = () => {
+      playNext();
+    };
+
+    audio.addEventListener('timeupdate', handleTimeUpdate);
+    audio.addEventListener('ended', handleEnded);
+
+    return () => {
+      audio.removeEventListener('timeupdate', handleTimeUpdate);
+      audio.removeEventListener('ended', handleEnded);
+    };
+  }, [playNext]);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    if (isPlaying) {
+      audio.play().catch(console.error);
+    } else {
+      audio.pause();
+    }
+  }, [isPlaying]);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.volume = volume;
+  }, [volume]);
+
+  const handleSeek = (value: number[]) => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.currentTime = value[0];
+    setCurrentTime(value[0]);
+  };
+
+  const handleVolumeChange = (value: number[]) => {
+    setVolume(value[0]);
+  };
 
   const formatTime = (time: number) => {
     const minutes = Math.floor(time / 60);
@@ -150,6 +200,12 @@ export function MusicPlayer() {
 
   return (
     <>
+      <audio
+        ref={audioRef}
+        src={audioUrl}
+        preload="auto"
+        onError={(e) => console.error('Audio error:', e)}
+      />
       <MinimizedPlayer />
       <ExpandedPlayer />
     </>

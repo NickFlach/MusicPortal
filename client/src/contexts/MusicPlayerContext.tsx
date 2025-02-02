@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useRef, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { getFromIPFS } from "@/lib/ipfs";
@@ -16,34 +16,23 @@ interface Song {
 interface MusicPlayerContextType {
   currentSong: Song | undefined;
   isPlaying: boolean;
-  duration: number;
-  currentTime: number;
   volume: number;
-  isMuted: boolean;
+  audioUrl: string;
   playSong: (song: Song) => void;
   playNext: () => void;
   playPrevious: () => void;
   togglePlay: () => void;
-  toggleMute: () => void;
-  handleSeek: (value: number[]) => void;
-  handleVolumeChange: (value: number[]) => void;
+  setVolume: (volume: number) => void;
   recentSongs?: Song[];
 }
 
 const MusicPlayerContext = createContext<MusicPlayerContextType | undefined>(undefined);
 
-// Create a single audio instance that will be shared across the entire app
-const globalAudio = new Audio();
-globalAudio.preload = 'auto';
-
 export function MusicPlayerProvider({ children }: { children: React.ReactNode }) {
   const [currentSong, setCurrentSong] = useState<Song>();
   const [isPlaying, setIsPlaying] = useState(false);
-  const [duration, setDuration] = useState(0);
-  const [currentTime, setCurrentTime] = useState(0);
   const [volume, setVolume] = useState(1);
-  const [isMuted, setIsMuted] = useState(false);
-  const audioRef = useRef(globalAudio);
+  const [audioUrl, setAudioUrl] = useState('');
   const queryClient = useQueryClient();
 
   // Always fetch recent songs with landing page token
@@ -87,7 +76,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
     },
   });
 
-  const playNext = useCallback(() => {
+  const playNext = () => {
     if (!recentSongs?.length || !currentSong) return;
 
     const currentIndex = recentSongs.findIndex((s) => s.id === currentSong.id);
@@ -97,9 +86,9 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
     if (nextSong) {
       playSong(nextSong);
     }
-  }, [currentSong, recentSongs]);
+  };
 
-  const playPrevious = useCallback(() => {
+  const playPrevious = () => {
     if (!recentSongs?.length || !currentSong) return;
 
     const currentIndex = recentSongs.findIndex((s) => s.id === currentSong.id);
@@ -109,44 +98,11 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
     if (prevSong) {
       playSong(prevSong);
     }
-  }, [currentSong, recentSongs]);
+  };
 
-  // Initialize audio event listeners
-  useEffect(() => {
-    const audio = audioRef.current;
-
-    const handleTimeUpdate = () => {
-      setCurrentTime(audio.currentTime);
-      setDuration(audio.duration);
-    };
-
-    const handleEnded = () => {
-      playNext();
-    };
-
-    const handlePlay = () => {
-      setIsPlaying(true);
-    };
-
-    const handlePause = () => {
-      setIsPlaying(false);
-    };
-
-    audio.addEventListener('timeupdate', handleTimeUpdate);
-    audio.addEventListener('ended', handleEnded);
-    audio.addEventListener('play', handlePlay);
-    audio.addEventListener('pause', handlePause);
-
-    // Set initial volume
-    audio.volume = volume;
-
-    return () => {
-      audio.removeEventListener('timeupdate', handleTimeUpdate);
-      audio.removeEventListener('ended', handleEnded);
-      audio.removeEventListener('play', handlePlay);
-      audio.removeEventListener('pause', handlePause);
-    };
-  }, [playNext, volume]);
+  const togglePlay = () => {
+    setIsPlaying(!isPlaying);
+  };
 
   const loadSong = async (songToLoad: Song) => {
     if (!songToLoad) return;
@@ -156,91 +112,42 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
       const audioData = await getFromIPFS(songToLoad.ipfsHash);
       const blob = new Blob([audioData], { type: 'audio/mp3' });
       const url = URL.createObjectURL(blob);
-
-      audioRef.current.src = url;
-      audioRef.current.load();
-
-      if (isPlaying) {
-        try {
-          await audioRef.current.play();
-        } catch (error) {
-          console.error('Failed to play:', error);
-          setIsPlaying(false);
-        }
-      }
+      setAudioUrl(url);
+      setIsPlaying(true);
     } catch (error) {
       console.error('Error loading song:', error);
       setIsPlaying(false);
     }
   };
 
-  // Load song when current song changes
-  useEffect(() => {
-    if (currentSong) {
-      loadSong(currentSong);
-    }
-  }, [currentSong]);
-
-  const togglePlay = async () => {
-    if (!currentSong) return;
-
-    try {
-      if (isPlaying) {
-        audioRef.current.pause();
-      } else {
-        await audioRef.current.play();
-      }
-    } catch (error) {
-      console.error('Error toggling play state:', error);
-      setIsPlaying(false);
-    }
-  };
-
-  const toggleMute = () => {
-    if (audioRef.current) {
-      audioRef.current.muted = !audioRef.current.muted;
-      setIsMuted(!isMuted);
-    }
-  };
-
-  const handleSeek = (value: number[]) => {
-    if (audioRef.current) {
-      audioRef.current.currentTime = value[0];
-      setCurrentTime(value[0]);
-    }
-  };
-
-  const handleVolumeChange = (value: number[]) => {
-    const newVolume = value[0];
-    if (audioRef.current) {
-      audioRef.current.volume = newVolume;
-      setVolume(newVolume);
-    }
-  };
-
   const playSong = async (song: Song) => {
     console.log('Playing song:', song.title);
     setCurrentSong(song);
-    setIsPlaying(true);
+    await loadSong(song);
     await playMutation.mutate(song.id);
   };
+
+  // Clean up object URLs when component unmounts or song changes
+  useEffect(() => {
+    return () => {
+      if (audioUrl) {
+        URL.revokeObjectURL(audioUrl);
+      }
+    };
+  }, [audioUrl]);
 
   return (
     <MusicPlayerContext.Provider
       value={{
         currentSong,
         isPlaying,
-        duration,
-        currentTime,
         volume,
-        isMuted,
+        audioUrl,
         playSong,
         playNext,
         playPrevious,
         togglePlay,
-        toggleMute,
-        handleSeek,
-        handleVolumeChange,
+        setVolume,
         recentSongs,
       }}
     >
