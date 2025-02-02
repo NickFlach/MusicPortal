@@ -30,6 +30,19 @@ export function MusicPlayer() {
   const [isExpanded, setIsExpanded] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
 
+  // Initialize audio playback when URL changes
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio || !audioUrl) return;
+
+    audio.src = audioUrl;
+    audio.load();
+
+    if (isPlaying) {
+      audio.play().catch(console.error);
+    }
+  }, [audioUrl]);
+
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -120,94 +133,14 @@ export function MusicPlayer() {
     </Card>
   );
 
-  const ExpandedPlayer = () => (
-    <Sheet open={isExpanded} onOpenChange={setIsExpanded}>
-      <SheetContent side="bottom" className="h-[80vh] p-0 bg-transparent border-none">
-        <Card className="h-full bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 rounded-t-[20px] overflow-hidden">
-          <DynamicBackground />
-
-          <div className="relative z-10 h-full p-6 flex flex-col">
-            <SheetHeader className="mb-8">
-              <div className="flex items-center justify-between">
-                <SheetTitle className="text-2xl">{currentSong.title}</SheetTitle>
-                <Button variant="ghost" size="icon" onClick={() => setIsExpanded(false)}>
-                  <Minimize2 className="h-4 w-4" />
-                </Button>
-              </div>
-              <SheetDescription>{currentSong.artist}</SheetDescription>
-            </SheetHeader>
-
-            <div className="flex-1 flex flex-col justify-center gap-8">
-              <div className="space-y-4">
-                <div className="flex items-center gap-4">
-                  <span className="text-sm w-12 text-muted-foreground">
-                    {formatTime(currentTime)}
-                  </span>
-
-                  <Slider
-                    value={[currentTime]}
-                    max={duration}
-                    step={1}
-                    onValueChange={handleSeek}
-                    className="flex-1"
-                  />
-
-                  <span className="text-sm w-12 text-muted-foreground">
-                    {formatTime(duration)}
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-center gap-4">
-                  <Button variant="ghost" size="icon" onClick={playPrevious}>
-                    <SkipBack className="h-5 w-5" />
-                  </Button>
-
-                  <Button 
-                    variant="default" 
-                    size="icon" 
-                    className="h-12 w-12"
-                    onClick={togglePlay}
-                  >
-                    {isPlaying ? (
-                      <Pause className="h-6 w-6" />
-                    ) : (
-                      <Play className="h-6 w-6" />
-                    )}
-                  </Button>
-
-                  <Button variant="ghost" size="icon" onClick={playNext}>
-                    <SkipForward className="h-5 w-5" />
-                  </Button>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Volume2 className="h-4 w-4" />
-                <Slider
-                  value={[volume]}
-                  max={1}
-                  step={0.01}
-                  onValueChange={handleVolumeChange}
-                  className="w-32"
-                />
-              </div>
-            </div>
-          </div>
-        </Card>
-      </SheetContent>
-    </Sheet>
-  );
-
   return (
     <>
       <audio
         ref={audioRef}
-        src={audioUrl}
         preload="auto"
         onError={(e) => console.error('Audio error:', e)}
       />
       <MinimizedPlayer />
-      <ExpandedPlayer />
     </>
   );
 }
