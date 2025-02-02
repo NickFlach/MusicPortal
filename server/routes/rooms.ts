@@ -7,11 +7,14 @@ const router = Router();
 
 router.post('/api/rooms', async (req, res) => {
   try {
-    const { name, description, isPrivate } = req.body;
-    const createdBy = req.body.address;
+    const { name, description, isPrivate, address } = req.body;
 
     if (!name) {
       return res.status(400).json({ message: "Room name is required" });
+    }
+
+    if (!address) {
+      return res.status(400).json({ message: "User address is required" });
     }
 
     // Create new room
@@ -20,7 +23,7 @@ router.post('/api/rooms', async (req, res) => {
         name,
         description,
         isPrivate: isPrivate || false,
-        createdBy,
+        createdBy: address,
       })
       .returning();
 
@@ -28,14 +31,14 @@ router.post('/api/rooms', async (req, res) => {
     await db.insert(roomParticipants)
       .values({
         roomId: room.id,
-        userAddress: createdBy,
+        userAddress: address,
         isHost: true,
       });
 
-    res.status(201).json(room);
+    return res.status(201).json(room);
   } catch (error) {
     console.error('Error creating room:', error);
-    res.status(500).json({ message: "Failed to create room" });
+    return res.status(500).json({ message: "Failed to create room" });
   }
 });
 
@@ -51,15 +54,15 @@ router.get('/api/rooms', async (req, res) => {
       createdAt: listeningRooms.createdAt,
       participantCount: db.select().from(roomParticipants)
         .where(eq(roomParticipants.roomId, listeningRooms.id))
-        .count().as('participant_count'),
+        .count(),
     })
     .from(listeningRooms)
     .orderBy(desc(listeningRooms.createdAt));
 
-    res.json(rooms);
+    return res.json(rooms);
   } catch (error) {
     console.error('Error fetching rooms:', error);
-    res.status(500).json({ message: "Failed to fetch rooms" });
+    return res.status(500).json({ message: "Failed to fetch rooms" });
   }
 });
 
@@ -98,14 +101,14 @@ router.get('/api/rooms/:id', async (req, res) => {
     .orderBy(desc(roomChatMessages.createdAt))
     .limit(50);
 
-    res.json({
+    return res.json({
       ...room,
       participants,
       recentMessages: recentMessages.reverse(),
     });
   } catch (error) {
     console.error('Error fetching room details:', error);
-    res.status(500).json({ message: "Failed to fetch room details" });
+    return res.status(500).json({ message: "Failed to fetch room details" });
   }
 });
 

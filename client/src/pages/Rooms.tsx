@@ -47,6 +47,10 @@ export default function Rooms() {
         isPrivate,
         address,
       });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to create room");
+      }
       return response.json();
     },
     onSuccess: (room) => {
@@ -118,15 +122,15 @@ export default function Rooms() {
             ))}
           </div>
         )}
-      </div>
 
-      <CreateRoomDialog
-        open={createDialogOpen}
-        onOpenChange={setCreateDialogOpen}
-        onSubmit={({ name, description, isPrivate }) => {
-          createRoomMutation.mutate({ name, description, isPrivate });
-        }}
-      />
+        <CreateRoomDialog
+          open={createDialogOpen}
+          onOpenChange={setCreateDialogOpen}
+          onSubmit={(data) => {
+            createRoomMutation.mutate(data);
+          }}
+        />
+      </div>
     </Layout>
   );
 }
