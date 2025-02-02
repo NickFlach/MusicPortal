@@ -40,13 +40,33 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   const { data: recentSongs } = useQuery<Song[]>({
     queryKey: ["/api/songs/recent"],
     queryFn: async () => {
-      const response = await fetch("/api/songs/recent", {
-        headers: {
+      try {
+        const headers: Record<string, string> = {
           'X-Internal-Token': 'landing-page'
+        };
+
+        // Add wallet address header if available
+        if (address) {
+          headers['X-Wallet-Address'] = address;
         }
-      });
-      return response.json();
-    }
+
+        const response = await fetch("/api/songs/recent", {
+          headers
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch recent songs: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        console.log('Recent songs loaded:', data.length, 'songs');
+        return data;
+      } catch (error) {
+        console.error('Error fetching recent songs:', error);
+        return []; // Return empty array on error to prevent undefined issues
+      }
+    },
+    refetchInterval: isLandingPage ? 30000 : false, // Refetch every 30s on landing page
   });
 
   // Function to get next song in the current context
