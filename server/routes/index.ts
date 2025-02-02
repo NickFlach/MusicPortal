@@ -32,17 +32,11 @@ export function registerRoutes(app: Express) {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
   });
 
-  // Register the feed routes
-  app.use(feedRoutes);
-
-  // Register the metadata routes
-  app.use(metadataRoutes);
-
-  // Register the user routes
-  app.use(userRoutes);
-
-  // Register the room routes
-  app.use(roomRoutes);
+  // Register the routes
+  app.use('/api', roomRoutes);
+  app.use('/api', feedRoutes);
+  app.use('/api', metadataRoutes);
+  app.use('/api', userRoutes);
 
   // Handle 404 for non-existent API routes
   app.use('/api/*', (_req, res) => {
