@@ -46,23 +46,39 @@ export function MusicPlayer() {
     audio.addEventListener('timeupdate', handleTimeUpdate);
     audio.addEventListener('ended', handleEnded);
 
+    // Set initial volume
+    audio.volume = volume;
+
     return () => {
       audio.removeEventListener('timeupdate', handleTimeUpdate);
       audio.removeEventListener('ended', handleEnded);
     };
   }, [playNext]);
 
+  // Handle play/pause state changes
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
 
-    if (isPlaying) {
-      audio.play().catch(console.error);
-    } else {
-      audio.pause();
-    }
-  }, [isPlaying]);
+    const playAudio = async () => {
+      try {
+        if (isPlaying) {
+          const playPromise = audio.play();
+          if (playPromise !== undefined) {
+            await playPromise;
+          }
+        } else {
+          audio.pause();
+        }
+      } catch (error) {
+        console.error('Error controlling audio playback:', error);
+      }
+    };
 
+    playAudio();
+  }, [isPlaying, audioUrl]);
+
+  // Handle volume changes
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -112,7 +128,7 @@ export function MusicPlayer() {
 
       <Slider
         value={[currentTime]}
-        max={duration}
+        max={duration || 100}
         step={1}
         onValueChange={handleSeek}
         className="mt-2"
@@ -146,7 +162,7 @@ export function MusicPlayer() {
 
                   <Slider
                     value={[currentTime]}
-                    max={duration}
+                    max={duration || 100}
                     step={1}
                     onValueChange={handleSeek}
                     className="flex-1"
