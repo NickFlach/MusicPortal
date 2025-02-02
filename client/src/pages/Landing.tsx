@@ -54,7 +54,7 @@ export default function Landing() {
         <div className="flex flex-col items-center justify-center mt-24 space-y-6">
           <button 
             onClick={togglePlay}
-            className="group relative transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background rounded-lg"
+            className="group relative transition-transform hover:scale-105 focus:outline-none rounded-lg"
           >
             <img 
               src="/neo_token_logo_flaukowski.png" 
