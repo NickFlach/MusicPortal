@@ -1,4 +1,4 @@
-import { Switch, Route, Redirect } from "wouter";
+import { Switch, Route } from "wouter";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { WagmiConfig } from 'wagmi';
 import { queryClient } from "./lib/queryClient";
@@ -16,7 +16,8 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
   const { address } = useAccount();
 
   if (!address) {
-    return <Redirect to="/" />;
+    window.location.href = '/';
+    return null;
   }
 
   return <Component />;
@@ -24,12 +25,6 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
 
 function Router() {
   const { address } = useAccount();
-
-  // Only redirect if we're not already on the landing page
-  if (!address && window.location.pathname !== '/') {
-    window.location.href = '/';
-    return null;
-  }
 
   return (
     <Switch>
