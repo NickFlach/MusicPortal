@@ -52,27 +52,20 @@ export async function uploadToIPFS(file: File): Promise<string> {
   }
 }
 
-export async function getFromIPFS(hash: string): Promise<Uint8Array> {
+export async function getFromIPFS(hash: string): Promise<ArrayBuffer> {
   try {
     console.log('Fetching from Pinata:', hash);
-    const audio = new Audio();
-
-    return new Promise((resolve, reject) => {
-      const handleLoaded = () => {
-        console.log('Audio loaded');
-        resolve(new Uint8Array(0));
-      };
-
-      const handleError = () => {
-        reject(new Error('Failed to load audio'));
-      };
-
-      audio.addEventListener('loadeddata', handleLoaded, { once: true });
-      audio.addEventListener('error', handleError, { once: true });
-
-      audio.src = `${PINATA_GATEWAY}/${hash}`;
-      audio.load();
+    const response = await fetch(`${PINATA_GATEWAY}/${hash}`, {
+      headers: {
+        'Authorization': `Bearer ${pinataJWT}`
+      }
     });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch from IPFS: ${response.status} ${response.statusText}`);
+    }
+
+    return await response.arrayBuffer();
   } catch (error) {
     console.error('IPFS fetch failed:', error);
     throw error;
