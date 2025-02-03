@@ -1,4 +1,5 @@
-import { Share2, Twitter, Facebook, Link as LinkIcon } from "lucide-react";
+import { Share2, Facebook, Link as LinkIcon } from "lucide-react";
+import { SiX } from "react-icons/si";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -24,7 +25,7 @@ export function SocialShare({ songTitle, artist, ipfsHash, variant = "inline", c
   const encodedUrl = encodeURIComponent(songUrl);
 
   const shareLinks = {
-    twitter: `https://twitter.com/intent/tweet?text=${encodedText}&url=${encodedUrl}`,
+    x: `https://twitter.com/intent/tweet?text=${encodedText}&url=${encodedUrl}`,
     facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}&quote=${encodedText}`,
   };
 
@@ -49,12 +50,12 @@ export function SocialShare({ songTitle, artist, ipfsHash, variant = "inline", c
     return (
       <div className={`flex items-center gap-2 ${className}`}>
         <a
-          href={shareLinks.twitter}
+          href={shareLinks.x}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-[#1DA1F2] hover:bg-[#1a8cd8] transition-colors"
+          className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-black hover:bg-gray-800 transition-colors"
         >
-          <Twitter className="h-4 w-4 text-white" />
+          <SiX className="h-4 w-4 text-white" />
         </a>
         <a
           href={shareLinks.facebook}
@@ -86,13 +87,13 @@ export function SocialShare({ songTitle, artist, ipfsHash, variant = "inline", c
       <DropdownMenuContent align="end" className="w-[200px]">
         <DropdownMenuItem asChild>
           <a
-            href={shareLinks.twitter}
+            href={shareLinks.x}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center"
           >
-            <Twitter className="mr-2 h-4 w-4 text-[#1DA1F2]" />
-            Share on Twitter
+            <SiX className="mr-2 h-4 w-4" />
+            Share on X
           </a>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
