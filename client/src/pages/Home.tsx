@@ -15,16 +15,6 @@ import { uploadToIPFS } from "@/lib/ipfs";
 import { EditSongDialog } from "@/components/EditSongDialog";
 import * as musicMetadata from 'music-metadata-browser';
 
-interface Song {
-  id: number;
-  title: string;
-  artist: string;
-  ipfsHash: string;
-  uploadedBy: string | null;
-  createdAt: string | null;
-  votes: number | null;
-}
-
 interface SimpleMetadata {
   title: string;
   artist: string;
@@ -39,7 +29,7 @@ export default function Home() {
   const queryClient = useQueryClient();
   const [initialMetadata, setInitialMetadata] = useState<SimpleMetadata>({
     title: '',
-    artist: '',
+    artist: ''
   });
 
   const handleBackgroundClick = () => {
@@ -50,46 +40,59 @@ export default function Home() {
     window.location.href = redirectUrl;
   };
 
-  const { data: librarySongs, isLoading: libraryLoading } = useQuery<Song[]>({
+  const { data: librarySongs, isLoading: libraryLoading } = useQuery({
     queryKey: ["/api/songs/library"],
     enabled: !!address,
   });
 
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.type !== 'audio/mpeg') {
+      toast({
+        title: "Invalid File Type",
+        description: "Please select an MP3 file",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const metadata = await musicMetadata.parseBlob(file);
+      console.log('Raw metadata:', metadata);
+
+      setInitialMetadata({
+        title: metadata.common.title || file.name.replace(/\.[^/.]+$/, ''),
+        artist: metadata.common.artist || ''
+      });
+      setPendingUpload(file);
+      setUploadDialogOpen(true);
+    } catch (error) {
+      console.error('Error reading metadata:', error);
+      // If metadata extraction fails, just use filename
+      setInitialMetadata({
+        title: file.name.replace(/\.[^/.]+$/, ''),
+        artist: ''
+      });
+      setPendingUpload(file);
+      setUploadDialogOpen(true);
+    }
+  };
+
   const uploadMutation = useMutation({
     mutationFn: async ({ file, title, artist }: { file: File; title: string; artist: string }) => {
-      if (!address) {
-        throw new Error("Please connect your wallet to upload songs");
-      }
+      if (!address) throw new Error("Please connect your wallet to upload songs");
 
-      try {
-        await apiRequest("POST", "/api/users/register", { address });
-      } catch (error) {
-        console.error('User registration error:', error);
-      }
+      const ipfsHash = await uploadToIPFS(file);
+      console.log('IPFS upload successful, hash:', ipfsHash);
 
-      try {
-        console.log('Starting IPFS upload for file:', {
-          name: file.name,
-          size: file.size,
-          type: file.type
-        });
-
-        const ipfsHash = await uploadToIPFS(file);
-        console.log('IPFS upload successful, hash:', ipfsHash);
-
-        const metadata = {
-          title,
-          artist,
-          ipfsHash,
-        };
-
-        console.log('Sending metadata to server:', metadata);
-        const response = await apiRequest("POST", "/api/songs", metadata);
-        return response.json();
-      } catch (error) {
-        console.error('Upload error:', error);
-        throw error instanceof Error ? error : new Error('Unknown upload error');
-      }
+      const response = await apiRequest("POST", "/api/songs", {
+        title,
+        artist,
+        ipfsHash
+      });
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/songs/library"] });
@@ -103,7 +106,6 @@ export default function Home() {
       setInitialMetadata({ title: '', artist: '' });
     },
     onError: (error: Error) => {
-      console.error('Upload mutation error:', error);
       toast({
         title: "Upload Failed",
         description: error.message,
@@ -112,58 +114,7 @@ export default function Home() {
     },
   });
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) {
-      toast({
-        title: "Error",
-        description: "Please select a file to upload",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (file.type !== 'audio/mpeg') {
-      toast({
-        title: "Invalid File Type",
-        description: "Please select an MP3 file. Other audio formats are not supported.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      const metadata = await musicMetadata.parseBlob(file);
-      console.log('Raw metadata:', metadata);
-
-      // Only extract title and artist
-      const extractedMetadata: SimpleMetadata = {
-        title: metadata.common.title || file.name.replace(/\.[^/.]+$/, ''),
-        artist: metadata.common.artist || '',
-      };
-
-      console.log('Extracted metadata:', extractedMetadata);
-      setPendingUpload(file);
-      setUploadDialogOpen(true);
-      setInitialMetadata(extractedMetadata);
-
-      toast({
-        title: "Success",
-        description: "Basic metadata extracted successfully",
-      });
-    } catch (error) {
-      console.error('Error extracting metadata:', error);
-      // Default to filename as title if metadata extraction fails
-      setInitialMetadata({
-        title: file.name.replace(/\.[^/.]+$/, ''),
-        artist: '',
-      });
-      setPendingUpload(file);
-      setUploadDialogOpen(true);
-    }
-  };
-
-  const playMutation = useMutation({
+    const playMutation = useMutation({
     mutationFn: async (songId: number) => {
       await apiRequest("POST", `/api/songs/play/${songId}`);
     },
@@ -171,8 +122,8 @@ export default function Home() {
       queryClient.invalidateQueries({ queryKey: ["/api/songs/recent"] });
     },
   });
-
-  const handlePlaySong = async (song: Song, context: 'library' | 'feed' = 'feed') => {
+  
+    const handlePlaySong = async (song: any, context: 'library' | 'feed' = 'feed') => {
     if (!address) {
       toast({
         title: "Connect Wallet",
@@ -246,7 +197,7 @@ export default function Home() {
                 ) : librarySongs?.length === 0 ? (
                   <p className="text-muted-foreground">No songs in your library yet</p>
                 ) : (
-                  librarySongs?.map((song) => (
+                  librarySongs?.map((song: any) => (
                     <SongCard
                       key={song.id}
                       song={song}
@@ -270,7 +221,7 @@ export default function Home() {
               {recentSongs?.length === 0 ? (
                 <p className="text-muted-foreground">No songs played yet</p>
               ) : (
-                recentSongs?.map((song) => (
+                recentSongs?.map((song: any) => (
                   <SongCard
                     key={song.id}
                     song={song}

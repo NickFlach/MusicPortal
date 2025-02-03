@@ -11,53 +11,40 @@ import {
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 
-interface Song {
-  id: number;
+interface SimpleMetadata {
   title: string;
   artist: string;
-  ipfsHash: string;
 }
 
 interface EditSongDialogProps {
-  song?: Song;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   mode: 'edit' | 'create';
-  onSubmit?: (data: { title: string; artist: string }) => void;
-  initialMetadata?: {
-    title: string;
-    artist: string;
-  };
+  onSubmit?: (data: SimpleMetadata) => void;
+  initialMetadata?: SimpleMetadata;
 }
 
 export function EditSongDialog({ 
-  song, 
   open, 
   onOpenChange,
   mode,
   onSubmit,
   initialMetadata 
 }: EditSongDialogProps) {
-  const [title, setTitle] = React.useState(initialMetadata?.title || song?.title || '');
-  const [artist, setArtist] = React.useState(initialMetadata?.artist || song?.artist || '');
+  const [title, setTitle] = React.useState(initialMetadata?.title || '');
+  const [artist, setArtist] = React.useState(initialMetadata?.artist || '');
   const { toast } = useToast();
 
   React.useEffect(() => {
-    if (initialMetadata && mode === 'create') {
+    if (initialMetadata) {
       setTitle(initialMetadata.title);
       setArtist(initialMetadata.artist);
     }
-  }, [initialMetadata, mode]);
-
-  React.useEffect(() => {
-    if (song) {
-      setTitle(song.title);
-      setArtist(song.artist);
-    }
-  }, [song]);
+  }, [initialMetadata]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
     if (!title || !artist) {
       toast({
         title: "Error",
@@ -69,7 +56,6 @@ export function EditSongDialog({
 
     if (onSubmit) {
       onSubmit({ title, artist });
-      onOpenChange(false);
     }
   };
 
@@ -78,18 +64,14 @@ export function EditSongDialog({
       <DialogContent className="sm:max-w-md">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle>
-              {mode === 'edit' ? 'Edit Song Details' : 'New Song Details'}
-            </DialogTitle>
+            <DialogTitle>New Song Details</DialogTitle>
             <DialogDescription>
-              Enter the basic song information below.
+              Enter the song title and artist name below.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <label htmlFor="title" className="text-sm font-medium">
-                Title *
-              </label>
+              <label htmlFor="title" className="text-sm font-medium">Title *</label>
               <Input
                 id="title"
                 value={title}
@@ -98,9 +80,7 @@ export function EditSongDialog({
               />
             </div>
             <div className="grid gap-2">
-              <label htmlFor="artist" className="text-sm font-medium">
-                Artist *
-              </label>
+              <label htmlFor="artist" className="text-sm font-medium">Artist *</label>
               <Input
                 id="artist"
                 value={artist}
@@ -111,7 +91,7 @@ export function EditSongDialog({
           </div>
           <DialogFooter>
             <Button type="submit" disabled={!title || !artist}>
-              {mode === 'edit' ? 'Save Changes' : 'Upload Song'}
+              Upload Song
             </Button>
           </DialogFooter>
         </form>
