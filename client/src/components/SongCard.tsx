@@ -27,13 +27,6 @@ interface Song {
   votes: number | null;
 }
 
-interface Playlist {
-  id: number;
-  name: string;
-  createdBy: string | null;
-  createdAt: string | null;
-}
-
 interface SongCardProps {
   song: Song;
   onClick: () => void;
@@ -53,70 +46,10 @@ export function SongCard({ song, onClick, variant = "ghost", showDelete = false,
   });
 
   // Contract write for minting NFT
-  const { writeAsync: mintSongNFT } = useContractWrite({
-    address: PLAYLIST_NFT_ADDRESS,
-    abi: PLAYLIST_NFT_ABI,
+  const { write: mintSongNFT } = useContractWrite({
+    ...PLAYLIST_NFT_ADDRESS,
+    ...PLAYLIST_NFT_ABI,
     functionName: 'mintSong',
-  });
-
-  const addToPlaylistMutation = useMutation({
-    mutationFn: async ({ playlistId, songId }: { playlistId: number; songId: number }) => {
-      await apiRequest("POST", `/api/playlists/${playlistId}/songs`, { songId });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/playlists"] });
-      toast({
-        title: "Success",
-        description: "Song added to playlist",
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
-  const mintNFTMutation = useMutation({
-    mutationFn: async () => {
-      if (!mintSongNFT) throw new Error("Contract write not ready");
-      if (!address) throw new Error("Wallet not connected");
-
-      const metadataUri = `ipfs://${song.ipfsHash}`;
-
-      try {
-        const tx = await mintSongNFT({
-          args: [
-            address,
-            song.title,
-            song.artist,
-            song.ipfsHash,
-            metadataUri
-          ],
-          value: parseEther("1"), // 1 GAS
-        });
-
-        // Wait for transaction confirmation
-        await tx.wait();
-      } catch (error: any) {
-        throw new Error(error.message || "Failed to mint NFT");
-      }
-    },
-    onSuccess: () => {
-      toast({
-        title: "Success",
-        description: "NFT minting initiated. Please wait for the transaction to be mined.",
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
   });
 
   const deleteSongMutation = useMutation({
@@ -155,9 +88,7 @@ export function SongCard({ song, onClick, variant = "ghost", showDelete = false,
           {/* Social Share buttons */}
           <div className="opacity-0 group-hover:opacity-100 transition-opacity">
             <SocialShare
-              songTitle={song.title}
-              artist={song.artist}
-              ipfsHash={song.ipfsHash}
+              song={song}
               variant="inline"
             />
           </div>
@@ -211,7 +142,7 @@ export function SongCard({ song, onClick, variant = "ghost", showDelete = false,
                   mintNFTMutation.mutate();
                 }
               }}
-              disabled={mintNFTMutation.isPending || !address}
+              disabled={!address}
             >
               <Coins className="mr-2 h-4 w-4" />
               Mint as NFT
