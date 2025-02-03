@@ -17,6 +17,10 @@ interface SocialShareProps {
 }
 
 export function SocialShare({ song, variant = "inline", className = "" }: SocialShareProps) {
+  if (!song?.id) {
+    return null;
+  }
+
   const baseUrl = window.location.origin;
   const songUrl = `${baseUrl}/song/${song.id}`;
 
