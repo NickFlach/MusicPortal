@@ -17,7 +17,7 @@ interface SocialShareProps {
 }
 
 export function SocialShare({ song, variant = "inline", className = "" }: SocialShareProps) {
-  if (!song?.id) {
+  if (!song) {
     return null;
   }
 
