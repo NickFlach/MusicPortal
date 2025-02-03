@@ -141,15 +141,27 @@ export function SongCard({ song, onClick, variant = "ghost", showDelete = false,
 
   return (
     <>
-      <div className="flex items-center justify-between group">
-        <Button
-          variant={variant}
-          className={`flex-1 justify-start ${isPlaying ? 'text-primary' : ''}`}
-          onClick={onClick}
-        >
-          <span className="truncate">{song.title}</span>
-          <span className="ml-2 text-muted-foreground">- {song.artist}</span>
-        </Button>
+      <div className="flex items-center justify-between group p-2 hover:bg-accent rounded-lg transition-colors">
+        <div className="flex-1 flex items-center gap-4">
+          <Button
+            variant={variant}
+            className={`flex-1 justify-start ${isPlaying ? 'text-primary' : ''}`}
+            onClick={onClick}
+          >
+            <span className="truncate">{song.title}</span>
+            <span className="ml-2 text-muted-foreground">- {song.artist}</span>
+          </Button>
+
+          {/* Social Share buttons */}
+          <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+            <SocialShare
+              songTitle={song.title}
+              artist={song.artist}
+              ipfsHash={song.ipfsHash}
+              variant="inline"
+            />
+          </div>
+        </div>
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -168,19 +180,6 @@ export function SongCard({ song, onClick, variant = "ghost", showDelete = false,
                 Edit Details
               </DropdownMenuItem>
             )}
-
-            {/* Add Social Share Component */}
-            <DropdownMenuItem asChild>
-              <div className="w-full">
-                <SocialShare
-                  songTitle={song.title}
-                  artist={song.artist}
-                  ipfsHash={song.ipfsHash}
-                />
-              </div>
-            </DropdownMenuItem>
-
-            <DropdownMenuSeparator />
 
             {!playlists?.length ? (
               <DropdownMenuItem className="text-muted-foreground" disabled>

@@ -12,12 +12,14 @@ interface SocialShareProps {
   songTitle: string;
   artist: string;
   ipfsHash: string;
+  variant?: "inline" | "dropdown";
+  className?: string;
 }
 
-export function SocialShare({ songTitle, artist, ipfsHash }: SocialShareProps) {
+export function SocialShare({ songTitle, artist, ipfsHash, variant = "inline", className = "" }: SocialShareProps) {
   const baseUrl = window.location.origin;
   const songUrl = `${baseUrl}/song/${ipfsHash}`;
-  const shareText = `Check out "${songTitle}" by ${artist} on our decentralized music platform!`;
+  const shareText = `🎵 Check out "${songTitle}" by ${artist} on our decentralized music platform! 🎶`;
   const encodedText = encodeURIComponent(shareText);
   const encodedUrl = encodeURIComponent(songUrl);
 
@@ -43,6 +45,37 @@ export function SocialShare({ songTitle, artist, ipfsHash }: SocialShareProps) {
     }
   };
 
+  if (variant === "inline") {
+    return (
+      <div className={`flex items-center gap-2 ${className}`}>
+        <a
+          href={shareLinks.twitter}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-[#1DA1F2] hover:bg-[#1a8cd8] transition-colors"
+        >
+          <Twitter className="h-4 w-4 text-white" />
+        </a>
+        <a
+          href={shareLinks.facebook}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-[#1877F2] hover:bg-[#166fe5] transition-colors"
+        >
+          <Facebook className="h-4 w-4 text-white" />
+        </a>
+        <Button
+          variant="secondary"
+          size="icon"
+          className="h-8 w-8 rounded-full"
+          onClick={copyToClipboard}
+        >
+          <LinkIcon className="h-4 w-4" />
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -50,7 +83,7 @@ export function SocialShare({ songTitle, artist, ipfsHash }: SocialShareProps) {
           <Share2 className="h-4 w-4" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
+      <DropdownMenuContent align="end" className="w-[200px]">
         <DropdownMenuItem asChild>
           <a
             href={shareLinks.twitter}
@@ -58,7 +91,7 @@ export function SocialShare({ songTitle, artist, ipfsHash }: SocialShareProps) {
             rel="noopener noreferrer"
             className="flex items-center"
           >
-            <Twitter className="mr-2 h-4 w-4" />
+            <Twitter className="mr-2 h-4 w-4 text-[#1DA1F2]" />
             Share on Twitter
           </a>
         </DropdownMenuItem>
@@ -69,7 +102,7 @@ export function SocialShare({ songTitle, artist, ipfsHash }: SocialShareProps) {
             rel="noopener noreferrer"
             className="flex items-center"
           >
-            <Facebook className="mr-2 h-4 w-4" />
+            <Facebook className="mr-2 h-4 w-4 text-[#1877F2]" />
             Share on Facebook
           </a>
         </DropdownMenuItem>
