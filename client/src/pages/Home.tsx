@@ -25,6 +25,59 @@ interface Song {
   votes: number | null;
 }
 
+interface AudioMetadata {
+  title: string;
+  artist: string;
+  albumName?: string;
+  genre?: string;
+  releaseYear?: number;
+  bpm?: number;
+  key?: string;
+  description?: string;
+  isExplicit?: boolean;
+  duration?: number;
+}
+
+async function extractAudioMetadata(file: File): Promise<AudioMetadata> {
+  console.log('Starting metadata extraction for:', file.name);
+
+  try {
+    const metadata = await musicMetadata.parseBlob(file);
+    console.log('Raw metadata extracted:', metadata);
+
+    // Helper to get first item from array or undefined
+    const getFirst = (arr?: any[]) => arr && arr.length > 0 ? arr[0] : undefined;
+
+    const extracted: AudioMetadata = {
+      title: metadata.common.title || file.name.replace(/\.[^/.]+$/, ''),
+      artist: metadata.common.artist || '',
+      albumName: metadata.common.album,
+      genre: getFirst(metadata.common.genre),
+      releaseYear: metadata.common.year,
+      bpm: metadata.common.bpm,
+      key: metadata.common.key,
+      description: [
+        metadata.common.album && `From the album "${metadata.common.album}"`,
+        metadata.common.genre && `Genre: ${metadata.common.genre.join(', ')}`,
+        metadata.common.comment && metadata.common.comment.join(' ')
+      ].filter(Boolean).join('. '),
+      isExplicit: metadata.common.explicit || false,
+      duration: Math.round(metadata.format.duration || 0)
+    };
+
+    console.log('Processed metadata:', extracted);
+    return extracted;
+  } catch (error) {
+    console.error('Error extracting metadata:', error);
+    // Provide default values if metadata extraction fails
+    return {
+      title: file.name.replace(/\.[^/.]+$/, ''),
+      artist: '',
+      description: 'No metadata available'
+    };
+  }
+}
+
 export default function Home() {
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [pendingUpload, setPendingUpload] = useState<File>();
@@ -32,15 +85,7 @@ export default function Home() {
   const { address } = useAccount();
   const { playSong, currentSong, recentSongs } = useMusicPlayer();
   const queryClient = useQueryClient();
-    const [initialMetadata, setInitialMetadata] = useState<{
-    title: string;
-    artist: string;
-    albumName?: string;
-    genre?: string;
-    releaseYear?: number;
-    bpm?: number;
-    key?: string;
-  }>({
+  const [initialMetadata, setInitialMetadata] = useState<AudioMetadata>({
     title: '',
     artist: '',
   });
@@ -100,16 +145,10 @@ export default function Home() {
       }
 
       try {
-        // Register user first if needed
         await apiRequest("POST", "/api/users/register", { address });
       } catch (error) {
         console.error('User registration error:', error);
       }
-
-      toast({
-        title: "Upload Started",
-        description: "Uploading your song to IPFS...",
-      });
 
       try {
         console.log('Starting IPFS upload for file:', {
@@ -125,17 +164,12 @@ export default function Home() {
           title,
           artist,
           ipfsHash,
-          albumName: initialMetadata.albumName,
-          genre: initialMetadata.genre,
-          releaseYear: initialMetadata.releaseYear,
-          bpm: initialMetadata.bpm,
-          key: initialMetadata.key,
+          ...initialMetadata,
         };
 
         console.log('Sending metadata to server:', metadata);
         const response = await apiRequest("POST", "/api/songs", metadata);
-
-        return await response.json();
+        return response.json();
       } catch (error) {
         console.error('Upload error:', error);
         throw error instanceof Error ? error : new Error('Unknown upload error');
@@ -163,7 +197,8 @@ export default function Home() {
   });
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || e.target.files.length === 0) {
+    const file = e.target.files?.[0];
+    if (!file) {
       toast({
         title: "Error",
         description: "Please select a file to upload",
@@ -172,9 +207,6 @@ export default function Home() {
       return;
     }
 
-    const file = e.target.files[0];
-
-    // Check specifically for MP3 MIME type
     if (file.type !== 'audio/mpeg') {
       toast({
         title: "Invalid File Type",
@@ -185,26 +217,28 @@ export default function Home() {
     }
 
     try {
-      // Extract metadata from the audio file
-      const metadata = await musicMetadata.parseBlob(file);
+      toast({
+        title: "Processing",
+        description: "Extracting metadata from audio file...",
+      });
 
-      // Pre-fill the form with extracted metadata
-      const defaultValues = {
-        title: metadata.common.title || file.name.replace('.mp3', ''),
-        artist: metadata.common.artist || '',
-        albumName: metadata.common.album,
-        genre: metadata.common.genre?.[0],
-        releaseYear: metadata.common.year,
-        bpm: metadata.common.bpm,
-        key: metadata.common.key,
-      };
+      const metadata = await extractAudioMetadata(file);
+      console.log('Extracted metadata:', metadata);
 
       setPendingUpload(file);
       setUploadDialogOpen(true);
-      setInitialMetadata(defaultValues);
+      setInitialMetadata(metadata);
+
+      toast({
+        title: "Ready",
+        description: "Metadata extracted successfully. Please review before uploading.",
+      });
     } catch (error) {
-      console.error('Error reading metadata:', error);
-      // Still allow upload even if metadata extraction fails
+      console.error('Error processing file:', error);
+      toast({
+        title: "Warning",
+        description: "Could not extract metadata, but you can still upload the file.",
+      });
       setPendingUpload(file);
       setUploadDialogOpen(true);
     }
