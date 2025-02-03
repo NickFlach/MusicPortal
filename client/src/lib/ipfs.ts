@@ -69,7 +69,7 @@ export async function uploadToIPFS(file: File): Promise<string> {
 export async function getFromIPFS(hash: string): Promise<Uint8Array> {
   try {
     console.log('Fetching from IPFS gateway:', hash);
-    const gateway = 'https://blush-adjacent-octopus-823.mypinata.cloud';
+    const gateway = 'https://gateway.pinata.cloud';
 
     if (!pinataJWT) {
       throw new Error('Pinata JWT not found. Please check your environment variables.');
