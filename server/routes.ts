@@ -49,11 +49,25 @@ export function registerRoutes(app: Express) {
     const userAddress = req.headers['x-wallet-address'] as string;
 
     try {
-      // If user is authenticated, record the play
+      // If user is authenticated, ensure they're registered first
       if (userAddress) {
+        // Check if user exists
+        const existingUser = await db.query.users.findFirst({
+          where: eq(users.address, userAddress.toLowerCase()),
+        });
+
+        // If user doesn't exist, register them
+        if (!existingUser) {
+          await db.insert(users).values({
+            address: userAddress.toLowerCase(),
+            isAdmin: false,
+          });
+        }
+
+        // Now record the play
         await db.insert(recentlyPlayed).values({
           songId,
-          playedBy: userAddress,
+          playedBy: userAddress.toLowerCase(),
         });
       }
       // For anonymous plays from landing page, just record the song
