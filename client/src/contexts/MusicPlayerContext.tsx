@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { useQuery } from "@tanstack/react-query";
-import { getFromIPFS } from "@/lib/ipfs";
 import { useAccount } from 'wagmi';
 
 interface Song {
@@ -34,11 +33,9 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   const [isLoading, setIsLoading] = useState(false);
   const [currentContext, setCurrentContext] = useState<PlaylistContext>('landing');
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const abortControllerRef = useRef<AbortController | null>(null);
   const { address } = useAccount();
   const isLandingPage = !address;
 
-  // Fetch landing page feed (recent songs)
   const { data: recentSongs } = useQuery<Song[]>({
     queryKey: ["/api/songs/recent"],
     queryFn: async () => {
@@ -85,54 +82,9 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
     }
   }, [address]);
 
-  useEffect(() => {
-    async function initializeMusic() {
-      if (!recentSongs?.length || audioRef.current?.src) return;
-
-      try {
-        const firstSong = recentSongs[0];
-        console.log('Initializing music with:', firstSong.title);
-
-        const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-        const audioContext = new AudioContext();
-
-        if (audioContext.state === 'suspended') {
-          await audioContext.resume();
-        }
-
-        await playSong(firstSong, 'landing');
-
-        if (audioRef.current) {
-          const playPromise = audioRef.current.play();
-          if (playPromise !== undefined) {
-            playPromise.catch(error => {
-              console.log('Autoplay prevented:', error);
-              setIsPlaying(false);
-            });
-          }
-        }
-      } catch (error) {
-        console.error('Error initializing music:', error);
-        setIsPlaying(false);
-      }
-    }
-
-    if (isLandingPage) {
-      initializeMusic();
-    }
-  }, [recentSongs, isLandingPage]);
-
   const cleanup = () => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-      abortControllerRef.current = null;
-    }
-
     if (audioRef.current) {
       audioRef.current.pause();
-      if (audioRef.current.src) {
-        URL.revokeObjectURL(audioRef.current.src);
-      }
       audioRef.current.src = '';
       audioRef.current.load();
     }
@@ -143,75 +95,65 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
       setIsLoading(true);
       cleanup();
 
-      abortControllerRef.current = new AbortController();
-
       if (context) {
         setCurrentContext(context);
       }
 
-      console.log('Fetching from IPFS gateway:', song.ipfsHash);
-      const audioData = await getFromIPFS(song.ipfsHash);
+      // Use our backend radio service instead of direct IPFS access
+      const audioUrl = `/api/radio/stream/${song.ipfsHash}`;
 
-      if (abortControllerRef.current.signal.aborted) {
-        console.log('IPFS fetch was aborted');
-        return;
+      if (!audioRef.current) {
+        audioRef.current = new Audio();
       }
 
-      const blob = new Blob([audioData], { type: 'audio/mp3' });
-      const url = URL.createObjectURL(blob);
+      // Set up event handlers
+      const setupAudio = () => {
+        if (!audioRef.current) return Promise.reject(new Error('No audio element'));
 
-      const newAudio = new Audio();
+        return new Promise((resolve, reject) => {
+          const onCanPlay = () => {
+            audioRef.current?.removeEventListener('canplay', onCanPlay);
+            audioRef.current?.removeEventListener('error', onError);
+            resolve(undefined);
+          };
 
-      const loadPromise = new Promise((resolve, reject) => {
-        const onLoadedData = () => {
-          newAudio.removeEventListener('loadeddata', onLoadedData);
-          newAudio.removeEventListener('error', onError);
-          resolve(undefined);
-        };
+          const onError = () => {
+            const error = audioRef.current?.error;
+            audioRef.current?.removeEventListener('canplay', onCanPlay);
+            audioRef.current?.removeEventListener('error', onError);
+            reject(new Error(error?.message || 'Failed to load audio'));
+          };
 
-        const onError = (event: Event) => {
-          const error = event.currentTarget as HTMLAudioElement;
-          newAudio.removeEventListener('loadeddata', onLoadedData);
-          newAudio.removeEventListener('error', onError);
-          reject(new Error(error.error?.message || 'Failed to load audio'));
-        };
+          audioRef.current.addEventListener('canplay', onCanPlay);
+          audioRef.current.addEventListener('error', onError);
+        });
+      };
 
-        newAudio.addEventListener('loadeddata', onLoadedData);
-        newAudio.addEventListener('error', onError);
-      });
-
-      newAudio.addEventListener('ended', async () => {
-        console.log('Song ended, playing next song');
+      // Set up ended event listener
+      audioRef.current.onended = async () => {
         const nextSong = getNextSong(song.id);
         if (nextSong) {
           await playSong(nextSong, currentContext);
         }
-      });
+      };
 
-      newAudio.src = url;
-      await loadPromise;
+      // Load and play
+      audioRef.current.src = audioUrl;
+      audioRef.current.load();
 
-      cleanup();
-      audioRef.current = newAudio;
+      await setupAudio();
+      await audioRef.current.play();
 
-      const playPromise = audioRef.current.play();
-      if (playPromise !== undefined) {
-        await playPromise;
-        setIsPlaying(true);
-        setCurrentSong(song);
-        console.log('IPFS fetch and playback successful');
-      }
+      setIsPlaying(true);
+      setCurrentSong(song);
+      console.log('Audio playback started successfully');
+
     } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') {
-        console.log('IPFS fetch aborted');
-        return;
-      }
       console.error('Error playing song:', error);
       setIsPlaying(false);
       throw error;
     } finally {
       setIsLoading(false);
-      abortControllerRef.current = null;
     }
   };
 
@@ -223,11 +165,8 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
         audioRef.current.pause();
         setIsPlaying(false);
       } else {
-        const playPromise = audioRef.current.play();
-        if (playPromise !== undefined) {
-          await playPromise;
-          setIsPlaying(true);
-        }
+        await audioRef.current.play();
+        setIsPlaying(true);
       }
     } catch (error) {
       console.error('Error toggling play:', error);
@@ -235,6 +174,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
     }
   };
 
+  // Cleanup on unmount
   useEffect(() => {
     return cleanup;
   }, []);

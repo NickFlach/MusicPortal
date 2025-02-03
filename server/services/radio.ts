@@ -17,8 +17,9 @@ export async function streamAudio(req: Request, res: Response) {
       return res.status(500).json({ error: 'Pinata configuration missing' });
     }
 
-    // Fetch audio from IPFS
+    // Fetch audio metadata first to get content length
     const response = await fetch(`${GATEWAY_URL}/${ipfsHash}`, {
+      method: 'HEAD',
       headers: {
         'Authorization': `Bearer ${PINATA_JWT}`
       }
@@ -34,16 +35,41 @@ export async function streamAudio(req: Request, res: Response) {
       });
     }
 
-    // Get the audio data as a buffer
-    const audioData = await response.arrayBuffer();
+    const contentLength = response.headers.get('content-length');
 
-    // Set response headers
+    // Set proper headers for audio streaming
     res.setHeader('Content-Type', 'audio/mpeg');
-    res.setHeader('Content-Length', audioData.byteLength);
+    res.setHeader('Accept-Ranges', 'bytes');
+    if (contentLength) {
+      res.setHeader('Content-Length', contentLength);
+    }
     res.setHeader('Cache-Control', 'public, max-age=3600');
 
-    // Send the complete audio file
-    res.send(Buffer.from(audioData));
+    // Fetch and stream the actual audio data
+    const audioResponse = await fetch(`${GATEWAY_URL}/${ipfsHash}`, {
+      headers: {
+        'Authorization': `Bearer ${PINATA_JWT}`
+      }
+    });
+
+    if (!audioResponse.ok) {
+      throw new Error(`Failed to fetch audio stream: ${audioResponse.statusText}`);
+    }
+
+    if (!audioResponse.body) {
+      throw new Error('No response body received from Pinata');
+    }
+
+    // Stream the response directly to the client
+    audioResponse.body.pipe(res);
+
+    // Handle errors during streaming
+    audioResponse.body.on('error', (error) => {
+      console.error('Stream error:', error);
+      if (!res.headersSent) {
+        res.status(500).json({ error: 'Stream error occurred' });
+      }
+    });
 
   } catch (error) {
     console.error('Radio service error:', error);
