@@ -25,15 +25,9 @@ interface Song {
   votes: number | null;
 }
 
-interface AudioMetadata {
+interface SimpleMetadata {
   title: string;
   artist: string;
-  albumName?: string;
-  genre?: string;
-  releaseYear?: number;
-  description?: string;
-  isExplicit?: boolean;
-  duration?: number;
 }
 
 export default function Home() {
@@ -43,7 +37,7 @@ export default function Home() {
   const { address } = useAccount();
   const { playSong, currentSong, recentSongs } = useMusicPlayer();
   const queryClient = useQueryClient();
-  const [initialMetadata, setInitialMetadata] = useState<AudioMetadata>({
+  const [initialMetadata, setInitialMetadata] = useState<SimpleMetadata>({
     title: '',
     artist: '',
   });
@@ -87,12 +81,6 @@ export default function Home() {
           title,
           artist,
           ipfsHash,
-          albumName: initialMetadata.albumName,
-          genre: initialMetadata.genre,
-          releaseYear: initialMetadata.releaseYear,
-          description: initialMetadata.description,
-          isExplicit: initialMetadata.isExplicit,
-          duration: initialMetadata.duration
         };
 
         console.log('Sending metadata to server:', metadata);
@@ -148,15 +136,10 @@ export default function Home() {
       const metadata = await musicMetadata.parseBlob(file);
       console.log('Raw metadata:', metadata);
 
-      const extractedMetadata: AudioMetadata = {
+      // Only extract title and artist
+      const extractedMetadata: SimpleMetadata = {
         title: metadata.common.title || file.name.replace(/\.[^/.]+$/, ''),
         artist: metadata.common.artist || '',
-        albumName: metadata.common.album,
-        genre: Array.isArray(metadata.common.genre) ? metadata.common.genre[0] : undefined,
-        releaseYear: typeof metadata.common.year === 'number' ? metadata.common.year : undefined,
-        description: metadata.common.comment?.[0] || '',
-        isExplicit: false,
-        duration: Math.round(metadata.format.duration || 0)
       };
 
       console.log('Extracted metadata:', extractedMetadata);
@@ -166,13 +149,14 @@ export default function Home() {
 
       toast({
         title: "Success",
-        description: "Metadata extracted successfully",
+        description: "Basic metadata extracted successfully",
       });
     } catch (error) {
       console.error('Error extracting metadata:', error);
-      toast({
-        title: "Warning",
-        description: "Could not extract metadata, but you can still upload the file.",
+      // Default to filename as title if metadata extraction fails
+      setInitialMetadata({
+        title: file.name.replace(/\.[^/.]+$/, ''),
+        artist: '',
       });
       setPendingUpload(file);
       setUploadDialogOpen(true);
@@ -199,9 +183,7 @@ export default function Home() {
     }
 
     try {
-      // Play the song with the specified context
       playSong(song, context);
-      // Then update play count
       await playMutation.mutate(song.id);
     } catch (error) {
       console.error('Error playing song:', error);
@@ -213,18 +195,16 @@ export default function Home() {
     }
   };
 
-  // Rest of the component remains unchanged
   return (
     <Layout>
-       <div className="flex flex-col min-h-screen">
-        {/* Add clickable background div */}
+      <div className="flex flex-col min-h-screen">
         <div 
           onClick={handleBackgroundClick}
           className="absolute inset-0 z-0 cursor-pointer"
           style={{ 
-            top: '64px', // Height of the header
+            top: '64px',
             bottom: 'auto',
-            height: 'calc(30vh)', // Match the height of the MusicVisualizer section
+            height: 'calc(30vh)',
           }}
         />
 
@@ -232,7 +212,6 @@ export default function Home() {
           <MusicVisualizer />
         </section>
 
-        {/* Rest of the JSX remains unchanged */}
         <div className="flex-1 grid grid-cols-1 gap-6 mb-24 relative z-10">
           {address ? (
             <section className="px-4">
