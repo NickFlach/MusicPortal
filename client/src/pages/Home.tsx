@@ -104,7 +104,6 @@ export default function Home() {
         await apiRequest("POST", "/api/users/register", { address });
       } catch (error) {
         console.error('User registration error:', error);
-        // Continue if error is due to user already being registered
       }
 
       toast({
@@ -122,11 +121,20 @@ export default function Home() {
         const ipfsHash = await uploadToIPFS(file);
         console.log('IPFS upload successful, hash:', ipfsHash);
 
-        const response = await apiRequest("POST", "/api/songs", {
+        const metadata = {
           title,
           artist,
           ipfsHash,
-        });
+          albumName: initialMetadata.albumName,
+          genre: initialMetadata.genre,
+          releaseYear: initialMetadata.releaseYear,
+          bpm: initialMetadata.bpm,
+          key: initialMetadata.key,
+        };
+
+        console.log('Sending metadata to server:', metadata);
+        const response = await apiRequest("POST", "/api/songs", metadata);
+
         return await response.json();
       } catch (error) {
         console.error('Upload error:', error);
@@ -142,7 +150,7 @@ export default function Home() {
       });
       setPendingUpload(undefined);
       setUploadDialogOpen(false);
-        setInitialMetadata({ title: '', artist: '' });
+      setInitialMetadata({ title: '', artist: '' });
     },
     onError: (error: Error) => {
       console.error('Upload mutation error:', error);
