@@ -11,6 +11,8 @@ if (typeof window !== 'undefined') {
   window.Buffer = window.Buffer || Buffer;
 }
 
+const PINATA_GATEWAY = 'https://blush-adjacent-octopus-823.mypinata.cloud/ipfs';
+
 export async function uploadToIPFS(file: File): Promise<string> {
   try {
     console.log('Starting Pinata upload...', {
@@ -68,8 +70,7 @@ export async function uploadToIPFS(file: File): Promise<string> {
 
 export async function getFromIPFS(hash: string): Promise<Uint8Array> {
   try {
-    console.log('Fetching from radio service:', hash);
-
+    console.log('Making request to:', `${PINATA_GATEWAY}/${hash}`);
     const audio = new Audio();
 
     return new Promise((resolve, reject) => {
@@ -86,12 +87,12 @@ export async function getFromIPFS(hash: string): Promise<Uint8Array> {
       audio.addEventListener('loadeddata', handleLoaded, { once: true });
       audio.addEventListener('error', handleError, { once: true });
 
-      // Load the audio file
-      audio.src = `/api/radio/stream/${hash}`;
+      // Load using direct Pinata gateway URL
+      audio.src = `${PINATA_GATEWAY}/${hash}`;
       audio.load();
     });
   } catch (error) {
-    console.error('Error getting file from radio service:', error);
+    console.error('Error getting file from Pinata:', error);
     if (error instanceof Error) {
       throw new Error(`Audio loading failed: ${error.message}`);
     }
