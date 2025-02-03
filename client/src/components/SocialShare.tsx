@@ -21,7 +21,7 @@ export function SocialShare({ song, variant = "inline", className = "" }: Social
     return null;
   }
 
-  const baseUrl = "https://neo-music-portal.repl.co";
+  const baseUrl = "https://music-portal-flaukowski.replit.app";
   const songUrl = `/song/${song.id}`;
 
   // Create platform-specific share content
@@ -30,14 +30,14 @@ export function SocialShare({ song, variant = "inline", className = "" }: Social
     song.artist ? `by ${song.artist}` : '',
     song.albumName ? `from ${song.albumName}` : '',
     song.genre ? `#${song.genre.replace(/[^a-zA-Z0-9]/g, '')}` : '',
-    '🎶 Listen on NEO Music Portal!'
+    '🎶 Listen on Music Portal!'
   ].filter(Boolean).join(' ');
 
   const facebookQuote = [
     `Check out "${song.title}"`,
     song.artist ? `by ${song.artist}` : '',
     song.albumName ? `from the album "${song.albumName}"` : '',
-    song.description || 'Listen to this amazing track on NEO Music Portal!'
+    song.description || 'Listen to this amazing track on Music Portal!'
   ].filter(Boolean).join(' ');
 
   const encodedTwitterText = encodeURIComponent(twitterText);
