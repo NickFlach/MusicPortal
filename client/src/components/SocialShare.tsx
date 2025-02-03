@@ -22,10 +22,11 @@ export function SocialShare({ song, variant = "inline", className = "" }: Social
 
   // Create rich share text with available metadata
   const shareText = [
-    `🎵 "${song.title}" by ${song.artist}`,
+    `🎵 "${song.title}"`,
+    song.artist ? `by ${song.artist}` : '',
     song.albumName ? `from the album "${song.albumName}"` : '',
-    song.genre ? `#${song.genre.replace(/\s+/g, '')}` : '',
-    '🎶 Listen now on NEO Music Portal!',
+    song.genre ? `#${song.genre.replace(/[^a-zA-Z0-9]/g, '')}` : '',
+    '🎶 Listen now on NEO Music Portal!'
   ].filter(Boolean).join(' ');
 
   const encodedText = encodeURIComponent(shareText);
@@ -33,8 +34,8 @@ export function SocialShare({ song, variant = "inline", className = "" }: Social
 
   // Prepare metadata object for each platform
   const metadata = {
-    title: `${song.title} by ${song.artist}`,
-    description: song.description || `Listen to "${song.title}" by ${song.artist} on NEO Music Portal`,
+    title: `${song.title}${song.artist ? ` by ${song.artist}` : ''}`,
+    description: song.description || `Listen to "${song.title}" on NEO Music Portal`,
     image: song.albumArtIpfsHash ? 
       `https://gateway.pinata.cloud/ipfs/${song.albumArtIpfsHash}` : 
       `${baseUrl}/default-album-art.png`,
