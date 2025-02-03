@@ -31,51 +31,9 @@ interface AudioMetadata {
   albumName?: string;
   genre?: string;
   releaseYear?: number;
-  bpm?: number;
-  key?: string;
   description?: string;
   isExplicit?: boolean;
   duration?: number;
-}
-
-async function extractAudioMetadata(file: File): Promise<AudioMetadata> {
-  console.log('Starting metadata extraction for:', file.name);
-
-  try {
-    const metadata = await musicMetadata.parseBlob(file);
-    console.log('Raw metadata extracted:', metadata);
-
-    // Helper to get first item from array or undefined
-    const getFirst = (arr?: any[]) => arr && arr.length > 0 ? arr[0] : undefined;
-
-    const extracted: AudioMetadata = {
-      title: metadata.common.title || file.name.replace(/\.[^/.]+$/, ''),
-      artist: metadata.common.artist || '',
-      albumName: metadata.common.album,
-      genre: getFirst(metadata.common.genre),
-      releaseYear: metadata.common.year,
-      bpm: metadata.common.bpm,
-      key: metadata.common.key,
-      description: [
-        metadata.common.album && `From the album "${metadata.common.album}"`,
-        metadata.common.genre && `Genre: ${metadata.common.genre.join(', ')}`,
-        metadata.common.comment && metadata.common.comment.join(' ')
-      ].filter(Boolean).join('. '),
-      isExplicit: metadata.common.explicit || false,
-      duration: Math.round(metadata.format.duration || 0)
-    };
-
-    console.log('Processed metadata:', extracted);
-    return extracted;
-  } catch (error) {
-    console.error('Error extracting metadata:', error);
-    // Provide default values if metadata extraction fails
-    return {
-      title: file.name.replace(/\.[^/.]+$/, ''),
-      artist: '',
-      description: 'No metadata available'
-    };
-  }
 }
 
 export default function Home() {
@@ -98,45 +56,10 @@ export default function Home() {
     window.location.href = redirectUrl;
   };
 
-  // Only fetch library songs when wallet is connected
   const { data: librarySongs, isLoading: libraryLoading } = useQuery<Song[]>({
     queryKey: ["/api/songs/library"],
     enabled: !!address,
   });
-
-  const playMutation = useMutation({
-    mutationFn: async (songId: number) => {
-      await apiRequest("POST", `/api/songs/play/${songId}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/songs/recent"] });
-    },
-  });
-
-  const handlePlaySong = async (song: Song, context: 'library' | 'feed' = 'feed') => {
-    if (!address) {
-      toast({
-        title: "Connect Wallet",
-        description: "Please connect your wallet to play songs",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      // Play the song with the specified context
-      playSong(song, context);
-      // Then update play count
-      await playMutation.mutate(song.id);
-    } catch (error) {
-      console.error('Error playing song:', error);
-      toast({
-        title: "Error",
-        description: "Failed to play song. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
 
   const uploadMutation = useMutation({
     mutationFn: async ({ file, title, artist }: { file: File; title: string; artist: string }) => {
@@ -164,7 +87,12 @@ export default function Home() {
           title,
           artist,
           ipfsHash,
-          ...initialMetadata,
+          albumName: initialMetadata.albumName,
+          genre: initialMetadata.genre,
+          releaseYear: initialMetadata.releaseYear,
+          description: initialMetadata.description,
+          isExplicit: initialMetadata.isExplicit,
+          duration: initialMetadata.duration
         };
 
         console.log('Sending metadata to server:', metadata);
@@ -217,24 +145,31 @@ export default function Home() {
     }
 
     try {
-      toast({
-        title: "Processing",
-        description: "Extracting metadata from audio file...",
-      });
+      const metadata = await musicMetadata.parseBlob(file);
+      console.log('Raw metadata:', metadata);
 
-      const metadata = await extractAudioMetadata(file);
-      console.log('Extracted metadata:', metadata);
+      const extractedMetadata: AudioMetadata = {
+        title: metadata.common.title || file.name.replace(/\.[^/.]+$/, ''),
+        artist: metadata.common.artist || '',
+        albumName: metadata.common.album,
+        genre: Array.isArray(metadata.common.genre) ? metadata.common.genre[0] : undefined,
+        releaseYear: typeof metadata.common.year === 'number' ? metadata.common.year : undefined,
+        description: metadata.common.comment?.[0] || '',
+        isExplicit: false,
+        duration: Math.round(metadata.format.duration || 0)
+      };
 
+      console.log('Extracted metadata:', extractedMetadata);
       setPendingUpload(file);
       setUploadDialogOpen(true);
-      setInitialMetadata(metadata);
+      setInitialMetadata(extractedMetadata);
 
       toast({
-        title: "Ready",
-        description: "Metadata extracted successfully. Please review before uploading.",
+        title: "Success",
+        description: "Metadata extracted successfully",
       });
     } catch (error) {
-      console.error('Error processing file:', error);
+      console.error('Error extracting metadata:', error);
       toast({
         title: "Warning",
         description: "Could not extract metadata, but you can still upload the file.",
@@ -244,9 +179,44 @@ export default function Home() {
     }
   };
 
+  const playMutation = useMutation({
+    mutationFn: async (songId: number) => {
+      await apiRequest("POST", `/api/songs/play/${songId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/songs/recent"] });
+    },
+  });
+
+  const handlePlaySong = async (song: Song, context: 'library' | 'feed' = 'feed') => {
+    if (!address) {
+      toast({
+        title: "Connect Wallet",
+        description: "Please connect your wallet to play songs",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      // Play the song with the specified context
+      playSong(song, context);
+      // Then update play count
+      await playMutation.mutate(song.id);
+    } catch (error) {
+      console.error('Error playing song:', error);
+      toast({
+        title: "Error",
+        description: "Failed to play song. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Rest of the component remains unchanged
   return (
     <Layout>
-      <div className="flex flex-col min-h-screen">
+       <div className="flex flex-col min-h-screen">
         {/* Add clickable background div */}
         <div 
           onClick={handleBackgroundClick}
