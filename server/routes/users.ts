@@ -88,14 +88,26 @@ router.post('/api/users/register', async (req, res) => {
 });
 
 // Add endpoint to get user's recent activity
-router.get('/api/users/recent', async (req, res) => {
+router.get('/api/songs/recent', async (req, res) => {
   try {
     const address = req.headers['x-wallet-address'] as string;
+    const isLandingPage = req.headers['x-internal-token'] === 'landing-page';
 
-    if (!address) {
-      return res.status(400).json({ message: "Wallet address is required" });
+    // For landing page or non-authenticated users, return general feed
+    if (isLandingPage || !address) {
+      const recentSongs = await db.query.recentlyPlayed.findMany({
+        orderBy: desc(recentlyPlayed.playedAt),
+        limit: 10,
+        with: {
+          song: true,
+        }
+      });
+
+      console.log('Sending recent songs for landing page:', recentSongs.length);
+      return res.json(recentSongs.map(item => item.song));
     }
 
+    // For authenticated users, return personalized feed
     const recentSongs = await db.query.recentlyPlayed.findMany({
       where: eq(recentlyPlayed.playedBy, address.toLowerCase()),
       orderBy: desc(recentlyPlayed.playedAt),
