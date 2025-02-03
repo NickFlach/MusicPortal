@@ -11,7 +11,9 @@ if (typeof window !== 'undefined') {
   window.Buffer = window.Buffer || Buffer;
 }
 
+const PINATA_API_URL = 'https://api.pinata.cloud/pinning/pinFileToIPFS';
 const PINATA_GATEWAY = 'https://blush-adjacent-octopus-823.mypinata.cloud/ipfs';
+
 
 export async function uploadToIPFS(file: File): Promise<string> {
   try {
@@ -30,7 +32,7 @@ export async function uploadToIPFS(file: File): Promise<string> {
     const formData = new FormData();
     formData.append('file', file);
 
-    const res = await fetch('https://api.pinata.cloud/pinning/pinFileToIPFS', {
+    const response = await fetch(PINATA_API_URL, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${pinataJWT}`,
@@ -38,23 +40,34 @@ export async function uploadToIPFS(file: File): Promise<string> {
       body: formData,
     });
 
-    if (!res.ok) {
-      const error = await res.text();
-      console.error('Pinata API error:', error);
-      if (res.status === 401) {
-        throw new Error('Invalid Pinata credentials. Please check your JWT token.');
-      } else if (res.status === 413) {
-        throw new Error('File is too large for Pinata to process.');
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Pinata API error:', {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorText
+      });
+
+      if (response.status === 401) {
+        throw new Error('Invalid Pinata credentials');
+      } else if (response.status === 413) {
+        throw new Error('File is too large for Pinata to process');
       } else {
-        throw new Error(`Pinata upload failed (${res.status}): ${error}`);
+        throw new Error(`Upload failed: ${response.statusText} (${response.status})`);
       }
     }
 
-    const data = await res.json();
+    const data = await response.json();
+    if (!data.IpfsHash) {
+      throw new Error('No IPFS hash received from Pinata');
+    }
+
     console.log('Pinata upload successful:', {
       ipfsHash: data.IpfsHash,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      size: file.size
     });
+
     return data.IpfsHash;
   } catch (error) {
     console.error('Error uploading to Pinata:', error);
@@ -62,7 +75,7 @@ export async function uploadToIPFS(file: File): Promise<string> {
       if (error.message.includes('Failed to fetch')) {
         throw new Error('Network error: Could not connect to Pinata. Please check your internet connection.');
       }
-      throw new Error(`Upload failed: ${error.message}`);
+      throw error;
     }
     throw new Error('Upload failed: Unknown error');
   }
