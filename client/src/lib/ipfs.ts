@@ -70,7 +70,17 @@ export async function getFromIPFS(hash: string): Promise<Uint8Array> {
   try {
     console.log('Fetching from IPFS gateway:', hash);
     const gateway = 'https://blush-adjacent-octopus-823.mypinata.cloud/ipfs';
-    const response = await fetch(`${gateway}/${hash}`);
+    const pinataJWT = import.meta.env.VITE_PINATA_JWT;
+
+    if (!pinataJWT) {
+      throw new Error('Pinata JWT not found. Please check your environment variables.');
+    }
+
+    const response = await fetch(`${gateway}/${hash}`, {
+      headers: {
+        'Authorization': `Bearer ${pinataJWT}`
+      }
+    });
 
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
