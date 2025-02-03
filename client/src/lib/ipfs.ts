@@ -69,7 +69,7 @@ export async function uploadToIPFS(file: File): Promise<string> {
 export async function getFromIPFS(hash: string): Promise<Uint8Array> {
   try {
     console.log('Fetching from IPFS gateway:', hash);
-    const gateway = 'https://gateway.pinata.cloud/ipfs';
+    const gateway = 'https://blush-adjacent-octopus-823.mypinata.cloud/ipfs';
     const response = await fetch(`${gateway}/${hash}`);
 
     if (!response.ok) {
