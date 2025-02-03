@@ -70,62 +70,31 @@ export async function getFromIPFS(hash: string): Promise<Uint8Array> {
   try {
     console.log('Fetching from radio service:', hash);
 
-    // Create audio element with streaming URL
     const audio = new Audio();
-    let isLoaded = false;
 
     return new Promise((resolve, reject) => {
-      let timeoutId: ReturnType<typeof setTimeout>;
-
-      const cleanup = () => {
-        audio.removeEventListener('canplaythrough', onCanPlay);
-        audio.removeEventListener('error', onError);
-        clearTimeout(timeoutId);
-        if (audio.src) {
-          URL.revokeObjectURL(audio.src);
-        }
+      const handleLoaded = () => {
+        console.log('Audio data loaded successfully');
+        resolve(new Uint8Array(0));
       };
 
-      const onCanPlay = () => {
-        if (!isLoaded) {
-          console.log('Audio loaded and ready to play');
-          isLoaded = true;
-          cleanup();
-          resolve(new Uint8Array(0)); // We don't need the actual bytes anymore
-        }
+      const handleError = () => {
+        console.error('Audio loading error:', audio.error);
+        reject(new Error('Failed to load audio'));
       };
 
-      const onError = (e: Event) => {
-        const error = e.target as HTMLAudioElement;
-        console.error('Audio playback error:', error.error?.message || 'Unknown error');
-        cleanup();
-        reject(new Error(error.error?.message || 'Failed to load audio'));
-      };
+      audio.addEventListener('loadeddata', handleLoaded, { once: true });
+      audio.addEventListener('error', handleError, { once: true });
 
-      const onTimeout = () => {
-        if (!isLoaded) {
-          console.error('Audio loading timeout');
-          cleanup();
-          reject(new Error('Audio loading timeout'));
-        }
-      };
-
-      // Add event listeners
-      audio.addEventListener('canplaythrough', onCanPlay);
-      audio.addEventListener('error', onError);
-
-      // Set timeout for loading
-      timeoutId = setTimeout(onTimeout, 30000); // 30 second timeout
-
-      // Set source and start loading
+      // Load the audio file
       audio.src = `/api/radio/stream/${hash}`;
       audio.load();
     });
   } catch (error) {
     console.error('Error getting file from radio service:', error);
     if (error instanceof Error) {
-      throw new Error(`Audio streaming failed: ${error.message}`);
+      throw new Error(`Audio loading failed: ${error.message}`);
     }
-    throw new Error('Audio streaming failed: Unknown error');
+    throw new Error('Audio loading failed: Unknown error');
   }
 }

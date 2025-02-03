@@ -24,7 +24,7 @@ export async function streamAudio(req: Request, res: Response) {
       }
     });
 
-    if (!response.ok || !response.body) {
+    if (!response.ok) {
       console.error('IPFS fetch error:', {
         status: response.status,
         statusText: response.statusText
@@ -34,35 +34,16 @@ export async function streamAudio(req: Request, res: Response) {
       });
     }
 
-    // Set up audio streaming headers
+    // Get the audio data as a buffer
+    const audioData = await response.arrayBuffer();
+
+    // Set response headers
     res.setHeader('Content-Type', 'audio/mpeg');
-    res.setHeader('Accept-Ranges', 'bytes');
+    res.setHeader('Content-Length', audioData.byteLength);
     res.setHeader('Cache-Control', 'public, max-age=3600');
-    res.setHeader('Transfer-Encoding', 'chunked');
 
-    // Handle streaming with proper error handling
-    const readable = response.body;
-    readable.on('error', (error) => {
-      console.error('Stream error:', error);
-      if (!res.headersSent) {
-        res.status(500).end();
-      }
-    });
-
-    // Handle client disconnect
-    req.on('close', () => {
-      // For node-fetch's readable stream, we need to stop reading
-      if (readable.destroy && typeof readable.destroy === 'function') {
-        readable.destroy();
-      } else {
-        // Fallback for streams that don't support destroy
-        readable.emit('end');
-        readable.emit('close');
-      }
-    });
-
-    // Stream the audio data
-    readable.pipe(res);
+    // Send the complete audio file
+    res.send(Buffer.from(audioData));
 
   } catch (error) {
     console.error('Radio service error:', error);
