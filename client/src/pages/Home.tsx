@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Upload, Library } from "lucide-react";
 import { uploadToIPFS } from "@/lib/ipfs";
 import { EditSongDialog } from "@/components/EditSongDialog";
+import * as musicMetadata from 'music-metadata-browser';
 
 interface Song {
   id: number;
@@ -31,6 +32,18 @@ export default function Home() {
   const { address } = useAccount();
   const { playSong, currentSong, recentSongs } = useMusicPlayer();
   const queryClient = useQueryClient();
+    const [initialMetadata, setInitialMetadata] = useState<{
+    title: string;
+    artist: string;
+    albumName?: string;
+    genre?: string;
+    releaseYear?: number;
+    bpm?: number;
+    key?: string;
+  }>({
+    title: '',
+    artist: '',
+  });
 
   const handleBackgroundClick = () => {
     const baseUrl = 'https://pitchfork-economy-nikolaiflaukows.replit.app/';
@@ -129,6 +142,7 @@ export default function Home() {
       });
       setPendingUpload(undefined);
       setUploadDialogOpen(false);
+        setInitialMetadata({ title: '', artist: '' });
     },
     onError: (error: Error) => {
       console.error('Upload mutation error:', error);
@@ -162,8 +176,30 @@ export default function Home() {
       return;
     }
 
-    setPendingUpload(file);
-    setUploadDialogOpen(true);
+    try {
+      // Extract metadata from the audio file
+      const metadata = await musicMetadata.parseBlob(file);
+
+      // Pre-fill the form with extracted metadata
+      const defaultValues = {
+        title: metadata.common.title || file.name.replace('.mp3', ''),
+        artist: metadata.common.artist || '',
+        albumName: metadata.common.album,
+        genre: metadata.common.genre?.[0],
+        releaseYear: metadata.common.year,
+        bpm: metadata.common.bpm,
+        key: metadata.common.key,
+      };
+
+      setPendingUpload(file);
+      setUploadDialogOpen(true);
+      setInitialMetadata(defaultValues);
+    } catch (error) {
+      console.error('Error reading metadata:', error);
+      // Still allow upload even if metadata extraction fails
+      setPendingUpload(file);
+      setUploadDialogOpen(true);
+    }
   };
 
   return (
@@ -264,6 +300,7 @@ export default function Home() {
           if (!open) setPendingUpload(undefined);
         }}
         mode="create"
+        initialMetadata={initialMetadata}
         onSubmit={({ title, artist }) => {
           if (pendingUpload) {
             uploadMutation.mutate({

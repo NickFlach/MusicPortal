@@ -39,6 +39,15 @@ interface EditSongDialogProps {
   onOpenChange: (open: boolean) => void;
   mode: 'edit' | 'create';
   onSubmit?: (data: { title: string; artist: string }) => void;
+  initialMetadata?: {
+    title?: string;
+    artist?: string;
+    albumName?: string;
+    genre?: string;
+    releaseYear?: number;
+    bpm?: number;
+    key?: string;
+  };
 }
 
 export function EditSongDialog({ 
@@ -46,22 +55,35 @@ export function EditSongDialog({
   open, 
   onOpenChange,
   mode,
-  onSubmit 
+  onSubmit,
+  initialMetadata 
 }: EditSongDialogProps) {
-  const [title, setTitle] = React.useState(song?.title || '');
-  const [artist, setArtist] = React.useState(song?.artist || '');
-  const [albumName, setAlbumName] = React.useState(song?.albumName || '');
-  const [genre, setGenre] = React.useState(song?.genre || '');
-  const [releaseYear, setReleaseYear] = React.useState(song?.releaseYear?.toString() || '');
+  const [title, setTitle] = React.useState(initialMetadata?.title || song?.title || '');
+  const [artist, setArtist] = React.useState(initialMetadata?.artist || song?.artist || '');
+  const [albumName, setAlbumName] = React.useState(initialMetadata?.albumName || song?.albumName || '');
+  const [genre, setGenre] = React.useState(initialMetadata?.genre || song?.genre || '');
+  const [releaseYear, setReleaseYear] = React.useState(initialMetadata?.releaseYear?.toString() || song?.releaseYear?.toString() || '');
   const [description, setDescription] = React.useState(song?.description || '');
   const [license, setLicense] = React.useState(song?.license || '');
-  const [bpm, setBpm] = React.useState(song?.bpm?.toString() || '');
-  const [key, setKey] = React.useState(song?.key || '');
+  const [bpm, setBpm] = React.useState(initialMetadata?.bpm?.toString() || song?.bpm?.toString() || '');
+  const [key, setKey] = React.useState(initialMetadata?.key || song?.key || '');
   const [tags, setTags] = React.useState(song?.tags || '');
   const [isExplicit, setIsExplicit] = React.useState(song?.isExplicit || false);
   const [albumArt, setAlbumArt] = React.useState<File>();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  React.useEffect(() => {
+    if (initialMetadata && mode === 'create') {
+      setTitle(initialMetadata.title || '');
+      setArtist(initialMetadata.artist || '');
+      setAlbumName(initialMetadata.albumName || '');
+      setGenre(initialMetadata.genre || '');
+      setReleaseYear(initialMetadata.releaseYear?.toString() || '');
+      setBpm(initialMetadata.bpm?.toString() || '');
+      setKey(initialMetadata.key || '');
+    }
+  }, [initialMetadata, mode]);
 
   React.useEffect(() => {
     if (song) {
