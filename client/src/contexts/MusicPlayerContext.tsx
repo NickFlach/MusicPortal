@@ -76,6 +76,24 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
     return recentSongs[(currentIndex + 1) % recentSongs.length];
   };
 
+  // Initialize music for landing page
+  useEffect(() => {
+    async function initializeMusic() {
+      if (!recentSongs?.length || audioRef.current?.src || !isLandingPage) return;
+
+      try {
+        const firstSong = recentSongs[0];
+        console.log('Initializing landing page music with:', firstSong.title);
+        await playSong(firstSong, 'landing');
+      } catch (error) {
+        console.error('Error initializing landing page music:', error);
+      }
+    }
+
+    initializeMusic();
+  }, [recentSongs, isLandingPage]);
+
+  // Reset to landing context when wallet disconnects
   useEffect(() => {
     if (!address) {
       setCurrentContext('landing');
@@ -99,7 +117,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
         setCurrentContext(context);
       }
 
-      // Use our backend radio service instead of direct IPFS access
+      // Use our backend radio service
       const audioUrl = `/api/radio/stream/${song.ipfsHash}`;
 
       if (!audioRef.current) {
@@ -129,7 +147,21 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
         });
       };
 
-      // Set up ended event listener
+      // Record play in backend
+      try {
+        await fetch(`/api/songs/play/${song.id}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(address ? { 'X-Wallet-Address': address } : {})
+          }
+        });
+      } catch (error) {
+        console.warn('Failed to record play:', error);
+        // Don't block playback if recording play fails
+      }
+
+      // Set up ended event listener for continuous play
       audioRef.current.onended = async () => {
         const nextSong = getNextSong(song.id);
         if (nextSong) {
