@@ -68,42 +68,31 @@ export async function uploadToIPFS(file: File): Promise<string> {
 
 export async function getFromIPFS(hash: string): Promise<Uint8Array> {
   try {
-    console.log('Fetching from IPFS gateway:', hash);
-    const gateway = 'https://gateway.pinata.cloud';
+    console.log('Fetching from radio service:', hash);
 
-    if (!pinataJWT) {
-      throw new Error('Pinata JWT not found. Please check your environment variables.');
-    }
+    // Create audio element with streaming URL
+    const audio = new Audio(`/api/radio/stream/${hash}`);
 
-    // Log the request details for debugging
-    console.log('Making request to:', `${gateway}/ipfs/${hash}`);
-
-    const response = await fetch(`${gateway}/ipfs/${hash}`, {
-      headers: {
-        'Authorization': `Bearer ${pinataJWT}`,
-        'Accept': 'application/json'
-      }
-    });
-
-    if (!response.ok) {
-      console.error('IPFS fetch error:', {
-        status: response.status,
-        statusText: response.statusText
+    // Return a promise that resolves when the audio is loaded
+    return new Promise((resolve, reject) => {
+      audio.addEventListener('canplaythrough', () => {
+        console.log('Audio loaded and ready to play');
+        resolve(new Uint8Array(0)); // We don't need the actual bytes anymore
       });
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
 
-    const buffer = await response.arrayBuffer();
-    console.log('IPFS fetch successful');
-    return new Uint8Array(buffer);
+      audio.addEventListener('error', (e) => {
+        console.error('Audio loading error:', e);
+        reject(new Error('Failed to load audio'));
+      });
+
+      // Start loading the audio
+      audio.load();
+    });
   } catch (error) {
-    console.error('Error getting file from IPFS:', error);
+    console.error('Error getting file from radio service:', error);
     if (error instanceof Error) {
-      if (error.message.includes('Failed to fetch')) {
-        throw new Error('Network error: Could not connect to IPFS gateway. Please try again later.');
-      }
-      throw new Error(`IPFS Fetch failed: ${error.message}`);
+      throw new Error(`Audio streaming failed: ${error.message}`);
     }
-    throw new Error('IPFS Fetch failed: Unknown error');
+    throw new Error('Audio streaming failed: Unknown error');
   }
 }

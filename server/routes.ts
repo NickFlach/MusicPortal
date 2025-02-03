@@ -3,11 +3,14 @@ import { createServer } from "http";
 import { db } from "@db";
 import { songs, users, playlists, followers, playlistSongs, recentlyPlayed, userRewards } from "@db/schema";
 import { eq, desc, and } from "drizzle-orm";
+import radioRouter from './routes/radio';
 
 export function registerRoutes(app: Express) {
   const httpServer = createServer(app);
 
-  // Songs
+  // Register radio routes
+  app.use(radioRouter);
+
   app.get("/api/songs/recent", async (req, res) => {
     const recentSongs = await db.query.recentlyPlayed.findMany({
       orderBy: desc(recentlyPlayed.playedAt),
