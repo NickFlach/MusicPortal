@@ -24,7 +24,6 @@ export async function getMusicStats(): Promise<MusicStats> {
     count: sql<number>`count(distinct ${songs.artist})`
   }).from(songs);
 
-  // Use votes as a proxy for listens since we don't have a plays field
   const [
     { sum: totalListens }
   ] = await db.select({
@@ -36,7 +35,7 @@ export async function getMusicStats(): Promise<MusicStats> {
     songCount: sql<number>`count(*)`
   })
   .from(songs)
-  .where(sql`${songs.artist} is not null`)  // Only count non-null artists
+  .where(sql`${songs.artist} is not null`)
   .groupBy(songs.artist)
   .orderBy(sql`count(*) desc`)
   .limit(10);
@@ -59,61 +58,78 @@ export async function getMusicStats(): Promise<MusicStats> {
 }
 
 export async function getSongMetadata(id: number): Promise<SongMetadata | null> {
-  const [song] = await db.select()
-    .from(songs)
-    .where(eq(songs.id, id));
+  try {
+    const [song] = await db.select()
+      .from(songs)
+      .where(eq(songs.id, id))
+      .limit(1);
 
-  if (!song) return null;
-
-  const baseUrl = process.env.BASE_URL || 'https://neo-music-portal.repl.co';
-  const defaultImage = `${baseUrl}/default-album-art.png`;
-  const albumArtUrl = song.albumArtIpfsHash 
-    ? `https://gateway.pinata.cloud/ipfs/${song.albumArtIpfsHash}`
-    : defaultImage;
-
-  return {
-    openGraph: {
-      title: `${song.title} by ${song.artist || 'Unknown Artist'}`,
-      description: song.description || `Listen to "${song.title}" by ${song.artist || 'Unknown Artist'} on NEO Music Portal`,
-      image: albumArtUrl,
-      type: 'music.song',
-      musician: song.artist || undefined,
-      album: song.albumName || undefined,
-      duration: song.duration || undefined,
-      genre: song.genre || undefined
-    },
-    twitterCard: {
-      card: song.albumArtIpfsHash ? 'summary_large_image' : 'player',
-      site: '@NEOMusicPortal',
-      title: `${song.title} by ${song.artist || 'Unknown Artist'}`,
-      description: song.description || `Listen to "${song.title}" by ${song.artist || 'Unknown Artist'} on NEO Music Portal`,
-      image: albumArtUrl,
-      player: `${baseUrl}/embed/${song.id}`
-    },
-    schemaOrg: {
-      '@context': 'https://schema.org',
-      '@type': 'MusicRecording',
-      name: song.title,
-      byArtist: {
-        '@type': 'MusicGroup',
-        name: song.artist || 'Unknown Artist'
-      },
-      ...(song.albumName && {
-        inAlbum: {
-          '@type': 'MusicAlbum',
-          name: song.albumName
-        }
-      }),
-      duration: song.duration ? `PT${Math.floor(song.duration / 60)}M${song.duration % 60}S` : undefined,
-      genre: song.genre || undefined,
-      datePublished: song.createdAt?.toISOString(),
-      image: albumArtUrl
+    if (!song) {
+      console.log(`No song found with id: ${id}`);
+      return null;
     }
-  };
+
+    const baseUrl = process.env.BASE_URL || 'https://neo-music-portal.repl.co';
+    const defaultImage = `${baseUrl}/default-album-art.png`;
+    const albumArtUrl = song.albumArtIpfsHash 
+      ? `https://gateway.pinata.cloud/ipfs/${song.albumArtIpfsHash}`
+      : defaultImage;
+
+    const title = song.title;
+    const artist = song.artist || 'Unknown Artist';
+    const description = song.description || `Listen to "${title}" by ${artist} on NEO Music Portal`;
+
+    return {
+      openGraph: {
+        title: `${title} by ${artist}`,
+        description,
+        image: albumArtUrl,
+        type: 'music.song',
+        musician: artist,
+        album: song.albumName || undefined,
+        duration: song.duration || undefined,
+        genre: song.genre || undefined
+      },
+      twitterCard: {
+        card: song.albumArtIpfsHash ? 'summary_large_image' : 'player',
+        site: '@NEOMusicPortal',
+        title: `${title} by ${artist}`,
+        description,
+        image: albumArtUrl,
+        player: `${baseUrl}/embed/${song.id}`
+      },
+      schemaOrg: {
+        '@context': 'https://schema.org',
+        '@type': 'MusicRecording',
+        name: title,
+        byArtist: {
+          '@type': 'MusicGroup',
+          name: artist
+        },
+        ...(song.albumName && {
+          inAlbum: {
+            '@type': 'MusicAlbum',
+            name: song.albumName
+          }
+        }),
+        duration: song.duration ? `PT${Math.floor(song.duration / 60)}M${song.duration % 60}S` : undefined,
+        genre: song.genre || undefined,
+        datePublished: song.createdAt?.toISOString() || undefined,
+        image: albumArtUrl
+      }
+    };
+  } catch (error) {
+    console.error('Error getting song metadata:', error);
+    return null;
+  }
 }
 
 export async function incrementListenCount(id: number) {
-  await db.update(songs)
-    .set({ votes: sql`coalesce(${songs.votes}, 0) + 1` })
-    .where(eq(songs.id, id));
+  try {
+    await db.update(songs)
+      .set({ votes: sql`coalesce(${songs.votes}, 0) + 1` })
+      .where(eq(songs.id, id));
+  } catch (error) {
+    console.error('Error incrementing listen count:', error);
+  }
 }
