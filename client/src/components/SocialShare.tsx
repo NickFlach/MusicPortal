@@ -21,7 +21,8 @@ export function SocialShare({ song, variant = "inline", className = "" }: Social
     return null;
   }
 
-  const baseUrl = window.location.origin;
+  // Use a consistent base URL for production
+  const baseUrl = "https://neo-music-portal.repl.co";
   const songUrl = `${baseUrl}/song/${song.id}`;
 
   // Create platform-specific share content
