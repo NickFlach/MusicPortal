@@ -21,9 +21,8 @@ export function SocialShare({ song, variant = "inline", className = "" }: Social
     return null;
   }
 
-  // Use a consistent base URL for production
   const baseUrl = "https://neo-music-portal.repl.co";
-  const songUrl = `${baseUrl}/song/${song.id}`;
+  const songUrl = `/song/${song.id}`;
 
   // Create platform-specific share content
   const twitterText = [
@@ -43,7 +42,7 @@ export function SocialShare({ song, variant = "inline", className = "" }: Social
 
   const encodedTwitterText = encodeURIComponent(twitterText);
   const encodedFacebookQuote = encodeURIComponent(facebookQuote);
-  const encodedUrl = encodeURIComponent(songUrl);
+  const encodedUrl = encodeURIComponent(`${baseUrl}${songUrl}`);
 
   const shareLinks = {
     x: `https://twitter.com/intent/tweet?text=${encodedTwitterText}&url=${encodedUrl}`,
@@ -52,7 +51,7 @@ export function SocialShare({ song, variant = "inline", className = "" }: Social
 
   const copyToClipboard = async () => {
     try {
-      await navigator.clipboard.writeText(songUrl);
+      await navigator.clipboard.writeText(`${baseUrl}${songUrl}`);
       toast({
         title: "Link copied!",
         description: "Share link has been copied to clipboard",
