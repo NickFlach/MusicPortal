@@ -40,20 +40,29 @@ export async function streamAudio(req: Request, res: Response) {
     res.setHeader('Cache-Control', 'public, max-age=3600');
     res.setHeader('Transfer-Encoding', 'chunked');
 
-    // Create a pass-through stream and handle errors
-    const stream = response.body;
-    stream.on('error', (error) => {
+    // Handle streaming with proper error handling
+    const readable = response.body;
+    readable.on('error', (error) => {
       console.error('Stream error:', error);
-      res.status(500).end();
+      if (!res.headersSent) {
+        res.status(500).end();
+      }
     });
-
-    // Pipe the audio stream directly to the response
-    stream.pipe(res);
 
     // Handle client disconnect
     req.on('close', () => {
-      stream.destroy();
+      // For node-fetch's readable stream, we need to stop reading
+      if (readable.destroy && typeof readable.destroy === 'function') {
+        readable.destroy();
+      } else {
+        // Fallback for streams that don't support destroy
+        readable.emit('end');
+        readable.emit('close');
+      }
     });
+
+    // Stream the audio data
+    readable.pipe(res);
 
   } catch (error) {
     console.error('Radio service error:', error);

@@ -75,7 +75,17 @@ export async function getFromIPFS(hash: string): Promise<Uint8Array> {
     let isLoaded = false;
 
     return new Promise((resolve, reject) => {
-      // Set up event listeners before setting src
+      let timeoutId: ReturnType<typeof setTimeout>;
+
+      const cleanup = () => {
+        audio.removeEventListener('canplaythrough', onCanPlay);
+        audio.removeEventListener('error', onError);
+        clearTimeout(timeoutId);
+        if (audio.src) {
+          URL.revokeObjectURL(audio.src);
+        }
+      };
+
       const onCanPlay = () => {
         if (!isLoaded) {
           console.log('Audio loaded and ready to play');
@@ -86,10 +96,10 @@ export async function getFromIPFS(hash: string): Promise<Uint8Array> {
       };
 
       const onError = (e: Event) => {
-        const error = (e.target as HTMLAudioElement).error;
-        console.error('Audio loading error:', error?.message || 'Unknown error');
+        const error = e.target as HTMLAudioElement;
+        console.error('Audio playback error:', error.error?.message || 'Unknown error');
         cleanup();
-        reject(new Error(error?.message || 'Failed to load audio'));
+        reject(new Error(error.error?.message || 'Failed to load audio'));
       };
 
       const onTimeout = () => {
@@ -100,18 +110,12 @@ export async function getFromIPFS(hash: string): Promise<Uint8Array> {
         }
       };
 
-      const cleanup = () => {
-        audio.removeEventListener('canplaythrough', onCanPlay);
-        audio.removeEventListener('error', onError);
-        clearTimeout(timeoutId);
-      };
-
       // Add event listeners
       audio.addEventListener('canplaythrough', onCanPlay);
       audio.addEventListener('error', onError);
 
       // Set timeout for loading
-      const timeoutId = setTimeout(onTimeout, 30000); // 30 second timeout
+      timeoutId = setTimeout(onTimeout, 30000); // 30 second timeout
 
       // Set source and start loading
       audio.src = `/api/radio/stream/${hash}`;
