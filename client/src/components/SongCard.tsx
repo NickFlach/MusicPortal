@@ -13,6 +13,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useContractWrite, useAccount } from 'wagmi';
 import { PLAYLIST_NFT_ADDRESS, PLAYLIST_NFT_ABI } from "@/lib/contracts";
 import { EditSongDialog } from "./EditSongDialog";
+import { SocialShare } from "./SocialShare";
 import { useState } from "react";
 import { parseEther } from "viem";
 
@@ -38,9 +39,10 @@ interface SongCardProps {
   onClick: () => void;
   variant?: "ghost" | "default";
   showDelete?: boolean;
+  isPlaying?: boolean;
 }
 
-export function SongCard({ song, onClick, variant = "ghost", showDelete = false }: SongCardProps) {
+export function SongCard({ song, onClick, variant = "ghost", showDelete = false, isPlaying = false }: SongCardProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -142,7 +144,7 @@ export function SongCard({ song, onClick, variant = "ghost", showDelete = false 
       <div className="flex items-center justify-between group">
         <Button
           variant={variant}
-          className="flex-1 justify-start"
+          className={`flex-1 justify-start ${isPlaying ? 'text-primary' : ''}`}
           onClick={onClick}
         >
           <span className="truncate">{song.title}</span>
@@ -166,6 +168,19 @@ export function SongCard({ song, onClick, variant = "ghost", showDelete = false 
                 Edit Details
               </DropdownMenuItem>
             )}
+
+            {/* Add Social Share Component */}
+            <DropdownMenuItem asChild>
+              <div className="w-full">
+                <SocialShare
+                  songTitle={song.title}
+                  artist={song.artist}
+                  ipfsHash={song.ipfsHash}
+                />
+              </div>
+            </DropdownMenuItem>
+
+            <DropdownMenuSeparator />
 
             {!playlists?.length ? (
               <DropdownMenuItem className="text-muted-foreground" disabled>
