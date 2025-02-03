@@ -24,7 +24,7 @@ export async function streamAudio(req: Request, res: Response) {
       }
     });
 
-    if (!response.ok) {
+    if (!response.ok || !response.body) {
       console.error('IPFS fetch error:', {
         status: response.status,
         statusText: response.statusText
@@ -38,14 +38,29 @@ export async function streamAudio(req: Request, res: Response) {
     res.setHeader('Content-Type', 'audio/mpeg');
     res.setHeader('Accept-Ranges', 'bytes');
     res.setHeader('Cache-Control', 'public, max-age=3600');
+    res.setHeader('Transfer-Encoding', 'chunked');
+
+    // Create a pass-through stream and handle errors
+    const stream = response.body;
+    stream.on('error', (error) => {
+      console.error('Stream error:', error);
+      res.status(500).end();
+    });
 
     // Pipe the audio stream directly to the response
-    response.body.pipe(res);
+    stream.pipe(res);
+
+    // Handle client disconnect
+    req.on('close', () => {
+      stream.destroy();
+    });
 
   } catch (error) {
     console.error('Radio service error:', error);
-    res.status(500).json({ 
-      error: error instanceof Error ? error.message : 'Internal server error' 
-    });
+    if (!res.headersSent) {
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : 'Internal server error' 
+      });
+    }
   }
 }
