@@ -8,21 +8,37 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "@/hooks/use-toast";
+import type { Song } from "@/types/song";
 
 interface SocialShareProps {
-  songTitle: string;
-  artist: string;
-  ipfsHash: string;
+  song: Song;
   variant?: "inline" | "dropdown";
   className?: string;
 }
 
-export function SocialShare({ songTitle, artist, ipfsHash, variant = "inline", className = "" }: SocialShareProps) {
+export function SocialShare({ song, variant = "inline", className = "" }: SocialShareProps) {
   const baseUrl = window.location.origin;
-  const songUrl = `${baseUrl}/song/${ipfsHash}`;
-  const shareText = `🎵 Check out "${songTitle}" by ${artist} on our decentralized music platform! 🎶`;
+  const songUrl = `${baseUrl}/song/${song.id}`;
+
+  // Create rich share text with available metadata
+  const shareText = [
+    `🎵 "${song.title}" by ${song.artist}`,
+    song.albumName ? `from the album "${song.albumName}"` : '',
+    song.genre ? `#${song.genre.replace(/\s+/g, '')}` : '',
+    '🎶 Listen now on NEO Music Portal!',
+  ].filter(Boolean).join(' ');
+
   const encodedText = encodeURIComponent(shareText);
   const encodedUrl = encodeURIComponent(songUrl);
+
+  // Prepare metadata object for each platform
+  const metadata = {
+    title: `${song.title} by ${song.artist}`,
+    description: song.description || `Listen to "${song.title}" by ${song.artist} on NEO Music Portal`,
+    image: song.albumArtIpfsHash ? 
+      `https://gateway.pinata.cloud/ipfs/${song.albumArtIpfsHash}` : 
+      `${baseUrl}/default-album-art.png`,
+  };
 
   const shareLinks = {
     x: `https://twitter.com/intent/tweet?text=${encodedText}&url=${encodedUrl}`,
@@ -54,6 +70,7 @@ export function SocialShare({ songTitle, artist, ipfsHash, variant = "inline", c
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-black hover:bg-gray-800 transition-colors"
+          aria-label="Share on X"
         >
           <SiX className="h-4 w-4 text-white" />
         </a>
@@ -62,6 +79,7 @@ export function SocialShare({ songTitle, artist, ipfsHash, variant = "inline", c
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-[#1877F2] hover:bg-[#166fe5] transition-colors"
+          aria-label="Share on Facebook"
         >
           <Facebook className="h-4 w-4 text-white" />
         </a>
@@ -70,6 +88,7 @@ export function SocialShare({ songTitle, artist, ipfsHash, variant = "inline", c
           size="icon"
           className="h-8 w-8 rounded-full"
           onClick={copyToClipboard}
+          aria-label="Copy link"
         >
           <LinkIcon className="h-4 w-4" />
         </Button>

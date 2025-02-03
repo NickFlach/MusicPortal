@@ -26,6 +26,18 @@ export const songs = pgTable("songs", {
   uploadedBy: text("uploaded_by").references(() => users.address),
   createdAt: timestamp("created_at").defaultNow(),
   votes: integer("votes").default(0),
+  // New metadata fields
+  albumArtIpfsHash: text("album_art_ipfs_hash"),
+  albumName: text("album_name"),
+  genre: text("genre"),
+  releaseYear: integer("release_year"),
+  duration: integer("duration"), // Duration in seconds
+  description: text("description"),
+  isExplicit: boolean("is_explicit").default(false),
+  license: text("license"),
+  bpm: integer("bpm"), // Beats per minute
+  key: text("key"), // Musical key
+  tags: text("tags")
 });
 
 export const recentlyPlayed = pgTable("recently_played", {

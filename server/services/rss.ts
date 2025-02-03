@@ -20,11 +20,11 @@ export function generateRSSFeed(songs: Song[], baseUrl: string) {
   songs.forEach(song => {
     feed.item({
       title: song.title,
-      description: `${song.title} by ${song.artist}`,
+      description: `${song.title} by ${song.artist || 'Unknown Artist'}`,
       url: `${baseUrl}/home?play=${song.id}`,
       guid: song.id.toString(),
       categories: ['Music'],
-      author: song.artist,
+      author: song.artist || 'Unknown Artist',
       date: new Date(song.createdAt || Date.now()).toUTCString(),
       enclosure: {
         url: `${baseUrl}/api/songs/${song.id}/stream`,
