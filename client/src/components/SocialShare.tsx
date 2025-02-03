@@ -24,30 +24,29 @@ export function SocialShare({ song, variant = "inline", className = "" }: Social
   const baseUrl = window.location.origin;
   const songUrl = `${baseUrl}/song/${song.id}`;
 
-  // Create rich share text with available metadata
-  const shareText = [
+  // Create platform-specific share content
+  const twitterText = [
     `🎵 "${song.title}"`,
     song.artist ? `by ${song.artist}` : '',
-    song.albumName ? `from the album "${song.albumName}"` : '',
+    song.albumName ? `from ${song.albumName}` : '',
     song.genre ? `#${song.genre.replace(/[^a-zA-Z0-9]/g, '')}` : '',
-    '🎶 Listen now on NEO Music Portal!'
+    '🎶 Listen on NEO Music Portal!'
   ].filter(Boolean).join(' ');
 
-  const encodedText = encodeURIComponent(shareText);
+  const facebookQuote = [
+    `Check out "${song.title}"`,
+    song.artist ? `by ${song.artist}` : '',
+    song.albumName ? `from the album "${song.albumName}"` : '',
+    song.description || 'Listen to this amazing track on NEO Music Portal!'
+  ].filter(Boolean).join(' ');
+
+  const encodedTwitterText = encodeURIComponent(twitterText);
+  const encodedFacebookQuote = encodeURIComponent(facebookQuote);
   const encodedUrl = encodeURIComponent(songUrl);
 
-  // Prepare metadata object for each platform
-  const metadata = {
-    title: `${song.title}${song.artist ? ` by ${song.artist}` : ''}`,
-    description: song.description || `Listen to "${song.title}" on NEO Music Portal`,
-    image: song.albumArtIpfsHash ? 
-      `https://gateway.pinata.cloud/ipfs/${song.albumArtIpfsHash}` : 
-      `${baseUrl}/default-album-art.png`,
-  };
-
   const shareLinks = {
-    x: `https://twitter.com/intent/tweet?text=${encodedText}&url=${encodedUrl}`,
-    facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}&quote=${encodedText}`,
+    x: `https://twitter.com/intent/tweet?text=${encodedTwitterText}&url=${encodedUrl}`,
+    facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}&quote=${encodedFacebookQuote}`,
   };
 
   const copyToClipboard = async () => {
