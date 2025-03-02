@@ -30,7 +30,7 @@ export class IPFSManager {
     try {
       console.log('Fetching from IPFS:', { cid });
 
-      // Use the server-side proxy instead of direct Infura access
+      // Use the server-side proxy instead of direct Pinata access
       const response = await this.retry(async () => {
         const fetchResponse = await axios.get(`/api/ipfs/fetch/${cid}`, {
           headers: {
@@ -64,8 +64,8 @@ export class IPFSManager {
 
       const formData = new FormData();
       formData.append('file', file);
-      formData.append('wallet', this.walletAddress);
 
+      // Add wallet address through headers instead of form data
       const response = await this.retry(async () => {
         const uploadResponse = await axios.post('/api/ipfs/upload', formData, {
           headers: {
