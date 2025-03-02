@@ -20,8 +20,8 @@ interface Song {
   id: number;
   title: string;
   artist: string;
-  ipfsHash?: string;
-  neofsObjectId?: string;
+  ipfsHash?: string | null;
+  neofsObjectId?: string | null;
   uploadedBy: string | null;
   createdAt: string | null;
   votes: number | null;
@@ -63,7 +63,12 @@ export default function Home() {
 
       const data = await response.json();
       console.log('Library songs loaded:', data.length, 'songs');
-      return data;
+
+      // Ensure all songs have the storageType field
+      return data.map(song => ({
+        ...song,
+        storageType: song.storageType || (song.ipfsHash ? 'ipfs' : 'neofs')
+      }));
     },
     enabled: !!address,
     retry: 3,
@@ -110,8 +115,8 @@ export default function Home() {
   const handlePlaySong = async (song: Song, context: 'library' | 'feed' = 'feed') => {
     if (!address) {
       toast({
-        title: t('app.errors.wallet'),
-        description: t('app.errors.wallet'),
+        title: t('app.errors.wallet') as string,
+        description: t('app.errors.wallet') as string,
         variant: "destructive",
       });
       return;
@@ -124,8 +129,8 @@ export default function Home() {
         id: song.id,
         title: song.title,
         artist: song.artist,
-        ipfsHash: song.ipfsHash,
-        neofsObjectId: song.neofsObjectId,
+        ipfsHash: song.ipfsHash || "",
+        neofsObjectId: song.neofsObjectId || null,
         storageType: song.storageType || (song.ipfsHash ? 'ipfs' : 'neofs')
       };
 
@@ -144,7 +149,7 @@ export default function Home() {
   const uploadMutation = useMutation({
     mutationFn: async ({ file, title, artist }: { file: File; title: string; artist: string }) => {
       if (!address) {
-        throw new Error(t('app.errors.wallet'));
+        throw new Error(t('app.errors.wallet') as string);
       }
 
       try {
@@ -161,8 +166,8 @@ export default function Home() {
         console.log('Registration successful:', registerData);
 
         toast({
-          title: t('app.upload.started'),
-          description: t('app.upload.progress'),
+          title: t('app.upload.started') as string,
+          description: t('app.upload.progress') as string,
         });
 
         try {
@@ -195,8 +200,8 @@ export default function Home() {
       queryClient.invalidateQueries({ queryKey: ["/api/songs/library"] });
       queryClient.invalidateQueries({ queryKey: ["/api/songs/recent"] });
       toast({
-        title: t('app.upload.success'),
-        description: t('app.upload.success'),
+        title: t('app.upload.success') as string,
+        description: t('app.upload.success') as string,
       });
       setPendingUpload(undefined);
       setUploadDialogOpen(false);
@@ -204,7 +209,7 @@ export default function Home() {
     onError: (error: Error) => {
       console.error('Upload mutation error:', error);
       toast({
-        title: t('app.upload.error'),
+        title: t('app.upload.error') as string,
         description: error.message,
         variant: "destructive",
       });
@@ -349,14 +354,29 @@ export default function Home() {
                   {t('app.noRecentSongs')}
                 </p>
               ) : (
-                recentTracks?.map((song) => (
-                  <SongCard
-                    key={song.id}
-                    song={song}
-                    onClick={() => handlePlaySong(song, 'feed')}
-                    isPlaying={currentTrack?.id === song.id}
-                  />
-                ))
+                recentTracks?.map((track) => {
+                  // Create a song object from the track to pass to SongCard
+                  const song: Song = {
+                    id: track.id,
+                    title: track.title,
+                    artist: track.artist,
+                    ipfsHash: track.ipfsHash || null,
+                    neofsObjectId: track.neofsObjectId || null,
+                    uploadedBy: null, // Not needed for display
+                    createdAt: null, // Not needed for display
+                    votes: 0, // Not needed for display
+                    storageType: track.storageType || 'ipfs'
+                  };
+
+                  return (
+                    <SongCard
+                      key={track.id}
+                      song={song}
+                      onClick={() => handlePlaySong(song, 'feed')}
+                      isPlaying={currentTrack?.id === track.id}
+                    />
+                  );
+                })
               )}
             </div>
           </section>
