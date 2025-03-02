@@ -7,6 +7,10 @@ import { lumiraService } from './lumira';
 import { storeInNeoFS } from '../services/neo-storage';
 import { encryptLoveCount } from '../services/encryption';
 
+// Define NULL_ISLAND coordinates constant
+const NULL_ISLAND_COORDS: [number, number] = [0, 0];
+const NULL_ISLAND_COUNTRY_CODE = 'SIN'; // SINet designated country code
+
 const router = Router();
 
 // Get recent songs
@@ -181,7 +185,7 @@ router.post("/", async (req, res) => {
     try {
       // Process through Lumira for interpretation
       await lumiraService.processMetricsPrivately({
-        type: 'gps',
+        type: 'song_upload',
         timestamp: new Date().toISOString(),
         data: {
           songId: newSong.id,
@@ -331,7 +335,7 @@ router.post("/:id/love", async (req, res) => {
   }
 });
 
-// Update the map data API endpoint to ensure proper JSON response
+// Update the map data API endpoint to ensure proper JSON response and enhance NULL_ISLAND
 router.get("/map", async (req, res) => {
   const userAddress = req.headers['x-wallet-address'] as string;
 
@@ -341,7 +345,7 @@ router.get("/map", async (req, res) => {
       countryCode = 'USA';
     }
 
-    // Structure for map data
+    // Structure for map data with enhanced NULL_ISLAND support
     const mapData: {
       countries: Record<string, {
         locations: Array<[number, number]>;
@@ -350,30 +354,70 @@ router.get("/map", async (req, res) => {
       }>;
       totalListeners: number;
       allLocations: Array<[number, number]>;
+      sinetInfo?: {
+        nullIslandStatus: 'online' | 'syncing' | 'offline';
+        connectedNodes: number;
+        syncPercentage: number;
+      }
     } = {
       countries: {},
       totalListeners: 0,
-      allLocations: []
+      allLocations: [],
+      // Add SINet system status information
+      sinetInfo: {
+        nullIslandStatus: 'online',
+        connectedNodes: Math.floor(Math.random() * 20) + 5, // Simulate 5-25 connected nodes
+        syncPercentage: 100 // Fully synced
+      }
     };
 
-    // If no data exists yet, return empty structure
+    // If no data exists yet, still return NULL_ISLAND data
     if (!userAddress && !req.headers['x-internal-token']) {
+      // Always add NULL_ISLAND as a special location
+      mapData.allLocations.push(NULL_ISLAND_COORDS);
+      mapData.totalListeners = 1;
+
+      // Add SINet as a country with NULL_ISLAND
+      mapData.countries[NULL_ISLAND_COUNTRY_CODE] = {
+        locations: [NULL_ISLAND_COORDS],
+        listenerCount: 1,
+        anonCount: 0
+      };
+
       return res.json(mapData);
     }
 
-    // Add test location for development
-    mapData.allLocations.push([0, 0]);
+    // Add NULL_ISLAND as the central node
+    mapData.allLocations.push(NULL_ISLAND_COORDS);
     mapData.totalListeners = 1;
-    mapData.countries['TEST'] = {
-      locations: [[0, 0]],
+
+    // Add SINet as a country with NULL_ISLAND
+    mapData.countries[NULL_ISLAND_COUNTRY_CODE] = {
+      locations: [NULL_ISLAND_COORDS],
       listenerCount: 1,
       anonCount: 0
     };
 
-    console.log('Sending map data:', {
+    // Add test locations for development (radiating out from NULL_ISLAND)
+    const testLocations = [
+      [10, 10], [-10, 10], [10, -10], [-10, -10],
+      [5, 0], [0, 5], [-5, 0], [0, -5]
+    ];
+
+    testLocations.forEach(location => {
+      mapData.allLocations.push(location as [number, number]);
+      mapData.totalListeners++;
+
+      // Add to SINet country
+      mapData.countries[NULL_ISLAND_COUNTRY_CODE].locations.push(location as [number, number]);
+      mapData.countries[NULL_ISLAND_COUNTRY_CODE].listenerCount++;
+    });
+
+    console.log('Sending SINet-aligned map data:', {
       totalLocations: mapData.allLocations.length,
       totalListeners: mapData.totalListeners,
-      countries: Object.keys(mapData.countries).length
+      countries: Object.keys(mapData.countries).length,
+      nullIslandStatus: mapData.sinetInfo?.nullIslandStatus
     });
 
     res.json(mapData);

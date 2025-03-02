@@ -1,5 +1,5 @@
 import { FC, useEffect, useState, useMemo } from "react";
-import { MapContainer, TileLayer } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Tooltip, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "leaflet.heat";
@@ -11,6 +11,10 @@ import { Layout } from "@/components/Layout";
 import { useIntl } from "react-intl";
 import { useMusicPlayer } from "@/contexts/MusicPlayerContext";
 import { GpsVisualizationToolkit, MarkerLayer, PathLayer, HeatmapLayer } from "@/components/GpsVisualizationToolkit";
+import { SINetStatus } from "@/components/SINetStatus";
+
+// NULL_ISLAND coordinates [0,0]
+const NULL_ISLAND_COORDS: [number, number] = [0, 0];
 
 interface MapData {
   countries: {
@@ -22,6 +26,11 @@ interface MapData {
   };
   totalListeners: number;
   allLocations: Array<[number, number]>;
+  sinetInfo?: {
+    nullIslandStatus: 'online' | 'syncing' | 'offline';
+    connectedNodes: number;
+    syncPercentage: number;
+  };
 }
 
 interface VisualizationOptions {
@@ -31,6 +40,40 @@ interface VisualizationOptions {
   markerSize: number;
   pathColor: string;
 }
+
+// Component to handle NULL_ISLAND special marker
+const NullIslandMarker: FC = () => {
+  const map = useMap();
+
+  useEffect(() => {
+    // Center the map on NULL_ISLAND on initial load
+    map.setView(NULL_ISLAND_COORDS, 2);
+  }, [map]);
+
+  // Custom icon for NULL_ISLAND
+  const nullIslandIcon = L.divIcon({
+    html: `<div class="pulse-marker">
+      <div class="marker-core"></div>
+      <div class="marker-pulse"></div>
+    </div>`,
+    className: 'null-island-marker',
+    iconSize: [20, 20],
+    iconAnchor: [10, 10]
+  });
+
+  return (
+    <Marker 
+      position={NULL_ISLAND_COORDS} 
+      icon={nullIslandIcon}
+      zIndexOffset={1000} // Ensure it's above other markers
+    >
+      <Tooltip permanent direction="top" offset={[0, -10]}>
+        <div className="font-bold text-primary">NULL_ISLAND</div>
+        <div className="text-xs">SINet Central Node</div>
+      </Tooltip>
+    </Marker>
+  );
+};
 
 const MapPage: FC = () => {
   const { address } = useAccount();
@@ -44,9 +87,6 @@ const MapPage: FC = () => {
     markerSize: 8,
     pathColor: "#3b82f6"
   });
-
-  // Test location - Null Island
-  const testLocation: Array<[number, number]> = [[0, 0]];
 
   // Fetch map data with polling
   const { data: mapData, isLoading, error } = useQuery<MapData>({
@@ -68,7 +108,13 @@ const MapPage: FC = () => {
   // Process locations for heatmap and markers
   const locationData = useMemo(() => {
     if (!mapData?.allLocations || !isSynced) return [];
-    return mapData.allLocations;
+
+    // Always include NULL_ISLAND in location data
+    const locations = [...mapData.allLocations];
+    if (!locations.some(loc => loc[0] === 0 && loc[1] === 0)) {
+      locations.push(NULL_ISLAND_COORDS);
+    }
+    return locations;
   }, [mapData, isSynced]);
 
   const hasNoData = !isLoading && (!mapData || mapData.totalListeners === 0);
@@ -79,6 +125,57 @@ const MapPage: FC = () => {
       setMapError('Heatmap functionality not available');
       console.error('L.heatLayer is not defined');
     }
+
+    // Add CSS for NULL_ISLAND pulse marker
+    const style = document.createElement('style');
+    style.innerHTML = `
+      .pulse-marker {
+        position: relative;
+      }
+      .marker-core {
+        width: 12px;
+        height: 12px;
+        background: #FF5252;
+        border-radius: 50%;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        margin: -6px 0 0 -6px;
+        z-index: 2;
+        box-shadow: 0 0 8px rgba(255, 82, 82, 0.8);
+      }
+      .marker-pulse {
+        width: 40px;
+        height: 40px;
+        background: rgba(255, 82, 82, 0.3);
+        border-radius: 50%;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        margin: -20px 0 0 -20px;
+        z-index: 1;
+        animation: pulse 2s infinite;
+      }
+      @keyframes pulse {
+        0% {
+          transform: scale(0.5);
+          opacity: 0.5;
+        }
+        70% {
+          transform: scale(1.5);
+          opacity: 0;
+        }
+        100% {
+          transform: scale(0.5);
+          opacity: 0;
+        }
+      }
+    `;
+    document.head.appendChild(style);
+
+    return () => {
+      document.head.removeChild(style);
+    };
   }, []);
 
   const handleVisualizationOptionsChange = (newOptions: VisualizationOptions) => {
@@ -88,28 +185,37 @@ const MapPage: FC = () => {
   return (
     <Layout>
       <div className="container mx-auto p-4 md:py-6 max-w-full">
-        <h1 className="text-2xl md:text-4xl font-bold mb-4">
-          {intl.formatMessage({ id: 'map.title' })}
-        </h1>
+        <div className="flex flex-col md:flex-row md:items-start gap-4 mb-4">
+          <div className="flex-1">
+            <h1 className="text-2xl md:text-4xl font-bold">
+              {intl.formatMessage({ id: 'map.title' })}
+            </h1>
 
-        <div className="text-sm text-muted-foreground mb-4">
-          {!isSynced ? (
-            intl.formatMessage({ id: 'map.noActivity' })
-          ) : error ? (
-            <span className="text-red-500">
-              {intl.formatMessage(
-                { id: 'map.error' },
-                { error: (error as Error).message }
+            <div className="text-sm text-muted-foreground mt-1">
+              {!isSynced ? (
+                intl.formatMessage({ id: 'map.noActivity' })
+              ) : error ? (
+                <span className="text-red-500">
+                  {intl.formatMessage(
+                    { id: 'map.error' },
+                    { error: (error as Error).message }
+                  )}
+                </span>
+              ) : hasNoData ? (
+                intl.formatMessage({ id: 'map.noData' })
+              ) : (
+                intl.formatMessage(
+                  { id: 'map.totalListeners' },
+                  { count: mapData.totalListeners }
+                )
               )}
-            </span>
-          ) : hasNoData ? (
-            intl.formatMessage({ id: 'map.noData' })
-          ) : (
-            intl.formatMessage(
-              { id: 'map.totalListeners' },
-              { count: mapData.totalListeners }
-            )
-          )}
+            </div>
+          </div>
+
+          {/* SINet Status Component */}
+          <div className="w-full md:w-64">
+            <SINetStatus />
+          </div>
         </div>
 
         <Card className="p-2 md:p-4 bg-background">
@@ -123,7 +229,7 @@ const MapPage: FC = () => {
               </div>
             ) : (
               <MapContainer
-                center={[20, 0]}
+                center={NULL_ISLAND_COORDS}
                 zoom={2}
                 style={{ height: '100%', width: '100%' }}
                 minZoom={2}
@@ -167,17 +273,8 @@ const MapPage: FC = () => {
                   className="dark-tiles"
                 />
 
-                {/* Always show test marker regardless of sync state */}
-                <MarkerLayer 
-                  data={testLocation}
-                  options={{
-                    showMarkers: true,
-                    markerSize: 20,
-                    pathColor: "#ff0000",  // Red color for test marker
-                    showHeatmap: false,
-                    showPaths: false
-                  }}
-                />
+                {/* Always show NULL_ISLAND marker */}
+                <NullIslandMarker />
 
                 {isSynced && locationData.length > 0 && (
                   <>
