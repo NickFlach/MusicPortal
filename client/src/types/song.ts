@@ -2,7 +2,7 @@ export interface Song {
   id: number;
   title: string;
   artist: string;
-  ipfsHash: string;
+  ipfsHash: string | null;
   uploadedBy: string | null;
   createdAt: string | null;
   votes: number | null;

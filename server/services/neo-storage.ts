@@ -1,3 +1,8 @@
+// This file has been disabled as part of removing NEOFS functionality
+// and simplifying our system to use IPFS direct pinning only.
+// If you need to restore NEOFS functionality, uncomment the code below.
+
+/*
 import { WebSocket } from 'ws';
 import { getClients } from './stats';
 
@@ -21,91 +26,46 @@ const config: NeoStorageConfig = {
   defaultGasLimit: '1000000',
 };
 
-/**
- * Calculates the required GAS for a NEO FS operation
- */
+// Calculation functions and storage operations are commented out as they are no longer used
+*/
+
+// Placeholder versions of the essential functions that return meaningful errors
 export function calculateRequiredGas(fileSize: number, duration: number): string {
-  const baseCost = 0.001; // GAS per MB per hour
-  const sizeCost = (fileSize / (1024 * 1024)) * baseCost * duration;
-  const overhead = 0.1; // Fixed overhead in GAS
-  const totalCost = (sizeCost + overhead) * 1.2;
-  return totalCost.toFixed(8);
+  console.warn('NEOFS functionality has been disabled');
+  return '0';
 }
 
-/**
- * Prepares a NEO FS container for song storage
- */
-export async function prepareNeoContainer(metadata: SongMetadata): Promise<string> {
-  try {
-    const containerId = ''; // Would be returned from NEO FS
-    return containerId;
-  } catch (error) {
-    console.error('Error preparing NEO container:', error);
-    throw new Error('Failed to prepare NEO container');
-  }
+export async function prepareNeoContainer(metadata: any): Promise<string> {
+  console.warn('NEOFS functionality has been disabled');
+  throw new Error('NEOFS functionality has been disabled');
 }
 
-/**
- * Stores a file in NEO FS
- */
 export async function storeInNeoFS(
   fileData: Buffer,
-  metadata: SongMetadata
+  metadata: any
 ): Promise<{ containerId: string; objectId: string }> {
-  try {
-    const gas = calculateRequiredGas(fileData.length, 24); // 24 hours storage
-    console.log('Calculated gas cost:', gas);
-
-    const containerId = await prepareNeoContainer(metadata);
-    const objectId = ''; // Would be returned from NEO FS
-
-    return { containerId, objectId };
-  } catch (error) {
-    console.error('Error storing in NEO FS:', error);
-    throw new Error('Failed to store in NEO FS');
-  }
+  console.warn('NEOFS functionality has been disabled');
+  throw new Error('NEOFS functionality has been disabled');
 }
 
-/**
- * Broadcasts storage status updates to connected clients
- */
 export function broadcastStorageStatus(message: Record<string, unknown>): void {
-  try {
-    const clients = getClients();
-    const broadcastMessage = JSON.stringify({
-      type: 'storage_status',
-      data: message
-    });
-
-    Array.from(clients.entries()).forEach(([client]) => {
-      if (client.readyState === WebSocket.OPEN) {
-        try {
-          client.send(broadcastMessage);
-        } catch (error) {
-          console.error('Error broadcasting to client:', error);
-        }
-      }
-    });
-  } catch (error) {
-    console.error('Error in broadcast:', error);
-  }
+  console.warn('NEOFS functionality has been disabled');
+  // No-op
 }
 
-/**
- * Updates song metadata
- */
 export async function updateSongMetadata(
   songId: number,
-  metadata: Partial<SongMetadata>
+  metadata: any
 ): Promise<void> {
-  try {
-    broadcastStorageStatus({
-      type: 'metadata_updated',
-      songId,
-      metadata
-    });
-  } catch (error) {
-    console.error('Error updating song metadata:', error);
-    throw new Error('Failed to update song metadata');
-  }
+  console.warn('NEOFS functionality has been disabled');
+  throw new Error('NEOFS functionality has been disabled');
+}
+
+// Define the minimum type needed to maintain compatibility
+export interface SongMetadata {
+  title: string;
+  artist: string;
+  uploadedBy: string;
+  ipfsHash: string;
+  createdAt: Date;
 }

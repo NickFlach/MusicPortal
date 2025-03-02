@@ -34,6 +34,7 @@ export const songs = pgTable("songs", {
   uploadedBy: text("uploaded_by").references(() => users.address),
   createdAt: timestamp("created_at").defaultNow(),
   votes: integer("votes").default(0),
+  // Leave any NEOFS fields in the database but we won't use them
 });
 
 export const recentlyPlayed = pgTable("recently_played", {

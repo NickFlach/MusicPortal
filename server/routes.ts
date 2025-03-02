@@ -5,7 +5,7 @@ import musicRouter from './routes/music';
 import playlistRouter from './routes/playlists';
 import userRouter from './routes/users';
 import adminRouter from './routes/admin';
-import neoStorageRouter from './routes/neo-storage';
+// Remove NEOFS router import
 import translationRouter from './routes/translation';
 import lumiraRouter from './routes/lumira';
 import radioRouter from './routes/radio';
@@ -38,7 +38,7 @@ export function registerRoutes(app: Express) {
   app.use('/api/admin', adminRouter);
   app.use('/api/translate', translationRouter);
   app.use('/api/lumira', lumiraRouter);
-  app.use('/api/neo-storage', neoStorageRouter);
+  // Remove NEOFS router registration
   app.use('/api/radio', radioRouter);
   app.use('/api/v1', apiRouter); // Register new API router
 

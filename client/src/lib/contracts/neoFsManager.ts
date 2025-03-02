@@ -1,3 +1,8 @@
+// This file has been disabled as part of removing NEOFS functionality
+// and simplifying our system to use IPFS direct pinning only.
+// If you need to restore NEOFS functionality, uncomment the code below.
+
+/*
 import { ethers } from 'ethers';
 import { Address } from 'viem';
 
@@ -66,4 +71,41 @@ export const convertToGasWei = (amount: number | string): bigint => {
 
 export const convertFromGasWei = (amount: bigint): number => {
   return Number(ethers.formatUnits(amount, GAS_DECIMALS));
+};
+*/
+
+// Placeholder exports to maintain compatibility with any code that imports this file
+import { Address } from 'viem';
+
+export interface FileData {
+  owner: Address;
+  size: bigint;
+  storagePaid: bigint;
+  storageProof: string;
+}
+
+export interface NeoFsManagerContract {}
+export interface NeoFsOracleContract {}
+
+export const NEO_FS_MANAGER_ADDRESS = '0x0000000000000000000000000000000000000000' as Address;
+export const NEO_FS_ORACLE_ADDRESS = '0x0000000000000000000000000000000000000000' as Address;
+export const OVERHEAD_FEE = BigInt(0);
+export const GAS_DECIMALS = 18;
+
+export const calculateRequiredStorage = async (
+  _contract: any,
+  _sizeInBytes: number
+): Promise<bigint> => {
+  console.warn('NEOFS functionality has been disabled');
+  return BigInt(0);
+};
+
+export const convertToGasWei = (_amount: number | string): bigint => {
+  console.warn('NEOFS functionality has been disabled');
+  return BigInt(0);
+};
+
+export const convertFromGasWei = (_amount: bigint): number => {
+  console.warn('NEOFS functionality has been disabled');
+  return 0;
 };

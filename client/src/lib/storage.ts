@@ -29,15 +29,31 @@ export async function uploadFile(file: File, metadata: StorageMetadata) {
     formData.append('file', file);
     formData.append('metadata', JSON.stringify(metadata));
 
-    const response = await apiRequest('POST', '/api/ipfs/upload', {
-      body: formData,
+    // Use fetch directly for FormData instead of apiRequest
+    const walletAddress = window.ethereum?.selectedAddress;
+    const response = await fetch('/api/ipfs/upload', {
+      method: 'POST',
       headers: {
-        'Content-Type': 'multipart/form-data',
+        'x-wallet-address': walletAddress || "",
       },
+      body: formData
     });
 
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(errorText || `Upload failed with status: ${response.status}`);
+    }
+
+    const responseData = await response.json();
+
+    if (!responseData || !responseData.Hash) {
+      throw new Error('Invalid response from IPFS upload');
+    }
+
+    console.log('IPFS upload successful:', responseData);
+
     return {
-      hash: response.Hash,
+      hash: responseData.Hash,
       metadata
     };
   } catch (error) {
@@ -46,14 +62,14 @@ export async function uploadFile(file: File, metadata: StorageMetadata) {
   }
 }
 
-export async function getFileBuffer(source: { type: 'ipfs', hash: string }): Promise<ArrayBuffer> {
+export async function getFileBuffer(hash: string): Promise<ArrayBuffer> {
   try {
-    if (!source.hash) {
+    if (!hash) {
       throw new Error('Missing IPFS hash');
     }
 
     // Use fetch directly for binary data
-    const response = await fetch(`/api/ipfs/fetch/${source.hash}`, {
+    const response = await fetch(`/api/ipfs/fetch/${hash}`, {
       method: 'GET',
       headers: {
         'Accept': 'application/octet-stream',
@@ -72,13 +88,13 @@ export async function getFileBuffer(source: { type: 'ipfs', hash: string }): Pro
 }
 
 // Helper to check file availability
-export async function checkFileAvailability(source: { type: 'ipfs', hash: string }): Promise<boolean> {
+export async function checkFileAvailability(hash: string): Promise<boolean> {
   try {
-    if (!source.hash) {
+    if (!hash) {
       return false;
     }
 
-    const response = await fetch(`/api/ipfs/fetch/${source.hash}`, {
+    const response = await fetch(`/api/ipfs/fetch/${hash}`, {
       method: 'HEAD',
     });
     return response.ok;
