@@ -7,10 +7,8 @@ import { getFileBuffer } from '@/lib/storage';
 interface Track {
   id: number;
   ipfsHash: string;
-  neofsObjectId?: string | null;
   title: string;
   artist: string;
-  storageType?: 'ipfs' | 'neofs';
 }
 
 interface MusicPlayerContextType {
@@ -126,11 +124,10 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
         await audioContextRef.current.resume();
       }
 
-      // Get audio data
+      // Get audio data using IPFS
       const audioData = await getFileBuffer({
-        type: track.storageType || 'ipfs',
-        hash: track.ipfsHash,
-        objectId: track.neofsObjectId
+        type: 'ipfs',
+        hash: track.ipfsHash
       });
 
       // Create blob and URL

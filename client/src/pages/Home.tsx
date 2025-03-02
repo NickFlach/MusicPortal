@@ -14,18 +14,15 @@ import { Upload, Library, Loader2 } from "lucide-react";
 import { createIPFSManager } from "@/lib/ipfs";
 import { EditSongDialog } from "@/components/EditSongDialog";
 import { useDimensionalTranslation } from '@/contexts/LocaleContext';
-import { NeoStorage } from "@/components/NeoStorage";
 
 interface Song {
   id: number;
   title: string;
   artist: string;
-  ipfsHash?: string | null;
-  neofsObjectId?: string | null;
+  ipfsHash: string | null;
   uploadedBy: string | null;
   createdAt: string | null;
   votes: number | null;
-  storageType: 'ipfs' | 'neofs';
 }
 
 export default function Home() {
@@ -63,12 +60,7 @@ export default function Home() {
 
       const data = await response.json();
       console.log('Library songs loaded:', data.length, 'songs');
-
-      // Ensure all songs have the storageType field
-      return data.map(song => ({
-        ...song,
-        storageType: song.storageType || (song.ipfsHash ? 'ipfs' : 'neofs')
-      }));
+      return data;
     },
     enabled: !!address,
     retry: 3,
@@ -129,9 +121,7 @@ export default function Home() {
         id: song.id,
         title: song.title,
         artist: song.artist,
-        ipfsHash: song.ipfsHash || "",
-        neofsObjectId: song.neofsObjectId || null,
-        storageType: song.storageType || (song.ipfsHash ? 'ipfs' : 'neofs')
+        ipfsHash: song.ipfsHash || ""
       };
 
       await playTrack(track);
@@ -269,9 +259,6 @@ export default function Home() {
         <div className="flex-1 grid grid-cols-1 gap-6 mb-24 relative z-10">
           {address ? (
             <>
-              <section className="px-4 mb-6">
-                <NeoStorage />
-              </section>
               <section className="px-4">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-2xl font-semibold">
@@ -361,11 +348,9 @@ export default function Home() {
                     title: track.title,
                     artist: track.artist,
                     ipfsHash: track.ipfsHash || null,
-                    neofsObjectId: track.neofsObjectId || null,
                     uploadedBy: null, // Not needed for display
                     createdAt: null, // Not needed for display
                     votes: 0, // Not needed for display
-                    storageType: track.storageType || 'ipfs'
                   };
 
                   return (

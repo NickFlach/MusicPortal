@@ -22,8 +22,6 @@ interface Song {
   title: string;
   artist: string;
   ipfsHash?: string;
-  neofsObjectId?: string;
-  storageType: 'ipfs' | 'neofs';
   uploadedBy: string | null;
   createdAt: string | null;
   votes: number | null;
@@ -69,12 +67,12 @@ export function SongCard({ song, onClick, variant = "ghost", showDelete = false,
     },
   });
 
-  const { data: playlists } = useQuery<Playlist[]>({
+  const { data: playlists } = useQuery<{id: number, name: string}[]>({
     queryKey: ["/api/playlists"],
   });
 
   // Contract write for minting NFT
-  const { writeAsync: mintSongNFT } = useContractWrite({
+  const { write: mintSongNFT } = useContractWrite({
     address: PLAYLIST_NFT_ADDRESS,
     abi: PLAYLIST_NFT_ABI,
     functionName: 'mintSong',
@@ -108,7 +106,7 @@ export function SongCard({ song, onClick, variant = "ghost", showDelete = false,
       const metadataUri = `ipfs://${song.ipfsHash}`;
 
       try {
-        const tx = await mintSongNFT({
+        mintSongNFT({
           args: [
             address,
             song.title,
@@ -118,8 +116,6 @@ export function SongCard({ song, onClick, variant = "ghost", showDelete = false,
           ],
           value: parseEther("1"), // 1 GAS
         });
-
-        await tx.wait();
       } catch (error: any) {
         throw new Error(error.message || t('nft.mint.error.generic'));
       }
@@ -169,9 +165,6 @@ export function SongCard({ song, onClick, variant = "ghost", showDelete = false,
         >
           <span className="truncate">{song.title}</span>
           <span className="ml-2 text-muted-foreground">- {song.artist}</span>
-          {song.storageType === 'neofs' && (
-            <span className="ml-2 text-xs text-muted-foreground">(NeoFS)</span>
-          )}
         </Button>
 
         <div className="flex items-center">

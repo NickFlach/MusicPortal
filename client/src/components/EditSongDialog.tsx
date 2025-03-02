@@ -12,7 +12,6 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { calculateNeoGas } from "@/lib/neoStorage";
 
 interface Song {
   id: number;
@@ -28,7 +27,6 @@ interface EditSongDialogProps {
   mode: 'edit' | 'create';
   onSubmit?: (data: { title: string; artist: string }) => void;
   fileSize?: number;
-  onGasConfirm?: () => void;
 }
 
 export function EditSongDialog({
@@ -37,13 +35,10 @@ export function EditSongDialog({
   onOpenChange,
   mode,
   onSubmit,
-  fileSize,
-  onGasConfirm
+  fileSize
 }: EditSongDialogProps) {
   const [title, setTitle] = React.useState(song?.title || '');
   const [artist, setArtist] = React.useState(song?.artist || '');
-  const [gasAmount, setGasAmount] = React.useState<string>('0');
-  const [gasLoading, setGasLoading] = React.useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -52,27 +47,7 @@ export function EditSongDialog({
       setTitle(song.title);
       setArtist(song.artist);
     }
-
-    // Calculate required GAS if file size is provided
-    if (fileSize && mode === 'create') {
-      setGasLoading(true);
-      calculateNeoGas(fileSize)
-        .then(({ requiredGas }) => {
-          setGasAmount(requiredGas);
-        })
-        .catch(error => {
-          console.error('Error calculating GAS:', error);
-          toast({
-            title: "Error",
-            description: "Failed to calculate required GAS. Please try again.",
-            variant: "destructive",
-          });
-        })
-        .finally(() => {
-          setGasLoading(false);
-        });
-    }
-  }, [song, fileSize, mode]);
+  }, [song]);
 
   const editSongMutation = useMutation({
     mutationFn: async (data: { title: string; artist: string }) => {
@@ -112,20 +87,6 @@ export function EditSongDialog({
       return;
     }
 
-    if (mode === 'create' && fileSize) {
-      // Confirm GAS payment before proceeding
-      const confirmed = window.confirm(
-        `This upload requires ${gasAmount} GAS. Do you want to proceed with the payment?`
-      );
-
-      if (!confirmed) {
-        return;
-      }
-
-      // Notify parent about GAS confirmation
-      onGasConfirm?.();
-    }
-
     if (mode === 'edit') {
       editSongMutation.mutate({ title, artist });
     } else if (onSubmit) {
@@ -145,13 +106,7 @@ export function EditSongDialog({
             <DialogDescription>
               {mode === 'edit'
                 ? 'Update the title and artist for this song.'
-                : `Enter the title and artist for your new song.${
-                    fileSize
-                      ? gasLoading
-                        ? ' Calculating GAS...'
-                        : ` Required GAS: ${gasAmount}`
-                      : ''
-                  }`}
+                : 'Enter the title and artist for your new song.'}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -181,9 +136,9 @@ export function EditSongDialog({
           <DialogFooter>
             <Button
               type="submit"
-              disabled={!title || !artist || editSongMutation.isPending || gasLoading}
+              disabled={!title || !artist || editSongMutation.isPending}
             >
-              {mode === 'edit' ? 'Save Changes' : fileSize ? 'Proceed to Payment' : 'Create Song'}
+              {mode === 'edit' ? 'Save Changes' : 'Create Song'}
             </Button>
           </DialogFooter>
         </form>

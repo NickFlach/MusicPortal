@@ -4,7 +4,6 @@ import { songs, recentlyPlayed, playlistSongs, loves, users } from '@db/schema';
 import { eq, desc, and, count } from 'drizzle-orm';
 import { incrementListenCount } from '../services/music';
 import { lumiraService } from './lumira';
-import { storeInNeoFS } from '../services/neo-storage';
 import { encryptLoveCount } from '../services/encryption';
 
 // Define NULL_ISLAND coordinates constant
@@ -30,8 +29,7 @@ router.get("/recent", async (req, res) => {
         ipfsHash: null,
         uploadedBy: "system",
         createdAt: new Date().toISOString(),
-        votes: 0,
-        storageType: "neofs" as const // Type assertion to avoid TS error
+        votes: 0
       }
     ];
 
@@ -52,11 +50,10 @@ router.get("/recent", async (req, res) => {
           title: item.song!.title,
           artist: item.song!.artist,
           ipfsHash: item.song!.ipfsHash || null, // Ensure we don't send undefined
-          neofsObjectId: item.song!.neofsObjectId || null, // Ensure we don't send undefined
           uploadedBy: item.song!.uploadedBy,
           createdAt: item.song!.createdAt?.toISOString() ?? null,
           votes: item.song!.votes || 0, // Ensure we don't send undefined or null
-          storageType: item.song!.ipfsHash ? 'ipfs' : 'neofs' // Derive storage type
+          storageType: item.song!.ipfsHash ? 'ipfs' : 'ipfs' // Derive storage type - defaulting to ipfs if no hash
         }])).values()
     );
 
@@ -76,8 +73,7 @@ router.get("/recent", async (req, res) => {
         ipfsHash: null,
         uploadedBy: "system",
         createdAt: new Date().toISOString(),
-        votes: 0,
-        storageType: "neofs" as const
+        votes: 0
       }
     ];
     res.json(fallbackSongs);
@@ -228,15 +224,6 @@ router.post("/", async (req, res) => {
           source: 'song-upload',
           processed: true
         }
-      });
-
-      // Store in NEO FS
-      await storeInNeoFS(Buffer.from(ipfsHash), {
-        title,
-        artist,
-        uploadedBy: uploadedBy.toLowerCase(),
-        ipfsHash,
-        createdAt: new Date()
       });
     } catch (processingError) {
       console.warn('Non-critical processing error:', processingError);

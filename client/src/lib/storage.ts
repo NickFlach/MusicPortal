@@ -37,7 +37,6 @@ export async function uploadFile(file: File, metadata: StorageMetadata) {
     });
 
     return {
-      type: 'ipfs' as const,
       hash: response.Hash,
       metadata
     };

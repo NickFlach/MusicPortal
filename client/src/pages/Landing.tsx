@@ -12,11 +12,9 @@ interface Song {
   title: string;
   artist: string;
   ipfsHash: string | null;
-  neofsObjectId?: string | null;
   uploadedBy: string | null;
   createdAt: string | null;
   votes: number | null;
-  storageType: 'ipfs' | 'neofs';
 }
 
 export default function Landing() {
@@ -58,8 +56,7 @@ export default function Landing() {
           ipfsHash: null,
           uploadedBy: "system",
           createdAt: new Date().toISOString(),
-          votes: 0,
-          storageType: "neofs"
+          votes: 0
         }];
       }
     },
@@ -85,9 +82,7 @@ export default function Landing() {
           id: recentSongs[0].id,
           title: recentSongs[0].title || "Unknown Title",
           artist: recentSongs[0].artist || "Unknown Artist",
-          ipfsHash: recentSongs[0].ipfsHash || "",
-          neofsObjectId: recentSongs[0].neofsObjectId || null,
-          storageType: recentSongs[0].storageType || "ipfs"
+          ipfsHash: recentSongs[0].ipfsHash || ""
         };
         await playTrack(track);
       } catch (error) {
