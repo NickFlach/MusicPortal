@@ -20,6 +20,7 @@ import { DimensionalProvider } from "./contexts/LocaleContext";
 import { DimensionalMusicProvider } from "./contexts/DimensionalMusicContext";
 import Whitepaper from "./pages/Whitepaper";
 import LumiraData from "@/pages/LumiraData";
+import IPFSTest from "@/pages/IPFSTest";
 
 // Error Boundary Component
 class ErrorBoundary extends React.Component<
@@ -116,6 +117,9 @@ function Router() {
       </Route>
       <Route path="/whitepaper">
         <ProtectedRoute component={Whitepaper} />
+      </Route>
+      <Route path="/ipfs-test">
+        <ProtectedRoute component={IPFSTest} />
       </Route>
       <Route>
         <NotFound />
