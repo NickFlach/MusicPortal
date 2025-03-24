@@ -113,12 +113,57 @@ router.post('/upload', upload.single('file'), async (req, res) => {
           }
           // If metadata is a string, try to parse it
           else if (typeof req.body.metadata === 'string') {
-            const parsedMetadata = JSON.parse(req.body.metadata);
-            metadata = {...metadata, ...parsedMetadata};
-            console.log('Metadata parsed from string:', parsedMetadata);
+            try {
+              const parsedMetadata = JSON.parse(req.body.metadata);
+              metadata = {...metadata, ...parsedMetadata};
+              console.log('Metadata parsed from string:', parsedMetadata);
+            } catch (parseError) {
+              console.warn('Failed to parse metadata JSON string:', parseError);
+              // Still add the string as title if nothing else is available
+              if (!metadata.title) {
+                metadata.title = req.body.metadata;
+              }
+            }
           }
         } catch (e) {
-          console.warn('Failed to parse metadata JSON:', e);
+          console.warn('Failed to process metadata:', e);
+        }
+      }
+      
+      // Check for docMetadata field (added in newer client versions)
+      if (req.body.docMetadata) {
+        try {
+          console.log('Found docMetadata field');
+          
+          if (typeof req.body.docMetadata === 'object' && req.body.docMetadata !== null) {
+            // Extract from blob or direct object
+            if (req.body.docMetadata.type === 'application/json') {
+              // It's a blob, we need to read it
+              console.log('docMetadata appears to be a Blob');
+              const text = req.body.docMetadata.toString();
+              try {
+                const docData = JSON.parse(text);
+                metadata = {...metadata, ...docData};
+                console.log('Parsed docMetadata from Blob:', docData);
+              } catch (blobError) {
+                console.warn('Failed to parse docMetadata Blob:', blobError);
+              }
+            } else {
+              // It's a direct object
+              metadata = {...metadata, ...req.body.docMetadata};
+              console.log('Used docMetadata as object');
+            }
+          } else if (typeof req.body.docMetadata === 'string') {
+            try {
+              const docData = JSON.parse(req.body.docMetadata);
+              metadata = {...metadata, ...docData};
+              console.log('Parsed docMetadata from string:', docData);
+            } catch (stringError) {
+              console.warn('Failed to parse docMetadata string:', stringError);
+            }
+          }
+        } catch (docError) {
+          console.warn('Error processing docMetadata:', docError);
         }
       }
     }

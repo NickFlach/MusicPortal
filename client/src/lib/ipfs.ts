@@ -127,7 +127,7 @@ export class IPFSManager {
       const response = await this.retry(async () => {
         try {
           // Safe way to iterate over FormData entries
-          const formDataKeys = [];
+          const formDataKeys: string[] = [];
           formData.forEach((value, key) => {
             formDataKeys.push(`${key}: ${typeof value === 'string' ? value : '[File/Blob]'}`);
           });
