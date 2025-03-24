@@ -17,6 +17,8 @@ class WebSocketHealthService extends EventEmitter {
 
   constructor() {
     super();
+    // Increase max listeners to avoid memory leak warning
+    this.setMaxListeners(100);
     this.connections = new Map();
     this.heartbeatInterval = null;
     this.startHeartbeatMonitoring();

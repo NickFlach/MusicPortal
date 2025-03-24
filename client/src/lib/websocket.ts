@@ -11,8 +11,12 @@ class SecureWebSocket {
   private messageHandlers: ((data: any) => void)[] = [];
   private closeHandlers: (() => void)[] = [];
   private reconnectTimeout?: NodeJS.Timeout;
+  private pingInterval?: NodeJS.Timeout;
+  private lastPongTime: number = 0;
   public reconnectAttempts = 0;
   private readonly MAX_RECONNECT_ATTEMPTS = 5;
+  private readonly PING_INTERVAL = 15000; // 15 seconds
+  private readonly PONG_TIMEOUT = 10000; // 10 seconds
 
   constructor(url: string) {
     console.log('Initializing SecureWebSocket with URL:', url);
@@ -26,10 +30,39 @@ class SecureWebSocket {
     this.ws.addEventListener('open', () => {
       console.log('WebSocket connection established');
       this.reconnectAttempts = 0;
+      this.lastPongTime = Date.now();
+      this.startPingInterval();
     });
     this.ws.addEventListener('error', (error) => {
       console.error('WebSocket error:', error);
     });
+  }
+
+  private startPingInterval() {
+    // Clear any existing interval
+    if (this.pingInterval) {
+      clearInterval(this.pingInterval);
+    }
+    
+    // Start periodic ping to keep connection alive
+    this.pingInterval = setInterval(() => {
+      if (this.ws.readyState === WebSocket.OPEN) {
+        // Check if we've received a pong recently
+        const now = Date.now();
+        if (now - this.lastPongTime > this.PONG_TIMEOUT) {
+          console.warn('No pong received recently, reconnecting...');
+          this.ws.close();
+          return;
+        }
+        
+        // Send ping with timestamp
+        try {
+          this.send({ type: 'ping', timestamp: now });
+        } catch (error) {
+          console.error('Error sending ping:', error);
+        }
+      }
+    }, this.PING_INTERVAL);
   }
 
   private handleMessage = (event: MessageEvent) => {
@@ -40,6 +73,12 @@ class SecureWebSocket {
         data = JSON.parse(event.data);
       } catch (error) {
         console.error('Error parsing WebSocket message:', error);
+        return;
+      }
+
+      // Handle pong message - update last pong time
+      if (data.type === 'pong') {
+        this.lastPongTime = Date.now();
         return;
       }
 
@@ -74,6 +113,13 @@ class SecureWebSocket {
 
   private handleClose = () => {
     console.log('WebSocket connection closed');
+    
+    // Clean up intervals
+    if (this.pingInterval) {
+      clearInterval(this.pingInterval);
+    }
+    
+    // Notify handlers
     this.closeHandlers.forEach(handler => handler());
 
     // Attempt reconnection if not at max attempts
@@ -135,7 +181,19 @@ class SecureWebSocket {
     if (this.reconnectTimeout) {
       clearTimeout(this.reconnectTimeout);
     }
-    this.ws.close();
+    
+    if (this.pingInterval) {
+      clearInterval(this.pingInterval);
+      this.pingInterval = undefined;
+    }
+    
+    try {
+      if (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING) {
+        this.ws.close();
+      }
+    } catch (error) {
+      console.error('Error closing WebSocket:', error);
+    }
   }
 
   public get readyState() {
