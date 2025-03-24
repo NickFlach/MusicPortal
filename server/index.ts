@@ -15,6 +15,7 @@ import translationRouter from './routes/translation';
 import lumiraRouter from './routes/lumira';
 import ipfsRouter from './routes/ipfs';
 import apiRouter from './routes/api';
+import { setupWebSocket } from './routes/websocket';
 
 // ES Module equivalent of __dirname
 const __filename = fileURLToPath(import.meta.url);
@@ -106,6 +107,9 @@ const startServer = async (retryCount = 0) => {
         threshold: 1024
       }
     });
+    
+    // Initialize WebSocket handlers
+    setupWebSocket(wss);
 
     // Keep track of handled sockets to prevent duplicate upgrades
     const handledSockets = new WeakSet();
