@@ -27,28 +27,47 @@ export class IPFSManager {
   }
 
   async getFile(cid: string): Promise<ArrayBuffer> {
+    // Skip empty CIDs
+    if (!cid || cid.trim() === '') {
+      console.warn('Empty CID provided, cannot fetch file');
+      throw new Error('Invalid CID: empty or undefined');
+    }
+    
     try {
-      console.log('Fetching from IPFS:', { cid });
+      console.log('Fetching audio data for track:', cid);
 
       // Use the server-side proxy instead of direct Pinata access
       const response = await this.retry(async () => {
-        const fetchResponse = await axios.get(`/api/ipfs/fetch/${cid}`, {
-          headers: {
-            'X-Wallet-Address': this.walletAddress,
-          },
-          responseType: 'arraybuffer'
-        });
+        try {
+          const fetchResponse = await axios.get(`/api/ipfs/fetch/${cid}`, {
+            headers: {
+              'X-Wallet-Address': this.walletAddress,
+            },
+            responseType: 'arraybuffer'
+          });
 
-        if (!fetchResponse.data) {
-          throw new Error('No data received from IPFS');
+          if (!fetchResponse.data) {
+            throw new Error('No data received from IPFS');
+          }
+
+          return fetchResponse.data;
+        } catch (error: any) {
+          // Enhanced error reporting
+          if (error.response) {
+            console.error('IPFS server error:', {
+              status: error.response.status,
+              statusText: error.response.statusText,
+              data: error.response.data
+            });
+            throw new Error(`IPFS server error: ${error.response.status} ${error.response.statusText}`);
+          }
+          throw error;
         }
-
-        return fetchResponse.data;
       });
 
       return response;
     } catch (error) {
-      console.error('IPFS fetch error:', error);
+      console.error('File retrieval error:', error);
       throw error instanceof Error ? error : new Error('Unknown fetch error');
     }
   }

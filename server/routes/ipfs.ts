@@ -136,10 +136,23 @@ router.get('/fetch/:cid', async (req, res) => {
 
     console.log('Fetching from IPFS gateway:', { cid });
 
-    // Use Pinata IPFS gateway or public IPFS gateway
-    const response = await axios.get(`https://gateway.pinata.cloud/ipfs/${cid}`, {
-      responseType: 'arraybuffer'
-    });
+    // Try authenticated Pinata gateway first
+    let response;
+    if (PINATA_API_KEY && PINATA_API_SECRET) {
+      console.log('Using authenticated Pinata gateway');
+      response = await axios.get(`https://gateway.pinata.cloud/ipfs/${cid}`, {
+        responseType: 'arraybuffer',
+        headers: {
+          'pinata_api_key': PINATA_API_KEY,
+          'pinata_secret_api_key': PINATA_API_SECRET
+        }
+      });
+    } else {
+      console.log('No Pinata credentials, using public gateway');
+      response = await axios.get(`https://ipfs.io/ipfs/${cid}`, {
+        responseType: 'arraybuffer'
+      });
+    }
 
     res.set('Content-Type', 'application/octet-stream');
     res.send(response.data);
