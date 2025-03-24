@@ -7,7 +7,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { MoreVertical, Plus, Trash2, ListMusic, Coins, Edit, Heart } from "lucide-react";
+import { MoreVertical, Plus, Trash2, ListMusic, Coins, Edit, Heart, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useContractWrite, useAccount } from 'wagmi';
@@ -16,6 +16,7 @@ import { EditSongDialog } from "./EditSongDialog";
 import { useState } from "react";
 import { parseEther } from "viem";
 import { useDimensionalTranslation } from "@/contexts/LocaleContext";
+import { useMusicPlayer } from "@/contexts/MusicPlayerContext";
 
 interface Song {
   id: number;
@@ -43,6 +44,7 @@ export function SongCard({ song, onClick, variant = "ghost", showDelete = false,
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const { address } = useAccount();
   const { t } = useDimensionalTranslation();
+  const { currentlyLoadingId, isLoading } = useMusicPlayer();
 
   // Love mutation
   const loveMutation = useMutation({
@@ -162,7 +164,11 @@ export function SongCard({ song, onClick, variant = "ghost", showDelete = false,
           variant={variant}
           className={`flex-1 justify-start ${isPlaying ? 'bg-accent' : ''}`}
           onClick={onClick}
+          disabled={currentlyLoadingId === song.id || isLoading}
         >
+          {currentlyLoadingId === song.id ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : null}
           <span className="truncate">{song.title}</span>
           <span className="ml-2 text-muted-foreground">- {song.artist}</span>
         </Button>

@@ -87,24 +87,53 @@ router.post('/upload', upload.single('file'), async (req, res) => {
       return res.status(500).json({ error: 'Server configuration error: Missing Pinata credentials' });
     }
 
-    // Parse metadata if included
+    // Parse metadata from multiple possible sources
     let metadata: Record<string, string> = {};
     
-    if (req.body && req.body.metadata) {
-      try {
-        // If metadata is already an object (from JSON parsing middleware)
-        if (typeof req.body.metadata === 'object' && req.body.metadata !== null) {
-          metadata = req.body.metadata;
-          console.log('Metadata already parsed:', metadata);
-        }
-        // If metadata is a string, try to parse it
-        else if (typeof req.body.metadata === 'string') {
-          metadata = JSON.parse(req.body.metadata);
-          console.log('Parsed metadata from string:', metadata);
-        }
-      } catch (e) {
-        console.warn('Failed to parse metadata:', e);
+    console.log('Available request body fields:', req.body ? Object.keys(req.body) : 'no body');
+    
+    // Extract individual fields first (direct form fields)
+    if (req.body) {
+      if (req.body.title) {
+        metadata.title = req.body.title;
+        console.log('Found title in form data:', req.body.title);
       }
+      if (req.body.artist) {
+        metadata.artist = req.body.artist;
+        console.log('Found artist in form data:', req.body.artist);
+      }
+      
+      // Try to get metadata from the metadata field
+      if (req.body.metadata) {
+        try {
+          // If metadata is already an object
+          if (typeof req.body.metadata === 'object' && req.body.metadata !== null) {
+            metadata = {...metadata, ...req.body.metadata};
+            console.log('Metadata parsed from object:', req.body.metadata);
+          }
+          // If metadata is a string, try to parse it
+          else if (typeof req.body.metadata === 'string') {
+            const parsedMetadata = JSON.parse(req.body.metadata);
+            metadata = {...metadata, ...parsedMetadata};
+            console.log('Metadata parsed from string:', parsedMetadata);
+          }
+        } catch (e) {
+          console.warn('Failed to parse metadata JSON:', e);
+        }
+      }
+    }
+    
+    // If we have a wallet address header, use it
+    if (req.headers['x-wallet-address']) {
+      metadata.uploadedBy = req.headers['x-wallet-address'] as string;
+    }
+    
+    // Default values for missing metadata
+    if (!metadata.title) {
+      metadata.title = req.file.originalname;
+    }
+    if (!metadata.artist) {
+      metadata.artist = 'Unknown Artist';
     }
     
     console.log('Final metadata for upload:', metadata);

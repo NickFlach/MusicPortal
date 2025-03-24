@@ -293,7 +293,8 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
       playTrack,
       playlist,
       hasInteracted,
-      recentTracks
+      recentTracks,
+      currentlyLoadingId
     }}>
       {children}
     </MusicPlayerContext.Provider>
