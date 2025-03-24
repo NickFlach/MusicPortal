@@ -172,7 +172,7 @@ router.post('/upload', upload.single('file'), async (req, res) => {
 
     console.log('Pinata upload response:', response.data);
     res.json({ Hash: response.data.IpfsHash });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Pinata upload error:', error);
 
     // Detailed error logging
@@ -182,11 +182,33 @@ router.post('/upload', upload.single('file'), async (req, res) => {
         statusText: error.response.statusText,
         data: error.response.data
       });
+      
+      // Check for specific pinata error codes
+      if (error.response.data?.error?.details) {
+        return res.status(400).json({
+          error: 'Invalid IPFS upload request',
+          code: 'PINATA_VALIDATION_ERROR',
+          details: error.response.data.error.details,
+          userMessage: 'The file could not be uploaded due to a validation error. Please check the file format and try again.'
+        });
+      }
+      
+      if (error.response.status === 401 || error.response.status === 403) {
+        return res.status(error.response.status).json({
+          error: 'Authentication failed with IPFS service',
+          code: 'PINATA_AUTH_ERROR',
+          details: error.response.data || error.message,
+          userMessage: 'Could not authenticate with IPFS storage. Please try again later.'
+        });
+      }
     }
 
+    // Network or other errors
     res.status(500).json({ 
       error: 'Failed to upload to IPFS via Pinata',
-      details: error instanceof Error ? error.message : 'Unknown error'
+      code: 'IPFS_UPLOAD_ERROR',
+      details: error instanceof Error ? error.message : 'Unknown error',
+      userMessage: 'The file upload failed. Please check your file and try again.'
     });
   }
 });
@@ -218,8 +240,20 @@ router.get('/fetch/:cid', async (req, res) => {
 
     res.set('Content-Type', 'application/octet-stream');
     res.send(response.data);
-  } catch (error) {
+  } catch (error: any) {
     console.error('IPFS fetch error:', error);
+    
+    // Enhanced error logging with request details
+    const errorContext = {
+      cid: req.params.cid,
+      requestHeaders: {
+        'user-agent': req.headers['user-agent'],
+        'x-wallet-address': req.headers['x-wallet-address'] || 'not provided'
+      },
+      timestamp: new Date().toISOString()
+    };
+    
+    console.error('IPFS fetch error context:', errorContext);
 
     // Try a fallback public gateway if Pinata fails
     try {
@@ -228,24 +262,45 @@ router.get('/fetch/:cid', async (req, res) => {
         responseType: 'arraybuffer'
       });
 
+      console.log('Fallback gateway successful, sending data');
       res.set('Content-Type', 'application/octet-stream');
       res.send(fallbackResponse.data);
       return;
-    } catch (fallbackError) {
-      console.error('Fallback gateway also failed:', fallbackError);
+    } catch (fallbackError: any) {
+      console.error('Fallback gateway also failed:', 
+        fallbackError.message || 'Unknown error with fallback gateway');
     }
 
     // Detailed error logging
     if (error.response) {
       console.error('Gateway error response:', {
         status: error.response.status,
-        statusText: error.response.statusText
+        statusText: error.response.statusText,
+        headers: error.response.headers
       });
+      
+      // Handle specific error types
+      if (error.response.status === 404) {
+        return res.status(404).json({
+          error: 'File not found on IPFS',
+          code: 'IPFS_FILE_NOT_FOUND',
+          cid: req.params.cid,
+          userMessage: 'The requested file could not be found on IPFS. It may have been removed or was never uploaded.'
+        });
+      } else if (error.response.status === 401 || error.response.status === 403) {
+        return res.status(error.response.status).json({
+          error: 'Authentication failed with IPFS gateway',
+          code: 'IPFS_AUTH_ERROR',
+          userMessage: 'Could not authenticate with IPFS storage. Please try again later.'
+        });
+      }
     }
 
     res.status(500).json({
       error: 'Failed to fetch from IPFS',
-      details: error instanceof Error ? error.message : 'Unknown error'
+      code: 'IPFS_FETCH_ERROR',
+      details: error instanceof Error ? error.message : 'Unknown error',
+      userMessage: 'There was a problem retrieving the file. Please try again later.'
     });
   }
 });
