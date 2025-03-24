@@ -15,6 +15,7 @@ interface MusicPlayerContextType {
   currentTrack: Track | null;
   isPlaying: boolean;
   isLoading: boolean;
+  error: string | null;
   togglePlay: () => Promise<void>;
   playTrack: (track: Track) => Promise<void>;
   playlist: Track[];
@@ -28,6 +29,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [hasInteracted, setHasInteracted] = useState(false);
   const [recentTracks, setRecentTracks] = useState<Track[]>([]);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -42,6 +44,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
         console.log('Audio context initialized');
       } catch (error) {
         console.error('Failed to initialize audio context:', error);
+        setError('Failed to initialize audio system');
       }
     }
   }, []);
@@ -55,10 +58,12 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
       const handleCanPlay = () => {
         console.log('Audio can play');
         setIsLoading(false);
+        setError(null);
         if (isPlaying) {
           audio.play().catch(error => {
             console.error('Error auto-playing after load:', error);
             setIsPlaying(false);
+            setError('Failed to start playback');
           });
         }
       };
@@ -67,6 +72,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
         console.error('Audio error:', error);
         setIsPlaying(false);
         setIsLoading(false);
+        setError('Error playing audio');
       };
 
       audio.addEventListener('canplay', handleCanPlay);
@@ -97,7 +103,8 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   }, [isPlaying]);
 
   const playTrack = async (track: Track) => {
-    console.log('Playing song:', track);
+    console.log('Playing track:', track);
+    setError(null);
 
     if (!hasInteracted) {
       await initializeAudio();
@@ -105,6 +112,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
 
     if (!audioRef.current) {
       console.error('Audio element not ready');
+      setError('Audio system not ready');
       return;
     }
 
@@ -124,15 +132,22 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
         await audioContextRef.current.resume();
       }
 
-      // Get audio data using IPFS
-      const audioData = await getFileBuffer({
-        type: 'ipfs',
-        hash: track.ipfsHash
-      });
+      console.log('Fetching audio data for track:', track.ipfsHash);
+
+      // Get audio data from IPFS
+      const audioData = await getFileBuffer(track.ipfsHash);
+
+      if (!audioData) {
+        throw new Error('Failed to fetch audio data');
+      }
+
+      console.log('Audio data received, creating blob...');
 
       // Create blob and URL
       const blob = new Blob([audioData], { type: 'audio/mpeg' });
       const url = URL.createObjectURL(blob);
+
+      console.log('Loading audio from URL:', url);
 
       // Load and play
       audioRef.current.src = url;
@@ -140,6 +155,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
       await audioRef.current.play();
 
       setIsPlaying(true);
+      setError(null);
 
       // Update recent tracks
       setRecentTracks(prev => {
@@ -151,6 +167,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
       console.error('Error playing track:', error);
       setIsPlaying(false);
       setIsLoading(false);
+      setError(error instanceof Error ? error.message : 'Failed to play track');
       throw error;
     }
   };
@@ -162,8 +179,10 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
           await audioContextRef.current.resume();
         }
         setHasInteracted(true);
+        setError(null);
       } catch (error) {
         console.error('Failed to initialize audio:', error);
+        setError('Failed to initialize audio system');
       }
     }
   };
@@ -175,6 +194,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
 
     if (!audioRef.current) {
       console.error('Audio element not ready');
+      setError('Audio system not ready');
       return;
     }
 
@@ -188,10 +208,12 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
         }
         await audioRef.current.play();
         setIsPlaying(true);
+        setError(null);
       }
     } catch (error) {
       console.error('Error toggling playback:', error);
       setIsPlaying(false);
+      setError('Failed to toggle playback');
     }
   };
 
@@ -203,6 +225,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
         return playlistData.tracks;
       } catch (error) {
         console.error('Error loading playlist:', error);
+        setError('Failed to load playlist');
         return [];
       }
     },
@@ -232,6 +255,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
       currentTrack,
       isPlaying,
       isLoading,
+      error,
       togglePlay,
       playTrack,
       playlist,
