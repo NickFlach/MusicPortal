@@ -21,6 +21,7 @@ interface MusicPlayerContextType {
   playlist: Track[];
   hasInteracted: boolean;
   recentTracks: Track[];
+  currentlyLoadingId: number | null;
 }
 
 const MusicPlayerContext = createContext<MusicPlayerContextType | undefined>(undefined);
@@ -32,6 +33,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   const [error, setError] = useState<string | null>(null);
   const [hasInteracted, setHasInteracted] = useState(false);
   const [recentTracks, setRecentTracks] = useState<Track[]>([]);
+  const [currentlyLoadingId, setCurrentlyLoadingId] = useState<number | null>(null); // Track currently loading ID
   const audioContextRef = useRef<AudioContext | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const { address } = useAccount();
@@ -109,14 +111,17 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
     console.log('Playing track:', track);
     setError(null);
 
-    // Prevent double-click race condition
-    if (loadingTrackRef.current === track.id) {
+    // Prevent double-click race condition - using both ref and state
+    // The ref is for internal function use, state is for UI feedback
+    if (loadingTrackRef.current === track.id || currentlyLoadingId === track.id) {
       console.log('Already loading this track, ignoring duplicate request');
       return;
     }
     
-    // Set loading state for this track
+    // Set loading state for this track (both ref and state)
     loadingTrackRef.current = track.id;
+    setCurrentlyLoadingId(track.id);
+    setIsLoading(true);
 
     if (!hasInteracted) {
       await initializeAudio();
@@ -126,6 +131,8 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
       console.error('Audio element not ready');
       setError('Audio system not ready');
       loadingTrackRef.current = null;
+      setCurrentlyLoadingId(null);
+      setIsLoading(false);
       return;
     }
 
@@ -178,6 +185,8 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
       
       // Clear loading state
       loadingTrackRef.current = null;
+      setCurrentlyLoadingId(null);
+      setIsLoading(false);
 
       // Update recent tracks
       setRecentTracks(prev => {
@@ -189,6 +198,8 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
       console.error('Error playing track:', error);
       setIsPlaying(false);
       setIsLoading(false);
+      setCurrentlyLoadingId(null); // Clear the loading ID state
+      loadingTrackRef.current = null; // Also clear the ref
       setError(error instanceof Error ? error.message : 'Failed to play track');
       throw error;
     }
