@@ -23,18 +23,39 @@ router.get('/health', async (req, res) => {
     }
 
     // Test connection to Pinata API
-    const response = await axios.get('https://api.pinata.cloud/data/testAuthentication', {
-      headers: {
-        'pinata_api_key': PINATA_API_KEY,
-        'pinata_secret_api_key': PINATA_API_SECRET
-      }
+    console.log('Testing Pinata authentication with:', {
+      hasApiKey: !!PINATA_API_KEY,
+      apiKeyLength: PINATA_API_KEY?.length,
+      hasApiSecret: !!PINATA_API_SECRET,
+      apiSecretLength: PINATA_API_SECRET?.length,
     });
-
-    return res.json({
-      status: 'ok',
-      message: 'Pinata connection successful',
-      authenticated: response.data?.authenticated || false
-    });
+    
+    try {
+      const response = await axios.get('https://api.pinata.cloud/data/testAuthentication', {
+        headers: {
+          'pinata_api_key': PINATA_API_KEY,
+          'pinata_secret_api_key': PINATA_API_SECRET
+        }
+      });
+      
+      console.log('Pinata authentication response:', response.data);
+      
+      return res.json({
+        status: 'ok',
+        message: 'Pinata connection successful',
+        authenticated: response.data?.authenticated || false,
+        responseData: response.data
+      });
+    } catch (authError) {
+      console.error('Pinata authentication specific error:', authError.response?.data || authError.message);
+      
+      return res.json({
+        status: 'partial',
+        message: 'Pinata connection successful but authentication failed',
+        error: authError.response?.data || authError.message,
+        authenticated: false
+      });
+    }
   } catch (error) {
     console.error('Pinata health check error:', error);
     return res.status(500).json({
