@@ -1,15 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MusicPlayer } from '@/components/MusicPlayer';
+import { MusicPlayerProvider } from '@/contexts/MusicPlayerContext';
+import { MusicSyncProvider } from '@/contexts/MusicSyncContext';
 import { IntlProvider } from 'react-intl';
 
-// Mock the MusicPlayerContext
-vi.mock('@/contexts/MusicPlayerContext', () => ({
-  useMusicPlayer: vi.fn(),
-  MusicPlayerProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-}));
-
-// Mock the audio element
+// Mock audio implementation
 const mockAudio = {
   play: vi.fn(),
   pause: vi.fn(),
@@ -19,7 +15,22 @@ const mockAudio = {
   duration: 180,
 };
 
-global.Audio = vi.fn().mockImplementation(() => mockAudio);
+// Mock the Audio constructor
+global.Audio = vi.fn(() => mockAudio);
+
+// Mock the context hooks
+const mockUseMusicPlayer = vi.fn();
+const mockUseMusicSync = vi.fn();
+
+vi.mock('@/contexts/MusicPlayerContext', () => ({
+  useMusicPlayer: () => mockUseMusicPlayer(),
+  MusicPlayerProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>
+}));
+
+vi.mock('@/contexts/MusicSyncContext', () => ({
+  useMusicSync: () => mockUseMusicSync(),
+  MusicSyncProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>
+}));
 
 describe('MusicPlayer', () => {
   const mockTrack = {
@@ -29,20 +40,30 @@ describe('MusicPlayer', () => {
     ipfsHash: 'QmTest...',
   };
 
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockAudio.currentTime = 0;
+
+    // Set up default mock implementations
+    mockUseMusicSync.mockReturnValue({
+      syncState: {},
+      setSyncState: vi.fn(),
+    });
+  });
+
   const renderWithProviders = (component: React.ReactNode) => {
     return render(
       <IntlProvider messages={{}} locale="en">
-        {component}
+        <MusicSyncProvider>
+          <MusicPlayerProvider>
+            {component}
+          </MusicPlayerProvider>
+        </MusicSyncProvider>
       </IntlProvider>
     );
   };
 
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   it('renders player when track is available', () => {
-    const mockUseMusicPlayer = vi.mocked(useMusicPlayer);
     mockUseMusicPlayer.mockReturnValue({
       currentTrack: mockTrack,
       isPlaying: false,
@@ -58,7 +79,6 @@ describe('MusicPlayer', () => {
   it('toggles play/pause when button is clicked', () => {
     const mockPlay = vi.fn();
     const mockPause = vi.fn();
-    const mockUseMusicPlayer = vi.mocked(useMusicPlayer);
 
     mockUseMusicPlayer.mockReturnValue({
       currentTrack: mockTrack,
@@ -68,13 +88,24 @@ describe('MusicPlayer', () => {
     });
 
     renderWithProviders(<MusicPlayer />);
-    const playButton = screen.getByRole('button', { name: /play/i });
+    const playButton = screen.getByRole('button', { name: 'Play' });
     fireEvent.click(playButton);
     expect(mockPlay).toHaveBeenCalled();
+
+    // Test pause functionality
+    mockUseMusicPlayer.mockReturnValue({
+      currentTrack: mockTrack,
+      isPlaying: true,
+      play: mockPlay,
+      pause: mockPause,
+    });
+
+    const pauseButton = screen.getByRole('button', { name: 'Pause' });
+    fireEvent.click(pauseButton);
+    expect(mockPause).toHaveBeenCalled();
   });
 
   it('displays current time and duration', () => {
-    const mockUseMusicPlayer = vi.mocked(useMusicPlayer);
     mockUseMusicPlayer.mockReturnValue({
       currentTrack: mockTrack,
       isPlaying: true,
@@ -85,7 +116,7 @@ describe('MusicPlayer', () => {
     });
 
     renderWithProviders(<MusicPlayer />);
-    expect(screen.getByText('1:00')).toBeInTheDocument(); // Current time
-    expect(screen.getByText('3:00')).toBeInTheDocument(); // Duration
+    expect(screen.getByText('1:00')).toBeInTheDocument();
+    expect(screen.getByText('3:00')).toBeInTheDocument();
   });
 });

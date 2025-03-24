@@ -40,6 +40,7 @@ export function MusicPlayer() {
                   size="icon" 
                   onClick={switchToRadio}
                   className={isRadioMode ? "text-primary" : "text-muted-foreground"}
+                  aria-label={isRadioMode ? "Currently in radio mode" : "Switch to radio"}
                 >
                   <Radio className="h-4 w-4" />
                 </Button>
@@ -59,6 +60,7 @@ export function MusicPlayer() {
                   size="icon" 
                   onClick={toggleSync}
                   className={syncEnabled ? "text-primary" : "text-muted-foreground"}
+                  aria-label={syncEnabled ? "Disable sync" : "Enable sync"}
                 >
                   {syncEnabled ? (
                     <Wifi className="h-4 w-4" />
@@ -87,6 +89,8 @@ export function MusicPlayer() {
                 size="icon" 
                 onClick={togglePlay}
                 className="relative"
+                aria-label={isPlaying ? "Pause" : "Play"}
+                role="button" // Added role for better accessibility
               >
                 {isPlaying ? (
                   <VolumeX className="h-4 w-4" />

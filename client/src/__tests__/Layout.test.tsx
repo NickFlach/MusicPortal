@@ -1,9 +1,10 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { Layout } from '@/components/Layout';
 import { IntlProvider } from 'react-intl';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useMusicPlayer } from '@/contexts/MusicPlayerContext';
+import { MusicPlayerProvider } from '@/contexts/MusicPlayerContext';
+import { MusicSyncProvider } from '@/contexts/MusicSyncContext';
 
 // Mock wagmi's useAccount hook
 vi.mock('wagmi', () => ({
@@ -14,10 +15,19 @@ vi.mock('wagmi', () => ({
   })
 }));
 
-// Mock the MusicPlayer context
+// Mock the context hooks
+const mockUseMusicPlayer = vi.fn();
+const mockUseMusicSync = vi.fn();
+
+// Mock the contexts
 vi.mock('@/contexts/MusicPlayerContext', () => ({
-  useMusicPlayer: vi.fn(),
+  useMusicPlayer: () => mockUseMusicPlayer(),
   MusicPlayerProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>
+}));
+
+vi.mock('@/contexts/MusicSyncContext', () => ({
+  useMusicSync: () => mockUseMusicSync(),
+  MusicSyncProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>
 }));
 
 describe('Layout Component', () => {
@@ -29,17 +39,35 @@ describe('Layout Component', () => {
     },
   });
 
+  beforeEach(() => {
+    mockUseMusicSync.mockReturnValue({
+      syncState: {},
+      setSyncState: vi.fn(),
+    });
+  });
+
   const renderWithProviders = (children: React.ReactNode) => {
     return render(
       <QueryClientProvider client={queryClient}>
         <IntlProvider messages={{}} locale="en">
-          {children}
+          <MusicSyncProvider>
+            <MusicPlayerProvider>
+              {children}
+            </MusicPlayerProvider>
+          </MusicSyncProvider>
         </IntlProvider>
       </QueryClientProvider>
     );
   };
 
   it('renders children content', () => {
+    mockUseMusicPlayer.mockReturnValue({
+      currentTrack: null,
+      isPlaying: false,
+      play: vi.fn(),
+      pause: vi.fn(),
+    });
+
     renderWithProviders(
       <Layout>
         <div data-testid="test-content">Test Content</div>
@@ -49,6 +77,13 @@ describe('Layout Component', () => {
   });
 
   it('renders navigation menu', () => {
+    mockUseMusicPlayer.mockReturnValue({
+      currentTrack: null,
+      isPlaying: false,
+      play: vi.fn(),
+      pause: vi.fn(),
+    });
+
     renderWithProviders(
       <Layout>
         <div>Content</div>
@@ -58,7 +93,6 @@ describe('Layout Component', () => {
   });
 
   it('shows music player when a track is available', () => {
-    const mockUseMusicPlayer = vi.mocked(useMusicPlayer);
     mockUseMusicPlayer.mockReturnValue({
       isPlaying: true,
       currentTrack: {
@@ -68,7 +102,7 @@ describe('Layout Component', () => {
       },
       play: vi.fn(),
       pause: vi.fn(),
-    } as any);
+    });
 
     renderWithProviders(
       <Layout>
