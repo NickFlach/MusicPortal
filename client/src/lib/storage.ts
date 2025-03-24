@@ -68,19 +68,33 @@ export async function getFileBuffer(hash: string): Promise<ArrayBuffer> {
       throw new Error('Missing IPFS hash');
     }
 
+    console.log('Fetching file from IPFS via proxy:', hash);
+    
+    // Include wallet address in the request headers
+    const walletAddress = window.ethereum?.selectedAddress;
+    
     // Use fetch directly for binary data
     const response = await fetch(`/api/ipfs/fetch/${hash}`, {
       method: 'GET',
       headers: {
         'Accept': 'application/octet-stream',
+        'X-Wallet-Address': walletAddress || '',
       },
     });
 
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      const errorText = await response.text();
+      console.error('IPFS fetch error response:', {
+        status: response.status,
+        statusText: response.statusText,
+        errorText
+      });
+      throw new Error(`HTTP error! status: ${response.status}, details: ${errorText}`);
     }
 
-    return await response.arrayBuffer();
+    const data = await response.arrayBuffer();
+    console.log('IPFS file retrieved successfully, size:', data.byteLength);
+    return data;
   } catch (error) {
     console.error('File retrieval error:', error);
     throw error;

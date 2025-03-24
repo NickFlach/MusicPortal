@@ -14,6 +14,24 @@ import apiRouter from './routes/api'; // Add new API router import
 export function registerRoutes(app: Express) {
   const httpServer = createServer(app);
 
+  // System status endpoint
+  app.get('/api/system/status', (req, res) => {
+    const hasPinataKey = !!process.env.VITE_PINATA_API_KEY;
+    const hasPinataSecret = !!process.env.VITE_PINATA_API_SECRET;
+    
+    res.json({
+      server: 'online',
+      version: '1.0.0',
+      uptime: process.uptime(),
+      timestamp: new Date().toISOString(),
+      ipfs: {
+        hasPinataKey,
+        hasPinataSecret,
+        isConfigured: hasPinataKey && hasPinataSecret
+      }
+    });
+  });
+
   // Initialize WebSocket server with a distinct path
   const wss = new WebSocketServer({ 
     noServer: true,
