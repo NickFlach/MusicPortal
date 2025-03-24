@@ -104,13 +104,15 @@ export function LumiraProvider({ children }: { children: React.ReactNode }) {
     try {
       setIsLoading(true);
       const promises = missingKeys.map(key =>
-        apiRequest<{
-          text: string;
-          confidence: number;
-          isFormatted: boolean;
-        }>('POST', '/api/lumira/translate', {
+        apiRequest('POST', '/api/lumira/translate', {
           body: { key, targetLocale: locale }
-        }).then(response => ({ key, response }))
+        }).then(response => ({ 
+          key, 
+          response: {
+            translation: response.translation || key,
+            confidence: response.confidence || 0
+          }
+        }))
       );
 
       const results = await Promise.all(promises);
@@ -119,17 +121,17 @@ export function LumiraProvider({ children }: { children: React.ReactNode }) {
 
       results.forEach(({ key, response }) => {
         const cacheKey = `${locale}.${key}`;
-        if (response.text) {
+        if (response.translation) {
           newCache[cacheKey] = {
-            text: response.text,
+            text: response.translation,
             confidence: response.confidence,
             timestamp: Date.now(),
-            isFormatted: response.isFormatted
+            isFormatted: false
           };
           newState[key] = { 
             loading: false, 
-            text: response.text,
-            isFormatted: response.isFormatted 
+            text: response.translation,
+            isFormatted: false 
           };
         } else {
           newState[key] = { loading: false, text: t(key) as string };
