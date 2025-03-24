@@ -31,7 +31,7 @@ export default function Home() {
   const [pendingUpload, setPendingUpload] = useState<File>();
   const { toast } = useToast();
   const { address } = useAccount();
-  const { playTrack, currentTrack, recentTracks } = useMusicPlayer();
+  const { playTrack, currentTrack, recentTracks, isLoading, currentlyLoadingId } = useMusicPlayer();
   const queryClient = useQueryClient();
 
   const handleBackgroundClick = () => {
@@ -111,6 +111,12 @@ export default function Home() {
         description: t('app.errors.wallet') as string,
         variant: "destructive",
       });
+      return;
+    }
+
+    // Prevent playing a song that's already loading
+    if (currentlyLoadingId === song.id || isLoading) {
+      console.log('Song is already loading, skipping request');
       return;
     }
 
@@ -316,15 +322,29 @@ export default function Home() {
                   ) : librarySongs?.length === 0 ? (
                     <p className="text-muted-foreground">{t('app.noSongs')}</p>
                   ) : (
-                    librarySongs?.map((song) => (
-                      <SongCard
-                        key={song.id}
-                        song={song}
-                        onClick={() => handlePlaySong(song, 'library')}
-                        showDelete={true}
-                        isPlaying={currentTrack?.id === song.id}
-                      />
-                    ))
+                    librarySongs?.map((librarySong) => {
+                      const song = {
+                        id: librarySong.id,
+                        title: librarySong.title,
+                        artist: librarySong.artist,
+                        ipfsHash: librarySong.ipfsHash || undefined,
+                        uploadedBy: librarySong.uploadedBy,
+                        createdAt: librarySong.createdAt,
+                        votes: librarySong.votes,
+                        loves: librarySong.loves,
+                        isLoved: librarySong.isLoved
+                      };
+                      
+                      return (
+                        <SongCard
+                          key={song.id}
+                          song={song}
+                          onClick={() => handlePlaySong(song, 'library')}
+                          showDelete={true}
+                          isPlaying={currentTrack?.id === song.id}
+                        />
+                      );
+                    })
                   )}
                 </div>
               </section>
@@ -349,11 +369,11 @@ export default function Home() {
               ) : (
                 recentTracks?.map((track) => {
                   // Create a song object from the track to pass to SongCard
-                  const song: Song = {
+                  const song = {
                     id: track.id,
                     title: track.title,
                     artist: track.artist,
-                    ipfsHash: track.ipfsHash || null,
+                    ipfsHash: track.ipfsHash || undefined,
                     uploadedBy: null, // Not needed for display
                     createdAt: null, // Not needed for display
                     votes: 0, // Not needed for display
