@@ -102,9 +102,21 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
     }
   }, [isPlaying]);
 
+  // Track currently being loaded to prevent double-loading
+  const loadingTrackRef = useRef<number | null>(null);
+
   const playTrack = async (track: Track) => {
     console.log('Playing track:', track);
     setError(null);
+
+    // Prevent double-click race condition
+    if (loadingTrackRef.current === track.id) {
+      console.log('Already loading this track, ignoring duplicate request');
+      return;
+    }
+    
+    // Set loading state for this track
+    loadingTrackRef.current = track.id;
 
     if (!hasInteracted) {
       await initializeAudio();
@@ -113,6 +125,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
     if (!audioRef.current) {
       console.error('Audio element not ready');
       setError('Audio system not ready');
+      loadingTrackRef.current = null;
       return;
     }
 
@@ -141,6 +154,12 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
         throw new Error('Failed to fetch audio data');
       }
 
+      // If another track was requested while this one was loading, abort
+      if (loadingTrackRef.current !== track.id) {
+        console.log('Another track was requested, aborting this playback');
+        return;
+      }
+
       console.log('Audio data received, creating blob...');
 
       // Create blob and URL
@@ -156,6 +175,9 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
 
       setIsPlaying(true);
       setError(null);
+      
+      // Clear loading state
+      loadingTrackRef.current = null;
 
       // Update recent tracks
       setRecentTracks(prev => {

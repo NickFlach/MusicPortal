@@ -72,32 +72,65 @@ export class IPFSManager {
     }
   }
 
-  async uploadFile(file: File): Promise<string> {
+  async uploadFile(file: File, metadata?: { title?: string; artist?: string }): Promise<string> {
     try {
       console.log('Starting IPFS upload...', {
         fileName: file.name,
         fileSize: file.size,
         fileType: file.type,
+        metadata: metadata || 'none',
         timestamp: new Date().toISOString()
       });
 
       const formData = new FormData();
       formData.append('file', file);
+      
+      // Add metadata if available
+      if (metadata) {
+        // Store metadata both as individual fields and as a JSON string
+        formData.append('title', metadata.title || '');
+        formData.append('artist', metadata.artist || '');
+        
+        // Also include as JSON for server-side parsing
+        const metadataJson = JSON.stringify(metadata);
+        formData.append('metadata', metadataJson);
+        
+        console.log('Added metadata to form data:', metadataJson);
+      }
 
       // Add wallet address through headers instead of form data
       const response = await this.retry(async () => {
-        const uploadResponse = await axios.post('/api/ipfs/upload', formData, {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-            'X-Wallet-Address': this.walletAddress,
+        try {
+          console.log('Sending IPFS upload request with FormData containing:', 
+            [...formData.entries()].map(([key, value]) => `${key}: ${typeof value === 'string' ? value : '[File/Blob]'}`));
+          
+          const uploadResponse = await axios.post('/api/ipfs/upload', formData, {
+            headers: {
+              'Content-Type': 'multipart/form-data',
+              'X-Wallet-Address': this.walletAddress,
+            }
+          });
+
+          if (!uploadResponse.data?.Hash) {
+            console.error('Invalid IPFS response format:', uploadResponse.data);
+            throw new Error('Invalid IPFS upload response: missing Hash');
           }
-        });
 
-        if (!uploadResponse.data?.Hash) {
-          throw new Error('Invalid IPFS upload response');
+          return uploadResponse.data;
+        } catch (uploadError) {
+          console.error('IPFS upload network error:', uploadError);
+          
+          if (uploadError.response) {
+            console.error('IPFS upload response error:', {
+              status: uploadError.response.status,
+              statusText: uploadError.response.statusText,
+              data: uploadError.response.data
+            });
+            throw new Error(`IPFS upload failed: ${uploadError.response.data?.error || uploadError.response.statusText}`);
+          }
+          
+          throw uploadError;
         }
-
-        return uploadResponse.data;
       });
 
       console.log('IPFS upload successful:', response);

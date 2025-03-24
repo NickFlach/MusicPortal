@@ -168,7 +168,13 @@ export default function Home() {
           });
 
           const ipfsManager = createIPFSManager(address);
-          const ipfsHash = await ipfsManager.uploadFile(file);
+          
+          // Pass metadata to the upload function
+          const ipfsHash = await ipfsManager.uploadFile(file, {
+            title,
+            artist
+          });
+          
           console.log('Upload successful, hash:', ipfsHash);
 
           const response = await apiRequest("POST", "/api/songs", {

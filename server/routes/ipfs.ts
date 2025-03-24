@@ -88,14 +88,26 @@ router.post('/upload', upload.single('file'), async (req, res) => {
     }
 
     // Parse metadata if included
-    let metadata = {};
-    if (req.body.metadata) {
+    let metadata: Record<string, string> = {};
+    
+    if (req.body && req.body.metadata) {
       try {
-        metadata = JSON.parse(req.body.metadata);
+        // If metadata is already an object (from JSON parsing middleware)
+        if (typeof req.body.metadata === 'object' && req.body.metadata !== null) {
+          metadata = req.body.metadata;
+          console.log('Metadata already parsed:', metadata);
+        }
+        // If metadata is a string, try to parse it
+        else if (typeof req.body.metadata === 'string') {
+          metadata = JSON.parse(req.body.metadata);
+          console.log('Parsed metadata from string:', metadata);
+        }
       } catch (e) {
         console.warn('Failed to parse metadata:', e);
       }
     }
+    
+    console.log('Final metadata for upload:', metadata);
 
     // Create form data for Pinata
     const formData = new FormData();
