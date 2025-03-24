@@ -58,7 +58,9 @@ function getLeaderState(): { songId?: number; timestamp: number; playing: boolea
 
 export function setupWebSocket(wss: WebSocketServer) {
   wss.on('connection', (ws, req) => {
-    console.log('New client connected from:', req.socket.remoteAddress);
+    // Safe access to client IP address with fallback
+    const clientIP = req && req.socket ? req.socket.remoteAddress : 'unknown';
+    console.log('New client connected from:', clientIP);
 
     // Initialize client info with connection timestamp
     const clientInfo: ClientInfo = {
@@ -215,7 +217,7 @@ export function setupWebSocket(wss: WebSocketServer) {
     // Handle connection health events
     wsHealthService.on('connectionUnhealthy', (unhealthyWs) => {
       if (unhealthyWs === ws) {
-        console.log('Connection became unhealthy:', req.socket.remoteAddress);
+        console.log('Connection became unhealthy:', clientIP);
         removeClient(ws);
         updateLeaderStatus();
         broadcastClientStats();
