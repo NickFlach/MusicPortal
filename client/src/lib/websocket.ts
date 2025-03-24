@@ -76,9 +76,15 @@ class SecureWebSocket {
         return;
       }
 
-      // Handle pong message - update last pong time
+      // Handle pong message - update last pong time and calculate latency
       if (data.type === 'pong') {
         this.lastPongTime = Date.now();
+        
+        // If the pong contains the original timestamp, we can calculate latency
+        if (data.timestamp) {
+          const latency = Date.now() - data.timestamp;
+          console.log(`WebSocket latency: ${latency}ms`);
+        }
         return;
       }
 

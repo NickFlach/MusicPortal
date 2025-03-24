@@ -73,18 +73,32 @@ export function setupWebSocket(wss: WebSocketServer) {
     addClient(ws, clientInfo);
     updateLeaderStatus();
 
-    // Add to health monitoring
-    wsHealthService.addConnection(ws);
-
-    // Send initial stats to the new client
-    try {
-      ws.send(JSON.stringify({
-        type: 'stats_update',
-        data: getClientStats()
-      }));
-    } catch (error) {
-      console.error('Error sending initial stats:', error);
-    }
+    // Add to health monitoring after a short delay to ensure the connection is stable
+    setTimeout(() => {
+      if (ws.readyState === WebSocket.OPEN) {
+        wsHealthService.addConnection(ws);
+        
+        // Send initial stats to the new client
+        try {
+          ws.send(JSON.stringify({
+            type: 'stats_update',
+            data: getClientStats()
+          }));
+        } catch (error) {
+          console.error('Error sending initial stats:', error);
+        }
+        
+        // Send initial pong for health check
+        try {
+          ws.send(JSON.stringify({ 
+            type: 'pong',
+            timestamp: Date.now()
+          }));
+        } catch (error) {
+          console.error('Error sending initial pong:', error);
+        }
+      }
+    }, 500);
 
     ws.on('message', async (data) => {
       try {
@@ -93,7 +107,11 @@ export function setupWebSocket(wss: WebSocketServer) {
 
         switch (message.type) {
           case 'ping': {
-            ws.send(JSON.stringify({ type: 'pong' }));
+            // Return timestamp in pong for latency calculation
+            ws.send(JSON.stringify({ 
+              type: 'pong',
+              timestamp: message.timestamp || Date.now()
+            }));
             break;
           }
           case 'auth': {
