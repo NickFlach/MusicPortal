@@ -25,13 +25,15 @@ router.get('/health', async (req, res) => {
       });
     }
     
-    // Check if credentials are set
+    // Check if credentials are set - but don't return error as we're using fallback mode
     if (!credentials.apiKey || !credentials.apiSecret) {
-      return res.status(500).json({
-        status: 'error',
-        message: 'Pinata credentials are not configured',
-        hasApiKey: !!credentials.apiKey,
-        hasApiSecret: !!credentials.apiSecret
+      return res.json({
+        status: 'partial',
+        message: 'Using public IPFS gateways (no Pinata authentication)',
+        fallbackMode: true,
+        publicGateways: true,
+        customGateway: 'blush-adjacent-octopus-823.mypinata.cloud',
+        connectionStatus
       });
     }
 
@@ -123,12 +125,9 @@ router.post('/upload', upload.single('file'), async (req, res) => {
       // We'll still try to upload through public gateways, but warn the client
     }
     else if (!credentials.apiKey || !credentials.apiSecret) {
-      console.error('Missing Pinata credentials');
-      return res.status(500).json({ 
-        error: 'Server configuration error: Missing Pinata credentials',
-        code: 'PINATA_CREDENTIALS_MISSING',
-        userMessage: 'The server is not properly configured for IPFS storage. Please contact the administrator.'
-      });
+      console.warn('Missing Pinata credentials, continuing with fallback gateway');
+      // We'll still try to upload using the custom gateway, but mark as fallback mode
+      credentials.usePublicGateways = true;
     }
 
     // Parse metadata from multiple possible sources

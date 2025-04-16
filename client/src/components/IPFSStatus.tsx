@@ -3,8 +3,22 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CloudOff, CloudCog, Check, AlertTriangle } from "lucide-react";
 
+interface IPFSStatusResponse {
+  status: 'ok' | 'partial' | 'error';
+  message: string;
+  fallbackMode?: boolean;
+  publicGateways?: boolean;
+  authenticated?: boolean;
+  customGateway?: string;
+  connectionStatus?: {
+    connected: boolean;
+    lastConnected: string | null;
+    retryCount: number;
+  };
+}
+
 export function IPFSStatus() {
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error } = useQuery<IPFSStatusResponse>({
     queryKey: ['/api/ipfs/health'],
     retry: false,
     refetchInterval: 30000, // Check every 30 seconds
@@ -44,10 +58,17 @@ export function IPFSStatus() {
     );
   } else if (data?.status === 'partial' && data?.fallbackMode) {
     statusUI = (
-      <div className="flex items-center gap-2">
-        <AlertTriangle size={18} className="text-amber-500" />
-        <span className="text-sm">IPFS: Using public gateways</span>
-        <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-200">Fallback Mode</Badge>
+      <div className="flex flex-col gap-1">
+        <div className="flex items-center gap-2">
+          <AlertTriangle size={18} className="text-amber-500" />
+          <span className="text-sm">IPFS: Using custom gateway</span>
+          <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-200">Fallback Mode</Badge>
+        </div>
+        {data?.customGateway && (
+          <div className="text-xs text-muted-foreground ml-6">
+            Gateway: {data.customGateway}
+          </div>
+        )}
       </div>
     );
   } else {
