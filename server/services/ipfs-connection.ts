@@ -31,6 +31,12 @@ class IPFSConnectionManager extends EventEmitter {
   private apiSecret: string | null = null;
   private jwtToken: string | null = null;
   private useJwt: boolean = false;
+  private useFallbackGateways: boolean = false;
+  private readonly PUBLIC_GATEWAYS = [
+    'https://ipfs.io/ipfs/',
+    'https://cloudflare-ipfs.com/ipfs/',
+    'https://gateway.pinata.cloud/ipfs/'
+  ];
 
   constructor() {
     super();
