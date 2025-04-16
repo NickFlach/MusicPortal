@@ -29,6 +29,8 @@ class IPFSConnectionManager extends EventEmitter {
 
   private apiKey: string | null = null;
   private apiSecret: string | null = null;
+  private jwtToken: string | null = null;
+  private useJwt: boolean = false;
 
   constructor() {
     super();
@@ -39,17 +41,29 @@ class IPFSConnectionManager extends EventEmitter {
    * Initialize the connection manager
    */
   public initialize() {
-    // Get keys from environment
-    this.apiKey = process.env.VITE_PINATA_API_KEY || null;
-    this.apiSecret = process.env.VITE_PINATA_API_SECRET || null;
+    // Try JWT first (preferred authentication method)
+    this.jwtToken = process.env.PINATA_JWT || process.env.VITE_PINATA_JWT || null;
+    
+    if (this.jwtToken) {
+      console.log('IPFS Connection Manager: Found JWT credentials');
+      this.useJwt = true;
+      this.connect();
+      return;
+    }
+    
+    // Fallback to API key/secret
+    this.apiKey = process.env.PINATA_API_KEY || process.env.VITE_PINATA_API_KEY || null;
+    this.apiSecret = process.env.PINATA_API_SECRET || process.env.VITE_PINATA_API_SECRET || null;
 
     if (!this.apiKey || !this.apiSecret) {
-      console.warn('IPFS Connection Manager: Missing Pinata API keys');
+      console.warn('IPFS Connection Manager: Missing Pinata credentials (no JWT or API keys found)');
       this.status.connected = false;
       this.emit('status', { ...this.status });
       return;
     }
 
+    console.log('IPFS Connection Manager: Found API key credentials');
+    
     // Start connection
     this.connect();
   }
@@ -64,12 +78,44 @@ class IPFSConnectionManager extends EventEmitter {
       this.status.isRetrying = true;
       console.log('IPFS Connection Manager: Connecting to Pinata...');
 
-      const response = await axios.get('https://api.pinata.cloud/data/testAuthentication', {
-        headers: {
-          'pinata_api_key': this.apiKey,
-          'pinata_secret_api_key': this.apiSecret
-        }
-      });
+      // Choose authentication method based on available credentials
+      let response;
+      
+      if (this.useJwt && this.jwtToken) {
+        // Log masked token for debugging (not showing the full token for security)
+        const maskedToken = this.jwtToken ? 
+          `${this.jwtToken.substring(0, 8)}...${this.jwtToken.substring(this.jwtToken.length - 8)}` : 
+          'not set';
+        
+        console.log(`IPFS Connection Manager: Using JWT authentication - Token: ${maskedToken}`);
+        
+        response = await axios.get('https://api.pinata.cloud/data/testAuthentication', {
+          headers: {
+            'Authorization': `Bearer ${this.jwtToken}`
+          }
+        });
+      }
+      else if (this.apiKey && this.apiSecret) {
+        // Log partial API key for debugging (not showing the full key for security)
+        const maskedKey = this.apiKey ? 
+          `${this.apiKey.substring(0, 4)}...${this.apiKey.substring(this.apiKey.length - 4)}` : 
+          'not set';
+        const maskedSecret = this.apiSecret ? 
+          `${this.apiSecret.substring(0, 4)}...${this.apiSecret.substring(this.apiSecret.length - 4)}` : 
+          'not set';
+        
+        console.log(`IPFS Connection Manager: Using API Key authentication - Key: ${maskedKey}, Secret: ${maskedSecret}`);
+        
+        response = await axios.get('https://api.pinata.cloud/data/testAuthentication', {
+          headers: {
+            'pinata_api_key': this.apiKey,
+            'pinata_secret_api_key': this.apiSecret
+          }
+        });
+      }
+      else {
+        throw new Error('No valid authentication credentials available');
+      }
 
       if (response.data?.authenticated) {
         this.status.connected = true;
@@ -88,7 +134,26 @@ class IPFSConnectionManager extends EventEmitter {
       this.status.lastError = error instanceof Error ? error : new Error(String(error));
       this.status.retryCount++;
       
-      console.error('IPFS Connection Manager: Connection error:', error);
+      // Provide more detailed error information
+      if (axios.isAxiosError(error)) {
+        if (error.response) {
+          // The request was made and the server responded with a status code
+          // that falls out of the range of 2xx
+          console.error('IPFS Connection Manager: Server error:', {
+            status: error.response.status,
+            data: error.response.data,
+            headers: error.response.headers
+          });
+        } else if (error.request) {
+          // The request was made but no response was received
+          console.error('IPFS Connection Manager: No response received from server');
+        } else {
+          // Something happened in setting up the request
+          console.error('IPFS Connection Manager: Request error:', error.message);
+        }
+      } else {
+        console.error('IPFS Connection Manager: Connection error:', error);
+      }
       
       // Schedule retry if under max retries
       if (this.status.retryCount <= this.MAX_RETRIES) {
@@ -122,12 +187,23 @@ class IPFSConnectionManager extends EventEmitter {
 
     this.pingInterval = setInterval(async () => {
       try {
-        await axios.get('https://api.pinata.cloud/data/testAuthentication', {
-          headers: {
-            'pinata_api_key': this.apiKey,
-            'pinata_secret_api_key': this.apiSecret
-          }
-        });
+        // Use same authentication method as in connect
+        if (this.useJwt && this.jwtToken) {
+          await axios.get('https://api.pinata.cloud/data/testAuthentication', {
+            headers: {
+              'Authorization': `Bearer ${this.jwtToken}`
+            }
+          });
+        } else if (this.apiKey && this.apiSecret) {
+          await axios.get('https://api.pinata.cloud/data/testAuthentication', {
+            headers: {
+              'pinata_api_key': this.apiKey,
+              'pinata_secret_api_key': this.apiSecret
+            }
+          });
+        } else {
+          throw new Error('No valid credentials for ping');
+        }
         
         // If we get here, the ping was successful
         if (!this.status.connected) {
