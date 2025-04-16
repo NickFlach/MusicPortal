@@ -10,35 +10,17 @@ template NeoDimensionalPortal() {
     signal input portalTimestamp;
     signal input dimensionId;
     signal input publicAddress;
-    signal input neoFSObjectId;
-    signal input neoFSContainerId;
 
     // Private inputs
     signal private input userPrivateKey;
     signal private input harmonicAlignment;
     signal private input entropyFactor;
     signal private input dimensionalNonce;
-    signal private input neoFSBearerToken;
-
-    // Neo-specific signals
-    signal private input neoFSStorageGroup;
-    signal private input neoFSDataSize;
-    signal private input neoFSRepFactor;
 
     // Outputs
     signal output portalSignature;
     signal output validityProof;
     signal output harmonicProof;
-    signal output neoFSAccessProof;
-
-    // Neo storage proof computation
-    component neoProof = MiMCSponge(5);
-    neoProof.ins[0] <== neoFSObjectId;
-    neoProof.ins[1] <== neoFSContainerId;
-    neoProof.ins[2] <== neoFSStorageGroup;
-    neoProof.ins[3] <== neoFSDataSize;
-    neoProof.ins[4] <== neoFSRepFactor;
-    neoProof.k <== neoFSBearerToken;
 
     // Compute dimensional alignment score
     component mimcAlignment = MiMCSponge(2);
@@ -54,13 +36,11 @@ template NeoDimensionalPortal() {
     portalHash.inputs[3] <== userPrivateKey;
     portalHash.inputs[4] <== mimcAlignment.outs[0];
     portalHash.inputs[5] <== neoProof.outs[0];
-    portalHash.inputs[6] <== neoFSObjectId;
 
     // Assign outputs
     portalSignature <== portalHash.out;
     validityProof <== portalHash.out;
     harmonicProof <== mimcAlignment.outs[0];
-    neoFSAccessProof <== neoProof.outs[0];
 }
 
 component main = NeoDimensionalPortal();
