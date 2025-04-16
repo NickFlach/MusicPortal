@@ -38,22 +38,137 @@ class IPFSConnectionManager extends EventEmitter {
   }
 
   /**
+   * Helper method to try different tokens
+   */
+  private async tryDifferentTokens(): Promise<boolean> {
+    console.log('IPFS Connection Manager: Attempting to authenticate with different tokens');
+    
+    // Try all combinations of tokens
+    const jwtTokens = [
+      process.env.PINATA_JWT,
+      process.env.VITE_PINATA_JWT
+    ].filter(Boolean) as string[];
+    
+    // Create interfaces for type-safety
+    interface ApiKeyPair {
+      key: string;
+      secret: string;
+    }
+    
+    // Filter to ensure we only keep pairs where both key and secret are defined
+    const apiKeysRaw = [
+      { 
+        key: process.env.PINATA_API_KEY || undefined, 
+        secret: process.env.PINATA_API_SECRET || undefined 
+      },
+      { 
+        key: process.env.VITE_PINATA_API_KEY || undefined, 
+        secret: process.env.VITE_PINATA_API_SECRET || undefined 
+      }
+    ];
+    
+    // Filter and cast to ensure we have valid pairs
+    const apiKeys: ApiKeyPair[] = apiKeysRaw
+      .filter((creds): creds is ApiKeyPair => 
+        typeof creds.key === 'string' && typeof creds.secret === 'string'
+      );
+    
+    // Create an axios instance with longer timeout
+    const client = axios.create({
+      timeout: 10000,
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    // Try each JWT token
+    for (let i = 0; i < jwtTokens.length; i++) {
+      const token = jwtTokens[i];
+      const maskedToken = `${token.substring(0, 8)}...${token.substring(token.length - 8)}`;
+      
+      try {
+        console.log(`IPFS Connection Manager: Testing JWT token ${i+1} - ${maskedToken}`);
+        const response = await client.get('https://api.pinata.cloud/data/testAuthentication', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (response.data?.authenticated) {
+          console.log(`IPFS Connection Manager: JWT Token ${i+1} works!`);
+          this.jwtToken = token;
+          this.useJwt = true;
+          return true;
+        }
+      } catch (err) {
+        console.error(`IPFS Connection Manager: JWT Token ${i+1} failed:`, err instanceof Error ? err.message : String(err));
+      }
+    }
+    
+    // Try each API key/secret pair
+    for (let i = 0; i < apiKeys.length; i++) {
+      const { key, secret } = apiKeys[i];
+      // Safe to access substring now since we've verified key is a string
+      const maskedKey = `${key.substring(0, 4)}...${key.substring(key.length - 4)}`;
+      
+      try {
+        console.log(`IPFS Connection Manager: Testing API key/secret ${i+1} - ${maskedKey}`);
+        const response = await client.get('https://api.pinata.cloud/data/testAuthentication', {
+          headers: {
+            'pinata_api_key': key,
+            'pinata_secret_api_key': secret
+          }
+        });
+        
+        if (response.data?.authenticated) {
+          console.log(`IPFS Connection Manager: API key/secret ${i+1} works!`);
+          this.apiKey = key;
+          this.apiSecret = secret;
+          this.useJwt = false;
+          return true;
+        }
+      } catch (err) {
+        console.error(`IPFS Connection Manager: API key/secret ${i+1} failed:`, err instanceof Error ? err.message : String(err));
+      }
+    }
+    
+    return false;
+  }
+
+  /**
    * Initialize the connection manager
    */
-  public initialize() {
-    // Try JWT first (preferred authentication method)
-    this.jwtToken = process.env.PINATA_JWT || process.env.VITE_PINATA_JWT || null;
+  public async initialize() {
+    // Log available credentials for debugging
+    console.log('IPFS Connection Manager: Available Pinata credential types:', {
+      hasJwt: !!process.env.PINATA_JWT,
+      hasApiKey: !!process.env.PINATA_API_KEY,
+      hasApiSecret: !!process.env.PINATA_API_SECRET
+    });
+    
+    // Use the environment variables directly - no fallback to VITE_ prefixed versions
+    this.apiKey = process.env.PINATA_API_KEY || null;
+    this.apiSecret = process.env.PINATA_API_SECRET || null;
+    this.jwtToken = process.env.PINATA_JWT || null;
+    
+    // Try all available tokens and find one that works
+    const tokenTestSuccess = await this.tryDifferentTokens();
+    
+    if (tokenTestSuccess) {
+      this.connect();
+      return;
+    }
     
     if (this.jwtToken) {
-      console.log('IPFS Connection Manager: Found JWT credentials');
+      console.log('IPFS Connection Manager: Defaulting to JWT auth despite test failure');
       this.useJwt = true;
       this.connect();
       return;
     }
     
-    // Fallback to API key/secret
-    this.apiKey = process.env.PINATA_API_KEY || process.env.VITE_PINATA_API_KEY || null;
-    this.apiSecret = process.env.PINATA_API_SECRET || process.env.VITE_PINATA_API_SECRET || null;
+    // Use direct API key/secret
+    this.apiKey = process.env.PINATA_API_KEY || null;
+    this.apiSecret = process.env.PINATA_API_SECRET || null;
 
     if (!this.apiKey || !this.apiSecret) {
       console.warn('IPFS Connection Manager: Missing Pinata credentials (no JWT or API keys found)');
@@ -71,7 +186,7 @@ class IPFSConnectionManager extends EventEmitter {
   /**
    * Connect to IPFS/Pinata
    */
-  private async connect() {
+  private async connect(): Promise<void> {
     if (this.status.isRetrying) return;
 
     try {
@@ -141,9 +256,23 @@ class IPFSConnectionManager extends EventEmitter {
           // that falls out of the range of 2xx
           console.error('IPFS Connection Manager: Server error:', {
             status: error.response.status,
+            statusText: error.response.statusText,
             data: error.response.data,
-            headers: error.response.headers
+            headers: JSON.stringify(error.response.headers)
           });
+          
+          // If status is 401 or 403, this is an authentication issue
+          if (error.response.status === 401 || error.response.status === 403) {
+            console.error('IPFS Connection Manager: Authentication failed. Your API keys or JWT token may have expired or been revoked.');
+          }
+          
+          // If we're using JWT and it failed, try falling back to API key auth as a backup
+          if (this.useJwt && this.jwtToken && this.apiKey && this.apiSecret) {
+            console.log('IPFS Connection Manager: JWT auth failed, switching to API key authentication');
+            this.useJwt = false;
+            this.status.retryCount = 0; // Reset retry count for new auth method
+            return this.connect();
+          }
         } else if (error.request) {
           // The request was made but no response was received
           console.error('IPFS Connection Manager: No response received from server');
@@ -239,10 +368,16 @@ class IPFSConnectionManager extends EventEmitter {
    * Get authenticated headers for Pinata API
    */
   public getHeaders(): Record<string, string> {
-    return {
-      'pinata_api_key': this.apiKey || '',
-      'pinata_secret_api_key': this.apiSecret || ''
-    };
+    if (this.useJwt && this.jwtToken) {
+      return {
+        'Authorization': `Bearer ${this.jwtToken}`
+      };
+    } else {
+      return {
+        'pinata_api_key': this.apiKey || '',
+        'pinata_secret_api_key': this.apiSecret || ''
+      };
+    }
   }
 
   /**
