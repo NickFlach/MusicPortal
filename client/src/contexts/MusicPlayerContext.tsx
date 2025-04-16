@@ -152,6 +152,77 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
         await audioContextRef.current.resume();
       }
 
+      // Handle the case of null or empty ipfsHash - use silent audio for system tracks
+      if (!track.ipfsHash) {
+        console.log('Track has no IPFS hash, using silent audio fallback');
+        
+        // Create a short silent audio buffer
+        const audioContext = audioContextRef.current;
+        if (!audioContext) {
+          throw new Error('Audio context not initialized');
+        }
+        
+        const sampleRate = audioContext.sampleRate;
+        const buffer = audioContext.createBuffer(2, sampleRate * 2, sampleRate); // 2 seconds of silence
+        
+        // Create a temporary audio file from buffer
+        const silentSource = audioContext.createBufferSource();
+        silentSource.buffer = buffer;
+        
+        // Create an offline context to render the buffer to an array buffer
+        const offlineContext = new OfflineAudioContext(2, sampleRate * 2, sampleRate);
+        const offlineSource = offlineContext.createBufferSource();
+        offlineSource.buffer = buffer;
+        offlineSource.connect(offlineContext.destination);
+        offlineSource.start(0);
+        
+        // Render and use the output
+        const renderedBuffer = await offlineContext.startRendering();
+        
+        // Convert AudioBuffer to ArrayBuffer
+        const audioData = new ArrayBuffer(renderedBuffer.length * 4); // 4 bytes per float32
+        const view = new Float32Array(audioData);
+        for (let channel = 0; channel < renderedBuffer.numberOfChannels; channel++) {
+          const channelData = renderedBuffer.getChannelData(channel);
+          for (let i = 0; i < channelData.length; i++) {
+            view[i * renderedBuffer.numberOfChannels + channel] = channelData[i];
+          }
+        }
+        
+        // If another track was requested while this one was loading, abort
+        if (loadingTrackRef.current !== track.id) {
+          console.log('Another track was requested, aborting this playback');
+          return;
+        }
+        
+        // Create blob and URL for the silent audio
+        const blob = new Blob([audioData], { type: 'audio/wav' });
+        const url = URL.createObjectURL(blob);
+        
+        console.log('Loading silent audio for system track');
+        
+        // Load and play
+        audioRef.current.src = url;
+        await audioRef.current.load();
+        // Don't auto-play silent tracks, just set loaded state
+        
+        setIsPlaying(false);
+        setError(null);
+        
+        // Clear loading state
+        loadingTrackRef.current = null;
+        setCurrentlyLoadingId(null);
+        setIsLoading(false);
+        
+        // Update recent tracks
+        setRecentTracks(prev => {
+          const newTracks = prev.filter(t => t.id !== track.id);
+          return [track, ...newTracks].slice(0, 10);
+        });
+        
+        return;
+      }
+
       console.log('Fetching audio data for track:', track.ipfsHash);
 
       // Get audio data from IPFS

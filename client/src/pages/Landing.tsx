@@ -45,6 +45,21 @@ export default function Landing() {
 
         const data = await response.json();
         console.log('Recent songs loaded:', data.length, 'songs');
+        
+        // If we got back data but it's empty, return a default song
+        if (!data || data.length === 0) {
+          console.log('No songs returned from API, using fallback');
+          return [{
+            id: 1001,
+            title: "NULL_ISLAND Beacon",
+            artist: "SINet System",
+            ipfsHash: null,
+            uploadedBy: "system",
+            createdAt: new Date().toISOString(),
+            votes: 0
+          }];
+        }
+        
         return data;
       } catch (error) {
         console.error('Error fetching recent songs:', error);
