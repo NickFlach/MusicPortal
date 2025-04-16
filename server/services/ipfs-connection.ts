@@ -33,6 +33,7 @@ class IPFSConnectionManager extends EventEmitter {
   private useJwt: boolean = false;
   private useFallbackGateways: boolean = false;
   private readonly PUBLIC_GATEWAYS = [
+    'https://blush-adjacent-octopus-823.mypinata.cloud/ipfs/', // Custom Pinata gateway (preferred)
     'https://ipfs.io/ipfs/',
     'https://cloudflare-ipfs.com/ipfs/',
     'https://gateway.pinata.cloud/ipfs/'
@@ -427,8 +428,17 @@ class IPFSConnectionManager extends EventEmitter {
    */
   public getGatewayUrl(cid: string): string {
     if (this.useFallbackGateways || !this.status.connected) {
-      // Return a random public gateway from the list
-      const randomIndex = Math.floor(Math.random() * this.PUBLIC_GATEWAYS.length);
+      // In fallback mode, prefer using the custom gateway first
+      const customGateway = 'https://blush-adjacent-octopus-823.mypinata.cloud/ipfs/';
+      
+      // 80% of the time, use the custom gateway
+      if (Math.random() < 0.8) {
+        return `${customGateway}${cid}`;
+      }
+      
+      // Otherwise, randomly select from other gateways for load balancing
+      // Skip the first entry which is our custom gateway
+      const randomIndex = Math.floor(Math.random() * (this.PUBLIC_GATEWAYS.length - 1)) + 1;
       return `${this.PUBLIC_GATEWAYS[randomIndex]}${cid}`;
     } else {
       // Use Pinata gateway with auth

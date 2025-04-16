@@ -20,6 +20,7 @@ router.get('/health', async (req, res) => {
         message: 'Using public IPFS gateways (no Pinata authentication)',
         fallbackMode: true,
         publicGateways: true,
+        customGateway: 'blush-adjacent-octopus-823.mypinata.cloud',
         connectionStatus
       });
     }
@@ -354,7 +355,7 @@ router.get('/fetch/:cid', async (req, res) => {
     // Try a fallback public gateway if Pinata fails
     try {
       console.log('Trying fallback IPFS gateway for:', { cid: req.params.cid });
-      const fallbackResponse = await axios.get(`https://ipfs.io/ipfs/${req.params.cid}`, {
+      const fallbackResponse = await axios.get(`https://blush-adjacent-octopus-823.mypinata.cloud/ipfs/${req.params.cid}`, {
         responseType: 'arraybuffer'
       });
 
@@ -363,8 +364,24 @@ router.get('/fetch/:cid', async (req, res) => {
       res.send(fallbackResponse.data);
       return;
     } catch (fallbackError: any) {
-      console.error('Fallback gateway also failed:', 
+      console.error('Primary fallback gateway failed:', 
         fallbackError.message || 'Unknown error with fallback gateway');
+      
+      // Try another fallback gateway
+      try {
+        console.log('Trying secondary fallback IPFS gateway for:', { cid: req.params.cid });
+        const secondaryFallbackResponse = await axios.get(`https://ipfs.io/ipfs/${req.params.cid}`, {
+          responseType: 'arraybuffer'
+        });
+
+        console.log('Secondary fallback gateway successful, sending data');
+        res.set('Content-Type', 'application/octet-stream');
+        res.send(secondaryFallbackResponse.data);
+        return;
+      } catch (secondaryFallbackError: any) {
+        console.error('All fallback gateways failed:', 
+          secondaryFallbackError.message || 'Unknown error with secondary fallback gateway');
+      }
     }
 
     // Detailed error logging
