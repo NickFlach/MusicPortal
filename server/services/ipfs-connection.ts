@@ -191,7 +191,8 @@ class IPFSConnectionManager extends EventEmitter {
 
     try {
       this.status.isRetrying = true;
-      console.log('IPFS Connection Manager: Connecting to Pinata...');
+      const timestamp = new Date().toISOString();
+      console.log(`IPFS Connection Manager: Connecting to Pinata at ${timestamp}...`);
 
       // Choose authentication method based on available credentials
       let response;

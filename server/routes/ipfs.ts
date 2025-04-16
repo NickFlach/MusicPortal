@@ -52,13 +52,26 @@ router.get('/health', async (req, res) => {
           authenticated: response.data?.authenticated || false,
           responseData: response.data
         });
-      } catch (authError) {
-        console.error('Pinata authentication specific error:', authError.response?.data || authError.message);
+      } catch (error) {
+        // Type assertion and error handling
+        const authError = error as Error & { 
+          response?: { 
+            data?: any; 
+            status?: number;
+            statusText?: string;
+          } 
+        };
+        
+        const errorMessage = authError.response?.data 
+          ? JSON.stringify(authError.response.data)
+          : authError.message || String(error);
+          
+        console.error('Pinata authentication specific error:', errorMessage);
         
         return res.json({
           status: 'partial',
           message: 'Pinata connection successful but authentication failed',
-          error: authError.response?.data || authError.message,
+          error: errorMessage,
           authenticated: false,
           connectionStatus
         });
