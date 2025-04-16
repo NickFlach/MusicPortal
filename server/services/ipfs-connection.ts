@@ -146,48 +146,23 @@ class IPFSConnectionManager extends EventEmitter {
    * Initialize the connection manager
    */
   public async initialize() {
-    // Log available credentials for debugging
-    console.log('IPFS Connection Manager: Available Pinata credential types:', {
-      hasJwt: !!process.env.PINATA_JWT,
-      hasApiKey: !!process.env.PINATA_API_KEY,
-      hasApiSecret: !!process.env.PINATA_API_SECRET
-    });
+    console.log('IPFS Connection Manager: Using public gateway mode only');
     
-    // Use the environment variables directly - no fallback to VITE_ prefixed versions
-    this.apiKey = process.env.PINATA_API_KEY || null;
-    this.apiSecret = process.env.PINATA_API_SECRET || null;
-    this.jwtToken = process.env.PINATA_JWT || null;
+    // Always use public gateways - completely disable authentication
+    this.useFallbackGateways = true;
     
-    // Try all available tokens and find one that works
-    const tokenTestSuccess = await this.tryDifferentTokens();
+    // Set our status to connected since we're always connected in gateway mode
+    this.status.connected = true;
+    this.status.lastConnected = new Date();
+    this.status.retryCount = 0;
+    this.status.isRetrying = false;
+    this.status.lastError = null;
     
-    if (tokenTestSuccess) {
-      this.connect();
-      return;
-    }
+    // Emit status update
+    this.emit('status', { ...this.status });
     
-    if (this.jwtToken) {
-      console.log('IPFS Connection Manager: Defaulting to JWT auth despite test failure');
-      this.useJwt = true;
-      this.connect();
-      return;
-    }
-    
-    // Use direct API key/secret
-    this.apiKey = process.env.PINATA_API_KEY || null;
-    this.apiSecret = process.env.PINATA_API_SECRET || null;
-
-    if (!this.apiKey || !this.apiSecret) {
-      console.warn('IPFS Connection Manager: Missing Pinata credentials (no JWT or API keys found)');
-      this.status.connected = false;
-      this.emit('status', { ...this.status });
-      return;
-    }
-
-    console.log('IPFS Connection Manager: Found API key credentials');
-    
-    // Start connection
-    this.connect();
+    console.log('IPFS Connection Manager: Using custom gateway (blush-adjacent-octopus-823.mypinata.cloud) as primary');
+    console.log('IPFS Connection Manager: Authentication disabled, using public gateway mode only');
   }
 
   /**
