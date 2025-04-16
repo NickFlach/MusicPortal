@@ -299,12 +299,21 @@ class IPFSConnectionManager extends EventEmitter {
         console.error('IPFS Connection Manager: Connection error:', error);
       }
       
-      // Schedule retry if under max retries and not already in fallback mode
+      // Schedule retry if under max retries
       if (this.status.retryCount <= this.MAX_RETRIES) {
         console.log(`IPFS Connection Manager: Retrying in ${this.RETRY_DELAY / 1000}s (attempt ${this.status.retryCount}/${this.MAX_RETRIES})`);
         
         if (this.retryTimeout) {
           clearTimeout(this.retryTimeout);
+        }
+        
+        // After a few retries, switch to fallback mode while continuing to try authentication
+        if (this.status.retryCount >= 3 && !this.useFallbackGateways) {
+          console.log('IPFS Connection Manager: Multiple authentication failures, enabling fallback mode while continuing to retry');
+          this.useFallbackGateways = true;
+          this.status.connected = true; // Mark as "connected" in public gateway mode
+          this.status.lastConnected = new Date();
+          this.emit('status', { ...this.status });
         }
         
         this.retryTimeout = setTimeout(() => {

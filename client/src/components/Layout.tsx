@@ -8,6 +8,7 @@ import { Menu, X } from "lucide-react";
 import { NinjaTour } from "@/components/NinjaTour";
 import { useDevice } from "@/hooks/use-mobile";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { IPFSStatus } from "@/components/IPFSStatus";
 import * as React from "react";
 import {
   Sheet,
@@ -93,6 +94,7 @@ export function Layout({ children }: LayoutProps) {
 
       <main className="relative z-10 flex-grow overflow-x-hidden">
         <div className="container mx-auto pt-4 md:pt-8 pb-32 px-4">
+          <IPFSStatus />
           {children}
         </div>
       </main>
