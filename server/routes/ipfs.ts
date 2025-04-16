@@ -1,60 +1,68 @@
 import { Router } from 'express';
 import multer from 'multer';
 import axios from 'axios';
+import { ipfsConnectionManager } from '../services/ipfs-connection';
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
-// Initialize Pinata configuration
-const PINATA_API_KEY = process.env.VITE_PINATA_API_KEY;
-const PINATA_API_SECRET = process.env.VITE_PINATA_API_SECRET;
-
 // Add a health check route for IPFS connectivity
 router.get('/health', async (req, res) => {
   try {
+    // Get connection status from manager
+    const connectionStatus = ipfsConnectionManager.getStatus();
+    const credentials = ipfsConnectionManager.getCredentials();
+    
     // Check if credentials are set
-    if (!PINATA_API_KEY || !PINATA_API_SECRET) {
+    if (!credentials.apiKey || !credentials.apiSecret) {
       return res.status(500).json({
         status: 'error',
         message: 'Pinata credentials are not configured',
-        hasApiKey: !!PINATA_API_KEY,
-        hasApiSecret: !!PINATA_API_SECRET
+        hasApiKey: !!credentials.apiKey,
+        hasApiSecret: !!credentials.apiSecret
       });
     }
 
     // Test connection to Pinata API
-    console.log('Testing Pinata authentication with:', {
-      hasApiKey: !!PINATA_API_KEY,
-      apiKeyLength: PINATA_API_KEY?.length,
-      hasApiSecret: !!PINATA_API_SECRET,
-      apiSecretLength: PINATA_API_SECRET?.length,
-    });
+    console.log('Testing Pinata authentication with connection manager');
     
-    try {
-      const response = await axios.get('https://api.pinata.cloud/data/testAuthentication', {
-        headers: {
-          'pinata_api_key': PINATA_API_KEY,
-          'pinata_secret_api_key': PINATA_API_SECRET
-        }
-      });
-      
-      console.log('Pinata authentication response:', response.data);
-      
+    if (connectionStatus.connected) {
       return res.json({
         status: 'ok',
         message: 'Pinata connection successful',
-        authenticated: response.data?.authenticated || false,
-        responseData: response.data
+        authenticated: true,
+        lastConnected: connectionStatus.lastConnected,
+        connectionStatus
       });
-    } catch (authError) {
-      console.error('Pinata authentication specific error:', authError.response?.data || authError.message);
-      
-      return res.json({
-        status: 'partial',
-        message: 'Pinata connection successful but authentication failed',
-        error: authError.response?.data || authError.message,
-        authenticated: false
-      });
+    } else {
+      // Force a connection attempt if not connected
+      try {
+        const response = await axios.get('https://api.pinata.cloud/data/testAuthentication', {
+          headers: ipfsConnectionManager.getHeaders()
+        });
+        
+        console.log('Pinata authentication response:', response.data);
+        
+        // Reinitialize connection manager
+        ipfsConnectionManager.initialize();
+        
+        return res.json({
+          status: 'ok',
+          message: 'Pinata connection successful',
+          authenticated: response.data?.authenticated || false,
+          responseData: response.data
+        });
+      } catch (authError) {
+        console.error('Pinata authentication specific error:', authError.response?.data || authError.message);
+        
+        return res.json({
+          status: 'partial',
+          message: 'Pinata connection successful but authentication failed',
+          error: authError.response?.data || authError.message,
+          authenticated: false,
+          connectionStatus
+        });
+      }
     }
   } catch (error) {
     console.error('Pinata health check error:', error);
@@ -62,8 +70,7 @@ router.get('/health', async (req, res) => {
       status: 'error',
       message: 'Failed to connect to Pinata',
       error: error instanceof Error ? error.message : 'Unknown error',
-      hasApiKey: !!PINATA_API_KEY,
-      hasApiSecret: !!PINATA_API_SECRET
+      connectionStatus: ipfsConnectionManager.getStatus()
     });
   }
 });
@@ -82,7 +89,9 @@ router.post('/upload', upload.single('file'), async (req, res) => {
       walletAddress: req.headers['x-wallet-address']
     });
 
-    if (!PINATA_API_KEY || !PINATA_API_SECRET) {
+    // Get credentials from connection manager
+    const credentials = ipfsConnectionManager.getCredentials();
+    if (!credentials.apiKey || !credentials.apiSecret) {
       console.error('Missing Pinata credentials');
       return res.status(500).json({ error: 'Server configuration error: Missing Pinata credentials' });
     }
@@ -205,10 +214,12 @@ router.post('/upload', upload.single('file'), async (req, res) => {
 
     console.log('Sending request to Pinata IPFS with auth');
 
+    // Get headers from connection manager
+    const headers = ipfsConnectionManager.getHeaders();
+    
     const response = await axios.post('https://api.pinata.cloud/pinning/pinFileToIPFS', formData, {
       headers: {
-        'pinata_api_key': PINATA_API_KEY,
-        'pinata_secret_api_key': PINATA_API_SECRET,
+        ...headers,
         'Content-Type': 'multipart/form-data',
       },
       maxContentLength: Infinity,
@@ -265,16 +276,17 @@ router.get('/fetch/:cid', async (req, res) => {
 
     console.log('Fetching from IPFS gateway:', { cid });
 
+    // Get connection status and credentials from manager
+    const connectionStatus = ipfsConnectionManager.getStatus();
+    const credentials = ipfsConnectionManager.getCredentials();
+
     // Try authenticated Pinata gateway first
     let response;
-    if (PINATA_API_KEY && PINATA_API_SECRET) {
+    if (credentials.apiKey && credentials.apiSecret) {
       console.log('Using authenticated Pinata gateway');
       response = await axios.get(`https://gateway.pinata.cloud/ipfs/${cid}`, {
         responseType: 'arraybuffer',
-        headers: {
-          'pinata_api_key': PINATA_API_KEY,
-          'pinata_secret_api_key': PINATA_API_SECRET
-        }
+        headers: ipfsConnectionManager.getHeaders()
       });
     } else {
       console.log('No Pinata credentials, using public gateway');

@@ -16,6 +16,7 @@ import lumiraRouter from './routes/lumira';
 import ipfsRouter from './routes/ipfs';
 import apiRouter from './routes/api';
 import { setupWebSocket } from './routes/websocket';
+import { ipfsConnectionManager } from './services/ipfs-connection';
 
 // ES Module equivalent of __dirname
 const __filename = fileURLToPath(import.meta.url);
@@ -160,6 +161,11 @@ const startServer = async (retryCount = 0) => {
       server.listen(port, "0.0.0.0")
         .once('listening', () => {
           log(`Server running on port ${port}`);
+          
+          // Initialize IPFS connection manager when server starts
+          log('Initializing IPFS connection manager');
+          ipfsConnectionManager.initialize();
+          
           resolve();
         })
         .once('error', (err: NodeJS.ErrnoException) => {
