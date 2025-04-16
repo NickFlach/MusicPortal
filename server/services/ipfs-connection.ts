@@ -236,7 +236,14 @@ class IPFSConnectionManager extends EventEmitter {
         });
       }
       else {
-        throw new Error('No valid authentication credentials available');
+        // No credentials - fallback to public gateways
+        console.log('IPFS Connection Manager: No valid authentication credentials available, using public gateways');
+        this.useFallbackGateways = true;
+        this.status.connected = true; // Mark as "connected" in public gateway mode
+        this.status.lastConnected = new Date();
+        this.status.lastError = null;
+        this.status.retryCount = 0;
+        return;
       }
 
       if (response.data?.authenticated) {
@@ -244,7 +251,8 @@ class IPFSConnectionManager extends EventEmitter {
         this.status.lastConnected = new Date();
         this.status.lastError = null;
         this.status.retryCount = 0;
-        console.log('IPFS Connection Manager: Connected to Pinata');
+        this.useFallbackGateways = false;
+        console.log('IPFS Connection Manager: Connected to Pinata with authenticated access');
         
         // Start ping interval to keep connection alive
         this.startPing();
@@ -291,7 +299,7 @@ class IPFSConnectionManager extends EventEmitter {
         console.error('IPFS Connection Manager: Connection error:', error);
       }
       
-      // Schedule retry if under max retries
+      // Schedule retry if under max retries and not already in fallback mode
       if (this.status.retryCount <= this.MAX_RETRIES) {
         console.log(`IPFS Connection Manager: Retrying in ${this.RETRY_DELAY / 1000}s (attempt ${this.status.retryCount}/${this.MAX_RETRIES})`);
         
@@ -304,7 +312,11 @@ class IPFSConnectionManager extends EventEmitter {
           this.connect();
         }, this.RETRY_DELAY);
       } else {
-        console.error(`IPFS Connection Manager: Max retries (${this.MAX_RETRIES}) reached`);
+        console.error(`IPFS Connection Manager: Max retries (${this.MAX_RETRIES}) reached, falling back to public gateways`);
+        this.useFallbackGateways = true;
+        this.status.connected = true; // Mark as "connected" in public gateway mode
+        this.status.lastConnected = new Date();
+        console.log('IPFS Connection Manager: Using public IPFS gateways for access');
         this.status.isRetrying = false;
       }
     } finally {
@@ -375,7 +387,10 @@ class IPFSConnectionManager extends EventEmitter {
    * Get authenticated headers for Pinata API
    */
   public getHeaders(): Record<string, string> {
-    if (this.useJwt && this.jwtToken) {
+    if (this.useFallbackGateways) {
+      // No headers needed for public gateways
+      return {};
+    } else if (this.useJwt && this.jwtToken) {
       return {
         'Authorization': `Bearer ${this.jwtToken}`
       };
@@ -390,11 +405,26 @@ class IPFSConnectionManager extends EventEmitter {
   /**
    * Get API key and secret
    */
-  public getCredentials(): { apiKey: string | null, apiSecret: string | null } {
+  public getCredentials(): { apiKey: string | null, apiSecret: string | null, usePublicGateways: boolean } {
     return {
       apiKey: this.apiKey,
-      apiSecret: this.apiSecret
+      apiSecret: this.apiSecret,
+      usePublicGateways: this.useFallbackGateways
     };
+  }
+  
+  /**
+   * Get an IPFS gateway URL for a given CID
+   */
+  public getGatewayUrl(cid: string): string {
+    if (this.useFallbackGateways || !this.status.connected) {
+      // Return a random public gateway from the list
+      const randomIndex = Math.floor(Math.random() * this.PUBLIC_GATEWAYS.length);
+      return `${this.PUBLIC_GATEWAYS[randomIndex]}${cid}`;
+    } else {
+      // Use Pinata gateway with auth
+      return `https://gateway.pinata.cloud/ipfs/${cid}`;
+    }
   }
 
   /**

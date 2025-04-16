@@ -13,6 +13,17 @@ router.get('/health', async (req, res) => {
     const connectionStatus = ipfsConnectionManager.getStatus();
     const credentials = ipfsConnectionManager.getCredentials();
     
+    // Check if we're in fallback mode
+    if (credentials.usePublicGateways) {
+      return res.json({
+        status: 'partial',
+        message: 'Using public IPFS gateways (no Pinata authentication)',
+        fallbackMode: true,
+        publicGateways: true,
+        connectionStatus
+      });
+    }
+    
     // Check if credentials are set
     if (!credentials.apiKey || !credentials.apiSecret) {
       return res.status(500).json({
@@ -104,9 +115,19 @@ router.post('/upload', upload.single('file'), async (req, res) => {
 
     // Get credentials from connection manager
     const credentials = ipfsConnectionManager.getCredentials();
-    if (!credentials.apiKey || !credentials.apiSecret) {
+    
+    // Check if we're in fallback mode
+    if (credentials.usePublicGateways) {
+      console.warn('IPFS upload requested while in fallback mode - uploads may not persist long-term');
+      // We'll still try to upload through public gateways, but warn the client
+    }
+    else if (!credentials.apiKey || !credentials.apiSecret) {
       console.error('Missing Pinata credentials');
-      return res.status(500).json({ error: 'Server configuration error: Missing Pinata credentials' });
+      return res.status(500).json({ 
+        error: 'Server configuration error: Missing Pinata credentials',
+        code: 'PINATA_CREDENTIALS_MISSING',
+        userMessage: 'The server is not properly configured for IPFS storage. Please contact the administrator.'
+      });
     }
 
     // Parse metadata from multiple possible sources
@@ -293,17 +314,22 @@ router.get('/fetch/:cid', async (req, res) => {
     const connectionStatus = ipfsConnectionManager.getStatus();
     const credentials = ipfsConnectionManager.getCredentials();
 
-    // Try authenticated Pinata gateway first
+    // Get the best gateway URL to use
+    const gatewayUrl = ipfsConnectionManager.getGatewayUrl(cid);
+    console.log(`Using IPFS gateway: ${gatewayUrl}`);
+    
+    // Try fetching from gateway
     let response;
-    if (credentials.apiKey && credentials.apiSecret) {
+    const headers = ipfsConnectionManager.getHeaders();
+    if (Object.keys(headers).length > 0) {
       console.log('Using authenticated Pinata gateway');
-      response = await axios.get(`https://gateway.pinata.cloud/ipfs/${cid}`, {
+      response = await axios.get(gatewayUrl, {
         responseType: 'arraybuffer',
-        headers: ipfsConnectionManager.getHeaders()
+        headers: headers
       });
     } else {
-      console.log('No Pinata credentials, using public gateway');
-      response = await axios.get(`https://ipfs.io/ipfs/${cid}`, {
+      console.log('Using public IPFS gateway');
+      response = await axios.get(gatewayUrl, {
         responseType: 'arraybuffer'
       });
     }
