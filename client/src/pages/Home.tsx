@@ -4,21 +4,30 @@ import { MusicPlayer } from "@/components/MusicPlayer";
 import { Layout } from "@/components/Layout";
 import { useAccount } from 'wagmi';
 import { useMusicPlayer } from "@/contexts/MusicPlayerContext";
-import { MusicVisualizer } from "@/components/MusicVisualizer";
 import { SongCard } from "@/components/SongCard";
 import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Upload, Library, Loader2 } from "lucide-react";
+import { Upload, Library, Loader2, Brain } from "lucide-react";
 import { createIPFSManager } from "@/lib/ipfs";
 import { EditSongDialog } from "@/components/EditSongDialog";
 import { useDimensionalTranslation } from '@/contexts/LocaleContext';
+import { audioAnalyzer } from "@/lib/audioAnalysis";
 
 interface Song {
   id: number;
   title: string;
   artist: string;
+  audioFeatures: {
+    tempo: number;
+    timeSignature: number;
+    key: number;
+    mode: number;
+    danceability: number;
+    energy: number;
+    valence: number;
+  } | null;
   ipfsHash: string | null;
   uploadedBy: string | null;
   createdAt: string | null;
@@ -173,9 +182,29 @@ export default function Home() {
             type: file.type
           });
 
+          // 🎵 ANALYZE AUDIO FIRST
+          toast({
+            title: '🧠 Analyzing audio...',
+            description: 'Extracting musical features from your song'
+          });
+
+          let audioFeatures;
+          try {
+            audioFeatures = await audioAnalyzer.analyzeFile(file);
+            console.log('✨ Audio analysis complete:', audioFeatures);
+            
+            toast({
+              title: '✨ Analysis complete!',
+              description: `Detected: ${audioFeatures.tempo.toFixed(0)} BPM, Key: ${audioFeatures.key} ${audioFeatures.mode}`
+            });
+          } catch (analysisError) {
+            console.warn('Audio analysis failed, continuing with upload:', analysisError);
+            audioFeatures = null;
+          }
+
+          // Upload to IPFS
           const ipfsManager = createIPFSManager(address);
           
-          // Pass metadata to the upload function
           const ipfsHash = await ipfsManager.uploadFile(file, {
             title,
             artist
@@ -183,10 +212,39 @@ export default function Home() {
           
           console.log('Upload successful, hash:', ipfsHash);
 
+          // Save to database WITH audio features
           const response = await apiRequest("POST", "/api/songs", {
             title,
             artist,
             ipfsHash,
+            audioFeatures: audioFeatures ? {
+              tempo: audioFeatures.tempo,
+              musicalKey: audioFeatures.key,
+              musicalMode: audioFeatures.mode,
+              timeSignature: audioFeatures.timeSignature,
+              harmonicComplexity: audioFeatures.harmonicComplexity,
+              harmonicEntropy: audioFeatures.harmonicEntropy,
+              rhythmicComplexity: audioFeatures.rhythmicComplexity,
+              syncopation: audioFeatures.syncopation,
+              groove: audioFeatures.groove,
+              brightness: audioFeatures.brightness,
+              roughness: audioFeatures.roughness,
+              warmth: audioFeatures.warmth,
+              energy: audioFeatures.energy,
+              valence: audioFeatures.valence,
+              arousal: audioFeatures.arousal,
+              tension: audioFeatures.tension,
+              sectionCount: audioFeatures.sectionCount,
+              repetitionScore: audioFeatures.repetitionScore,
+              noveltyScore: audioFeatures.noveltyScore,
+              danceability: audioFeatures.danceability,
+              acousticness: audioFeatures.acousticness,
+              instrumentalness: audioFeatures.instrumentalness,
+              liveness: audioFeatures.liveness,
+              analyzedAt: new Date().toISOString(),
+              analysisVersion: '1.0.0',
+              analysisConfidence: 0.8
+            } : null
           });
           return await response.json();
         } catch (error) {

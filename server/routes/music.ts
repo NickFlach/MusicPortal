@@ -5,11 +5,11 @@ import { eq, desc, and, count } from 'drizzle-orm';
 import { incrementListenCount } from '../services/music';
 import { lumiraService } from './lumira';
 import { encryptLoveCount } from '../services/encryption';
+import { musicIntelligence } from '../services/music-intelligence';
 
 // Define NULL_ISLAND coordinates constant
 const NULL_ISLAND_COORDS: [number, number] = [0, 0];
 const NULL_ISLAND_COUNTRY_CODE = 'SIN'; // SINet designated country code
-
 const router = Router();
 
 // Get recent songs
@@ -186,13 +186,12 @@ router.post("/play/:id", async (req, res) => {
     res.json({ success: true });
   } catch (error) {
     console.error('Error recording play:', error);
-    res.status(500).json({ message: "Failed to record play" });
   }
 });
 
 // Upload new song
 router.post("/", async (req, res) => {
-  const { title, artist, ipfsHash } = req.body;
+  const { title, artist, ipfsHash, audioFeatures } = req.body;
   const uploadedBy = req.headers['x-wallet-address'] as string;
 
   if (!uploadedBy) {
@@ -200,25 +199,47 @@ router.post("/", async (req, res) => {
   }
 
   try {
-    const [newSong] = await db.insert(songs).values({
+    // Build song data with optional audio features
+    const songData: any = {
       title,
       artist,
       ipfsHash,
       uploadedBy: uploadedBy.toLowerCase(),
-    }).returning();
+    };
+
+    // Add audio features if provided
+    if (audioFeatures) {
+      console.log(' Storing audio features:', audioFeatures.tempo, 'BPM');
+      Object.assign(songData, {
+        tempo: audioFeatures.tempo,
+        musicalKey: audioFeatures.musicalKey,
+        musicalMode: audioFeatures.musicalMode,
+        timeSignature: audioFeatures.timeSignature,
+        energy: audioFeatures.energy,
+        valence: audioFeatures.valence,
+        danceability: audioFeatures.danceability,
+        analyzedAt: new Date(),
+        analysisVersion: audioFeatures.analysisVersion || '1.0.0'
+      });
+    }
+
+    const [newSong] = await db.insert(songs).values(songData).returning();
+
+    // Trigger intelligence analysis if features exist
+    if (audioFeatures) {
+      console.log(` Song ${newSong.id} ready for intelligence analysis`);
+    }
 
     try {
-      // Process through Lumira for interpretation
+      // Process through Lumira
       await lumiraService.processMetricsPrivately({
-        type: 'song_upload',
+        type: 'experience',
         timestamp: new Date().toISOString(),
         data: {
-          songId: newSong.id,
-          title,
-          artist,
-          uploadedBy: uploadedBy.toLowerCase(),
-          ipfsHash,
-          createdAt: new Date()
+          type: 'audio',
+          sentiment: audioFeatures?.valence || 0.5,
+          intensity: audioFeatures?.energy || 0.5,
+          context: `${title} by ${artist}`
         },
         metadata: {
           source: 'song-upload',
