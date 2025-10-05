@@ -1,0 +1,56 @@
+name: Welcome New Contributors
+
+on:
+  issues:
+    types: [opened]
+  pull_requests:
+    types: [opened]
+
+jobs:
+  welcome:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/first-interaction@v1
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          issue-message: |
+            🎵 Welcome to MusicPortal! 🌌
+            
+            Thanks for opening your first issue! We're excited to have you join the search for universal intelligence in music.
+            
+            **What happens next:**
+            - A maintainer will review your issue
+            - We might ask clarifying questions
+            - If it's a bug, we'll investigate and fix
+            - If it's a feature, we'll discuss implementation
+            - If it's research, we'll validate the methodology
+            
+            **While you wait:**
+            - Check out [CONTRIBUTING.md](../CONTRIBUTING.md) for ways to help
+            - Read [MOONSHOT_ROADMAP.md](../docs/MOONSHOT_ROADMAP.md) to understand the vision
+            - Join discussions about music, AI, and consciousness
+            
+            **Remember:** This project is about discovery. Question everything. Share ideas. Be curious.
+            
+            🎼 → 🧠 → 🌌
+            
+          pr-message: |
+            🎵 Welcome to MusicPortal! 🌌
+            
+            Thanks for your first pull request! We're thrilled you're contributing to the search for universal intelligence.
+            
+            **What happens next:**
+            - Automated tests will run
+            - A maintainer will review your code
+            - We might suggest improvements
+            - Once approved, we'll merge!
+            
+            **Review tips:**
+            - We're looking for clean, documented, tested code
+            - Follow the [Contributing Guidelines](../CONTRIBUTING.md)
+            - Be patient - we're volunteers searching for truth
+            - Discussion is encouraged - defend your approach
+            
+            **Remember:** This is about discovery, not perfection. Your contribution matters whether it's 1 line or 1000.
+            
+            🎼 → 🧠 → 🌌
