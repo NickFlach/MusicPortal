@@ -1,5 +1,17 @@
-import { pgTable, text, serial, integer, timestamp, boolean, decimal, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, timestamp, boolean, decimal, jsonb, customType } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
+
+const vector = customType<{ data: number[]; driverData: string }>({
+  dataType() {
+    return "vector(1536)";
+  },
+  toDriver(value: number[]): string {
+    return JSON.stringify(value);
+  },
+  fromDriver(value: string): number[] {
+    return JSON.parse(value);
+  },
+});
 
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
@@ -34,6 +46,7 @@ export const songs = pgTable("songs", {
   uploadedBy: text("uploaded_by").references(() => users.address),
   createdAt: timestamp("created_at").defaultNow(),
   votes: integer("votes").default(0),
+  embedding: vector("embedding"),
   // Leave any NEOFS fields in the database but we won't use them
 });
 
