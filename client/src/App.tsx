@@ -21,6 +21,7 @@ import { DimensionalMusicProvider } from "./contexts/DimensionalMusicContext";
 import Whitepaper from "./pages/Whitepaper";
 import LumiraData from "@/pages/LumiraData";
 import Intelligence from "@/pages/Intelligence";
+import Discovery from "@/pages/Discovery";
 
 // Error Boundary Component
 class ErrorBoundary extends React.Component<
@@ -120,6 +121,9 @@ function Router() {
       </Route>
       <Route path="/intelligence">
         <ProtectedRoute component={Intelligence} />
+      </Route>
+      <Route path="/discovery">
+        <ProtectedRoute component={Discovery} />
       </Route>
       <Route>
         <NotFound />

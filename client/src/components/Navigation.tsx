@@ -1,19 +1,17 @@
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import { Map, BarChart2, Heart } from "lucide-react";
+import { Map, BarChart2, Heart, Sparkles } from "lucide-react";
 import { useCallback } from "react";
 import { apiRequest } from "@/lib/queryClient";
 import { useAccount } from "wagmi";
 import { useToast } from "@/hooks/use-toast";
 import { useDimensionalTranslation } from "@/contexts/LocaleContext";
-import { useMusicPlayer } from "@/contexts/MusicPlayerContext";
 
 export function Navigation() {
   const [location, setLocation] = useLocation();
   const { address } = useAccount();
   const { toast } = useToast();
   const { t } = useDimensionalTranslation();
-  const { isSynced } = useMusicPlayer();
 
   const requestLocation = useCallback(async (e: React.MouseEvent) => {
     const hasLocationPermission = localStorage.getItem('location-permission');
@@ -50,8 +48,8 @@ export function Navigation() {
       localStorage.setItem('location-permission', 'denied');
 
       toast({
-        title: t('map.location.error.title'),
-        description: t('map.location.error.description'),
+        title: String(t('map.location.error.title')),
+        description: String(t('map.location.error.description')),
         variant: "destructive",
       });
 
@@ -59,7 +57,22 @@ export function Navigation() {
     }
   }, [address, setLocation, toast, t]);
 
-  const links = [
+  const links: Array<{
+    href: string;
+    label: JSX.Element;
+    onClick?: (e: React.MouseEvent) => void;
+    show: boolean;
+  }> = [
+    {
+      href: "/discovery",
+      label: (
+        <span className="flex items-center gap-2">
+          <Sparkles className="h-4 w-4" />
+          Discovery
+        </span>
+      ),
+      show: location !== '/discovery'
+    },
     {
       href: "/map",
       label: (
@@ -110,18 +123,6 @@ export function Navigation() {
           {label}
         </Link>
       ))}
-
-      {isSynced && (
-        <a
-          href="https://app.pitchforks.social"
-          target="_blank"
-          rel="noopener noreferrer" 
-          className="text-sm transition-colors hover:text-primary flex items-center gap-2"
-          title="Visit Pitchforks"
-        >
-          <span className="text-xl animate-pulse">☠️</span>
-        </a>
-      )}
     </nav>
   );
 }
