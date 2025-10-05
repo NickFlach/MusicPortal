@@ -15,14 +15,14 @@ import translationRouter from './routes/translation';
 import lumiraRouter from './routes/lumira';
 import ipfsRouter from './routes/ipfs';
 import apiRouter from './routes/api';
+import intelligenceRouter from './routes/intelligence';
 import { setupWebSocket } from './routes/websocket';
 import { ipfsConnectionManager } from './services/ipfs-connection';
+import { musicIntelligence } from './services/music-intelligence';
 
 // ES Module equivalent of __dirname
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
-// Custom WebSocket type with isAlive property
 interface CustomWebSocket extends WebSocket {
   isAlive: boolean;
 }
@@ -72,6 +72,7 @@ app.use('/api/translate', translationRouter);
 app.use('/api/lumira', lumiraRouter);
 app.use('/api/neo-storage', neoStorageRouter);
 app.use('/api/ipfs', ipfsRouter);
+app.use('/api/intelligence', intelligenceRouter);
 
 // Error handling middleware
 app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

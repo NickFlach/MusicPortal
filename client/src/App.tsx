@@ -20,12 +20,13 @@ import { DimensionalProvider } from "./contexts/LocaleContext";
 import { DimensionalMusicProvider } from "./contexts/DimensionalMusicContext";
 import Whitepaper from "./pages/Whitepaper";
 import LumiraData from "@/pages/LumiraData";
+import Intelligence from "@/pages/Intelligence";
 
 // Error Boundary Component
 class ErrorBoundary extends React.Component<
   { children: React.ReactNode },
   { hasError: boolean }
-> {
+{
   constructor(props: { children: React.ReactNode }) {
     super(props);
     this.state = { hasError: false };
@@ -116,6 +117,9 @@ function Router() {
       </Route>
       <Route path="/whitepaper">
         <ProtectedRoute component={Whitepaper} />
+      </Route>
+      <Route path="/intelligence">
+        <ProtectedRoute component={Intelligence} />
       </Route>
       <Route>
         <NotFound />
