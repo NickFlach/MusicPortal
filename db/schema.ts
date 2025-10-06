@@ -104,6 +104,7 @@ export const songs = pgTable("songs", {
 export const recentlyPlayed = pgTable("recently_played", {
   id: serial("id").primaryKey(),
   songId: integer("song_id").references(() => songs.id),
+  playedBy: text("played_by").references(() => users.address),
   playedAt: timestamp("played_at").defaultNow(),
 });
 
@@ -265,3 +266,6 @@ export type Playlist = typeof playlists.$inferSelect;
 export type UserRewards = typeof userRewards.$inferSelect;
 export type LumiraMetric = typeof lumiraMetrics.$inferSelect;
 export type Love = typeof loves.$inferSelect;
+export type MusicalPattern = typeof musicalPatterns.$inferSelect;
+export type MusicalHypothesis = typeof musicalHypotheses.$inferSelect;
+export type EmergenceIndicator = typeof emergenceIndicators.$inferSelect;
