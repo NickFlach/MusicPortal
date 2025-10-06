@@ -59,12 +59,18 @@ export interface MusicFeatures {
   sectionCount: number;             // Number of distinct sections
   repetitionScore: number;          // 0-1, how much repeats
   noveltyScore: number;             // 0-1, how much is unique
+  dynamicRange: number;             // dB range
   
   // Meta features
   danceability: number;             // 0-1, suitable for dancing
   acousticness: number;             // 0-1, acoustic vs electronic
   instrumentalness: number;         // 0-1, instrumental vs vocal
   liveness: number;                 // 0-1, live performance vs studio
+  
+  // Quality metrics
+  loudness: number;                 // Average loudness (dB)
+  zeroCrossingRate: number;         // Noisiness indicator
+  rms: number;                      // Root mean square energy
   
   // Analysis metadata
   analyzedAt: Date;
@@ -258,6 +264,11 @@ export class MusicIntelligenceEngine extends EventEmitter {
         acousticness: Number(song.acousticness) || 0.5,
         instrumentalness: Number(song.instrumentalness) || 0.7,
         liveness: Number(song.liveness) || 0.3,
+        
+        // Quality metrics
+        loudness: Number(song.loudness) || -10,
+        zeroCrossingRate: Number(song.zeroCrossingRate) || 0.1,
+        rms: Number(song.rms) || 0.1,
         
         // Analysis metadata
         analyzedAt: song.analyzedAt,
