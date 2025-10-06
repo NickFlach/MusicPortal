@@ -204,10 +204,87 @@ export class MusicIntelligenceEngine extends EventEmitter {
    */
   async analyzeAudio(songId: number): Promise<MusicFeatures> {
     console.log(`🔬 Analyzing audio for song ${songId}...`);
-    
+
     try {
       // ✅ READ FROM DATABASE (this is the critical fix!)
-      const { db } = await import('@db');
+      const { db, isMockDatabase } = await import('@db');
+
+      // If in mock mode, return mock features for development
+      if (isMockDatabase) {
+        console.log('💡 MOCK DATABASE MODE - generating development features');
+        const features: MusicFeatures = {
+          // Basic features
+          tempo: 120 + Math.random() * 60,
+          key: this.randomKey(),
+          mode: Math.random() > 0.5 ? 'major' : 'minor',
+          timeSignature: '4/4',
+
+          // Harmonic features
+          harmonicComplexity: Math.random(),
+          harmonicEntropy: Math.random() * 5,
+          dominantFrequencies: [440, 880, 1320],
+          spectralCentroid: 2500 + Math.random() * 2000,
+          spectralRolloff: 5000 + Math.random() * 3000,
+
+          // Rhythmic features
+          rhythmicComplexity: Math.random(),
+          syncopation: Math.random(),
+          groove: Math.random(),
+          beatStrength: Math.random(),
+
+          // Timbral features
+          brightness: Math.random(),
+          roughness: Math.random(),
+          warmth: Math.random(),
+          spectralFlux: Math.random() * 3,
+
+          // Emotional/perceptual features
+          energy: Math.random(),
+          valence: Math.random(),
+          arousal: Math.random(),
+          tension: Math.random(),
+
+          // Structural features
+          sectionCount: Math.floor(Math.random() * 5) + 2,
+          repetitionScore: Math.random(),
+          noveltyScore: Math.random(),
+          dynamicRange: Math.random() * 30,
+
+          // Meta features
+          danceability: Math.random(),
+          acousticness: Math.random(),
+          instrumentalness: Math.random(),
+          liveness: Math.random(),
+
+          // Quality metrics
+          loudness: -20 + Math.random() * 20,
+          zeroCrossingRate: Math.random() * 0.5,
+          rms: Math.random() * 0.5,
+
+          // Analysis metadata
+          analyzedAt: new Date(),
+          analysisVersion: this.ANALYSIS_VERSION,
+          confidence: 0.7  // Lower confidence in mock mode
+        };
+
+        // Store features for pattern detection
+        this.songFeatures.set(songId, features);
+
+        // Emit event for integration with other systems
+        this.emit('songAnalyzed', { songId, features });
+
+        console.log(`✅ Mock analysis complete for song ${songId}:`, {
+          tempo: features.tempo.toFixed(1),
+          key: features.key,
+          mode: features.mode,
+          energy: features.energy.toFixed(2),
+          valence: features.valence.toFixed(2)
+        });
+
+        return features;
+      }
+
+      // Real database mode
       const song = await db.query.songs.findFirst({
         where: eq(songs.id, songId),
       });
@@ -228,61 +305,61 @@ export class MusicIntelligenceEngine extends EventEmitter {
         key: String(song.musicalKey) || 'C',
         mode: (String(song.musicalMode) as 'major' | 'minor') || 'major',
         timeSignature: String(song.timeSignature) || '4/4',
-        
+
         // Harmonic features
         harmonicComplexity: Number(song.harmonicComplexity) || 0.5,
         harmonicEntropy: Number(song.harmonicEntropy) || 2.5,
         dominantFrequencies: (song.dominantFrequencies as number[]) || [440, 880, 1320],
         spectralCentroid: Number(song.spectralCentroid) || 2500,
         spectralRolloff: Number(song.spectralRolloff) || 5000,
-        
+
         // Rhythmic features
         rhythmicComplexity: Number(song.rhythmicComplexity) || 0.5,
         syncopation: Number(song.syncopation) || 0.3,
         groove: Number(song.groove) || 0.6,
         beatStrength: Number(song.beatStrength) || 0.7,
-        
+
         // Timbral features
         brightness: Number(song.brightness) || 0.5,
         roughness: Number(song.roughness) || 0.2,
         warmth: Number(song.warmth) || 0.7,
         spectralFlux: Number(song.spectralFlux) || 1.5,
-        
+
         // Emotional/perceptual features
         energy: Number(song.energy) || 0.6,
         valence: Number(song.valence) || 0.5,
         arousal: Number(song.arousal) || 0.5,
         tension: Number(song.tension) || 0.3,
-        
+
         // Structural features
         sectionCount: Number(song.sectionCount) || 4,
         repetitionScore: Number(song.repetitionScore) || 0.6,
         noveltyScore: Number(song.noveltyScore) || 0.4,
         dynamicRange: Number(song.dynamicRange) || 20,
-        
+
         // Meta features
         danceability: Number(song.danceability) || 0.5,
         acousticness: Number(song.acousticness) || 0.5,
         instrumentalness: Number(song.instrumentalness) || 0.7,
         liveness: Number(song.liveness) || 0.3,
-        
+
         // Quality metrics
         loudness: Number(song.loudness) || -10,
         zeroCrossingRate: Number(song.zeroCrossingRate) || 0.1,
         rms: Number(song.rms) || 0.1,
-        
+
         // Analysis metadata
         analyzedAt: song.analyzedAt,
         analysisVersion: String(song.analysisVersion) || '1.0.0',
         confidence: 0.9  // High confidence since we analyzed it
       };
-      
+
       // Store features for pattern detection
       this.songFeatures.set(songId, features);
-      
+
       // Emit event for integration with other systems
       this.emit('songAnalyzed', { songId, features });
-      
+
       console.log(`✅ Real analysis complete for song ${songId}:`, {
         tempo: features.tempo.toFixed(1),
         key: features.key,
@@ -290,7 +367,7 @@ export class MusicIntelligenceEngine extends EventEmitter {
         energy: features.energy.toFixed(2),
         valence: features.valence.toFixed(2)
       });
-      
+
       return features;
     } catch (error) {
       console.error(`❌ Error analyzing song ${songId}:`, error);
