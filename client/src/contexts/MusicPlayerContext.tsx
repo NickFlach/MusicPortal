@@ -75,10 +75,8 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
         setIsPlaying(false);
         setIsLoading(false);
         setError('Error playing audio');
-      audio.addEventListener('canplay', handleCanPlay);
-      audio.addEventListener('error', handleError);
-      audio.addEventListener('play', () => setIsPlaying(true));
-      audio.addEventListener('pause', () => setIsPlaying(false));
+      };
+
       const handleEnded = async () => {
         setIsPlaying(false);
         if (audioRef.current?.src) {
@@ -87,8 +85,20 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
         }
         // Auto-advance to next track
         await handleTrackEnd();
+      };
+
+      audio.addEventListener('canplay', handleCanPlay);
+      audio.addEventListener('error', handleError);
+      audio.addEventListener('play', () => setIsPlaying(true));
+      audio.addEventListener('pause', () => setIsPlaying(false));
+      audio.addEventListener('ended', handleEnded);
+
+      return () => {
+        audio.removeEventListener('canplay', handleCanPlay);
+        audio.removeEventListener('error', handleError);
+        audio.removeEventListener('play', () => setIsPlaying(true));
         audio.removeEventListener('pause', () => setIsPlaying(false));
-        audio.removeEventListener('ended', () => setIsPlaying(false));
+        audio.removeEventListener('ended', handleEnded);
 
         if (audio.src) {
           URL.revokeObjectURL(audio.src);
@@ -100,7 +110,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
 
   // Auto-advance to next track when current ends
   const handleTrackEnd = async () => {
-    if (!autoPlayEnabled || recentTracks.length === 0) return;
+    if (recentTracks.length === 0) return;
     
     // Find current track index
     const currentIndex = recentTracks.findIndex(t => t.id === currentTrack?.id);
@@ -360,6 +370,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
         console.error('Error loading playlist:', error);
         setError('Failed to load playlist');
         return [];
+      }
     },
     staleTime: 30000
   });
@@ -378,6 +389,20 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
       window.addEventListener('click', handleInteraction);
       window.addEventListener('touchstart', handleInteraction);
     }
+
+    return () => {
+      window.removeEventListener('click', handleInteraction);
+      window.removeEventListener('touchstart', handleInteraction);
+    };
+  }, [hasInteracted]);
+
+  return (
+    <MusicPlayerContext.Provider value={{
+      currentTrack,
+      isPlaying,
+      isLoading,
+      error,
+      togglePlay,
       playTrack,
       playlist,
       hasInteracted,
