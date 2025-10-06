@@ -374,6 +374,7 @@ export default function Home() {
                   {libraryLoading ? (
                     <div className="flex items-center gap-2">
                       <Loader2 className="h-4 w-4 animate-spin" />
+                    </div>
                   ) : libraryError ? (
                     <div className="text-destructive">
                       <p>Error loading library: {libraryError instanceof Error ? libraryError.message : 'Unknown error'}</p>
@@ -384,6 +385,7 @@ export default function Home() {
                   ) : (
                     librarySongs?.map((librarySong) => {
                       const song = {
+                        id: librarySong.id,
                         title: librarySong.title,
                         artist: librarySong.artist,
                         ipfsHash: librarySong.ipfsHash || undefined,
