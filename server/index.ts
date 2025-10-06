@@ -83,9 +83,9 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
 });
 
 const startServer = async (retryCount = 0) => {
-  const maxRetries = 3;
+  const maxRetries = 0; // Don't retry - always use port 5000
   const basePort = 5000;
-  const port = basePort + (retryCount * 100);
+  const port = basePort;
 
   try {
     const server = createServer(app);
@@ -170,24 +170,14 @@ const startServer = async (retryCount = 0) => {
           resolve();
         })
         .once('error', (err: NodeJS.ErrnoException) => {
-          if (err.code === 'EADDRINUSE' && retryCount < maxRetries) {
-            server.close();
-            startServer(retryCount + 1);
-          } else {
-            reject(err);
-          }
+          reject(err);
         });
     });
 
   } catch (error) {
     console.error('Failed to start server:', error);
-    if (retryCount < maxRetries) {
-      console.log(`Retrying on port ${port + 100}...`);
-      await startServer(retryCount + 1);
-    } else {
-      console.error('Max retries reached. Unable to start server.');
-      process.exit(1);
-    }
+    console.error('Unable to start server on port 5000.');
+    process.exit(1);
   }
 };
 

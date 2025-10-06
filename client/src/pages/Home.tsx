@@ -395,7 +395,7 @@ export default function Home() {
                         loves: librarySong.loves,
                         isLoved: librarySong.isLoved,
                         audioFeatures: librarySong.audioFeatures
-                      };
+                      } as any;
                       
                       return (
                         <SongCard
@@ -442,7 +442,7 @@ export default function Home() {
                     loves: 0, // Not needed for display
                     isLoved: false, // Not needed for display
                     audioFeatures: null, // Not needed for display
-                  };
+                  } as any;
 
                   return (
                     <SongCard
