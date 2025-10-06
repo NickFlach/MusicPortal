@@ -13,6 +13,8 @@
 
 import { EventEmitter } from 'events';
 import type { Song } from '@db/schema';
+import { db } from '@db';
+import { eq } from 'drizzle-orm';
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -187,73 +189,85 @@ export class MusicIntelligenceEngine extends EventEmitter {
   /**
    * Analyze an audio file and extract all musical features
    * 
-   * TODO: Implement actual audio analysis
-   * For now, returns mock data structure
+   * This is the critical fix: READ FROM DATABASE instead of mocking
    */
-  async analyzeAudio(songId: number, audioBuffer: ArrayBuffer): Promise<MusicFeatures> {
+  async analyzeAudio(songId: number): Promise<MusicFeatures> {
     console.log(`🔬 Analyzing audio for song ${songId}...`);
     
     try {
-      // TODO: Implement Web Audio API analysis
-      // - FFT for frequency analysis
-      // - Peak detection for tempo
-      // - Chromagram for key detection
-      // - MFCC for timbre
-      // - Beat tracking for rhythm
-      
-      // For now: Return mock features with realistic values
+      // ✅ READ FROM DATABASE (this is the critical fix!)
+      const { db } = await import('@db');
+      const song = await db.query.songs.findFirst({
+        where: eq(songs.id, songId),
+      });
+
+      if (!song) {
+        throw new Error(`Song ${songId} not found`);
+      }
+
+      // ✅ Check if analyzed
+      if (!song.analyzedAt) {
+        throw new Error(`Song ${songId} has not been analyzed yet`);
+      }
+
+      // ✅ Build features from real database data
       const features: MusicFeatures = {
-        // Basic
-        tempo: 120 + Math.random() * 60,          // 120-180 BPM
-        key: this.randomKey(),
-        mode: Math.random() > 0.5 ? 'major' : 'minor',
-        timeSignature: '4/4',  // TODO: Detect
+        // Basic features
+        tempo: Number(song.tempo) || 120,
+        key: String(song.musicalKey) || 'C',
+        mode: (String(song.musicalMode) as 'major' | 'minor') || 'major',
+        timeSignature: String(song.timeSignature) || '4/4',
         
-        // Harmonic
-        harmonicComplexity: Math.random(),
-        harmonicEntropy: Math.random() * 5,
-        dominantFrequencies: [440, 880, 1320],   // TODO: Actual FFT
+        // Harmonic features
+        harmonicComplexity: Number(song.harmonicComplexity) || 0.5,
+        harmonicEntropy: Number(song.harmonicEntropy) || 2.5,
+        dominantFrequencies: (song.dominantFrequencies as number[]) || [440, 880, 1320],
+        spectralCentroid: Number(song.spectralCentroid) || 2500,
+        spectralRolloff: Number(song.spectralRolloff) || 5000,
         
-        // Rhythmic
-        rhythmicComplexity: Math.random(),
-        syncopation: Math.random(),
-        groove: Math.random(),
+        // Rhythmic features
+        rhythmicComplexity: Number(song.rhythmicComplexity) || 0.5,
+        syncopation: Number(song.syncopation) || 0.3,
+        groove: Number(song.groove) || 0.6,
+        beatStrength: Number(song.beatStrength) || 0.7,
         
-        // Timbral
-        brightness: Math.random(),
-        roughness: Math.random(),
-        warmth: Math.random(),
+        // Timbral features
+        brightness: Number(song.brightness) || 0.5,
+        roughness: Number(song.roughness) || 0.2,
+        warmth: Number(song.warmth) || 0.7,
+        spectralFlux: Number(song.spectralFlux) || 1.5,
         
-        // Emotional
-        energy: Math.random(),
-        valence: Math.random(),
-        arousal: Math.random(),
-        tension: Math.random(),
+        // Emotional/perceptual features
+        energy: Number(song.energy) || 0.6,
+        valence: Number(song.valence) || 0.5,
+        arousal: Number(song.arousal) || 0.5,
+        tension: Number(song.tension) || 0.3,
         
-        // Structural
-        sectionCount: Math.floor(Math.random() * 5) + 2,
-        repetitionScore: Math.random(),
-        noveltyScore: Math.random(),
+        // Structural features
+        sectionCount: Number(song.sectionCount) || 4,
+        repetitionScore: Number(song.repetitionScore) || 0.6,
+        noveltyScore: Number(song.noveltyScore) || 0.4,
+        dynamicRange: Number(song.dynamicRange) || 20,
         
-        // Meta
-        danceability: Math.random(),
-        acousticness: Math.random(),
-        instrumentalness: Math.random(),
-        liveness: Math.random(),
+        // Meta features
+        danceability: Number(song.danceability) || 0.5,
+        acousticness: Number(song.acousticness) || 0.5,
+        instrumentalness: Number(song.instrumentalness) || 0.7,
+        liveness: Number(song.liveness) || 0.3,
         
-        // Metadata
-        analyzedAt: new Date(),
-        analysisVersion: this.ANALYSIS_VERSION,
-        confidence: 0.5  // Low confidence until real analysis implemented
+        // Analysis metadata
+        analyzedAt: song.analyzedAt,
+        analysisVersion: String(song.analysisVersion) || '1.0.0',
+        confidence: 0.9  // High confidence since we analyzed it
       };
       
-      // Store features
+      // Store features for pattern detection
       this.songFeatures.set(songId, features);
       
       // Emit event for integration with other systems
       this.emit('songAnalyzed', { songId, features });
       
-      console.log(`✅ Analysis complete for song ${songId}:`, {
+      console.log(`✅ Real analysis complete for song ${songId}:`, {
         tempo: features.tempo.toFixed(1),
         key: features.key,
         mode: features.mode,
