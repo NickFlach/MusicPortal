@@ -14,7 +14,8 @@
 import { EventEmitter } from 'events';
 import type { Song } from '@db/schema';
 import { db } from '@db';
-import { eq, songs } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
+import { songs } from '@db/schema';
 
 // ============================================================================
 // TYPE DEFINITIONS
