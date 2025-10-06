@@ -34,16 +34,20 @@ export interface MusicFeatures {
   harmonicComplexity: number;       // 0-1, complexity of chord progressions
   harmonicEntropy: number;          // Information entropy of harmonies
   dominantFrequencies: number[];    // Most prominent frequencies
+  spectralCentroid: number;         // Brightness (Hz)
+  spectralRolloff: number;          // Frequency rolloff point
   
   // Rhythmic features  
   rhythmicComplexity: number;       // 0-1, complexity of rhythm patterns
   syncopation: number;              // 0-1, degree of rhythmic syncopation
   groove: number;                   // 0-1, strength of rhythmic groove
+  beatStrength: number;             // 0-1, how clear the beats are
   
   // Timbral features
   brightness: number;               // 0-1, spectral centroid
   roughness: number;                // 0-1, sensory dissonance
   warmth: number;                   // 0-1, low frequency energy
+  spectralFlux: number;             // Rate of spectral change
   
   // Emotional/perceptual features
   energy: number;                   // 0-1, overall energy level
