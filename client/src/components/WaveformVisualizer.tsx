@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { useMusicPlayer } from "@/contexts/MusicPlayerContext";
 
 export function WaveformVisualizer() {
-  const { currentSong, isPlaying } = useMusicPlayer();
+  const { currentTrack, isPlaying } = useMusicPlayer();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const audioContextRef = useRef<AudioContext>();
   const analyserRef = useRef<AnalyserNode>();
@@ -10,7 +10,7 @@ export function WaveformVisualizer() {
   const animationFrameRef = useRef<number>();
 
   useEffect(() => {
-    if (!isPlaying || !currentSong) {
+    if (!isPlaying || !currentTrack) {
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
@@ -68,7 +68,7 @@ export function WaveformVisualizer() {
         sourceRef.current.disconnect();
       }
     };
-  }, [isPlaying, currentSong]);
+  }, [isPlaying, currentTrack]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -129,7 +129,7 @@ export function WaveformVisualizer() {
     };
   }, []);
 
-  if (!currentSong) return null;
+  if (!currentTrack) return null;
 
   return (
     <div className="relative w-full h-32 bg-transparent rounded-lg overflow-hidden">

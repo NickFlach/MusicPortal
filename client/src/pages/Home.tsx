@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { MusicPlayer } from "@/components/MusicPlayer";
 import { Layout } from "@/components/Layout";
+import { MusicVisualizer } from "@/components/MusicVisualizer";
 import { useAccount } from 'wagmi';
 import { useMusicPlayer } from "@/contexts/MusicPlayerContext";
 import { SongCard } from "@/components/SongCard";
