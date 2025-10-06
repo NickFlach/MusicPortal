@@ -2,17 +2,17 @@ import { useAccount } from 'wagmi';
 import { WalletConnect } from "@/components/WalletConnect";
 import { useLocation } from 'wouter';
 import { useMusicPlayer } from "@/contexts/MusicPlayerContext";
-import { Volume2, VolumeX, Loader2, Music } from "lucide-react";
-import { useEffect, useState } from 'react';
+import { Volume2, VolumeX, Loader2, Music, ChevronDown, ChevronUp } from "lucide-react";
+import { useEffect, useState, useMemo } from 'react';
 import { useQuery } from "@tanstack/react-query";
 import { SongCard } from "@/components/SongCard";
+import { motion, AnimatePresence } from "framer-motion";
 
-// Define the song type to match server response
 interface Song {
   id: number;
   title: string;
   artist: string;
-  ipfsHash: string | null;
+  ipfsHash?: string;
   uploadedBy: string | null;
   createdAt: string | null;
   votes: number | null;
@@ -23,8 +23,8 @@ export default function Landing() {
   const [, setLocation] = useLocation();
   const { currentTrack, isPlaying, togglePlay, playTrack } = useMusicPlayer();
   const [isLoading, setIsLoading] = useState(true);
+  const [showDiscovery, setShowDiscovery] = useState(false);
 
-  // Fetch recent songs directly here for better error handling
   const { data: recentSongs, error: songsError } = useQuery<Song[]>({
     queryKey: ["/api/songs/recent"],
     queryFn: async () => {
@@ -47,7 +47,6 @@ export default function Landing() {
         const data = await response.json();
         console.log('Recent songs loaded:', data.length, 'songs');
         
-        // If we got back data but it's empty, return a default song
         if (!data || data.length === 0) {
           console.log('No songs returned from API, using fallback');
           return [{
@@ -64,7 +63,6 @@ export default function Landing() {
         return data;
       } catch (error) {
         console.error('Error fetching recent songs:', error);
-        // Return a default song during errors to prevent cascading failures
         return [{
           id: 1001,
           title: "NULL_ISLAND Beacon",
@@ -86,14 +84,12 @@ export default function Landing() {
     }
   }, [address, setLocation]);
 
-  // Initialize music once songs are loaded
   useEffect(() => {
     async function initializeMusic() {
       if (!recentSongs?.length || currentTrack) return;
 
       try {
         console.log('Initializing music with first song:', recentSongs[0]);
-        // Handle any missing fields gracefully
         const track = {
           id: recentSongs[0].id,
           title: recentSongs[0].title || "Unknown Title",
@@ -113,7 +109,6 @@ export default function Landing() {
     }
   }, [recentSongs, address, currentTrack, playTrack]);
 
-  // Function to handle playing a song from the song list
   const handlePlaySong = async (song: Song) => {
     try {
       const track = {
@@ -128,103 +123,181 @@ export default function Landing() {
     }
   };
 
-  // Don't redirect away from landing if already here
+  const particles = useMemo(() => {
+    return Array.from({ length: 50 }, (_, i) => ({
+      id: i,
+      left: `${Math.random() * 100}%`,
+      top: `${Math.random() * 100}%`,
+      delay: `${Math.random() * 3}s`,
+    }));
+  }, []);
+
   if (address && window.location.pathname === '/') return null;
 
   return (
-    <div className="min-h-screen bg-background relative overflow-hidden">
-      {/* Background Image with Overlay */}
-      <div
-        className="absolute inset-0 z-0"
-        style={{
-          backgroundImage: 'url("/neo_token_logo_flaukowski.png")',
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          filter: 'blur(8px)',
-          transform: 'scale(1.1)',
-          opacity: '0.15'
-        }}
-      />
+    <div className="min-h-screen relative overflow-hidden animated-gradient">
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        {particles.map((particle) => (
+          <div
+            key={particle.id}
+            className="particle"
+            style={{
+              left: particle.left,
+              top: particle.top,
+              animationDelay: particle.delay,
+            }}
+          />
+        ))}
+      </div>
 
-      <div className="container mx-auto px-4 py-8 relative z-10">
-        <div className="flex flex-col">
-          {/* Featured Section with Logo and Current Playing */}
-          <section className="flex flex-col items-center justify-center h-[60vh] space-y-6">
+      <div className="relative z-10 min-h-screen flex flex-col">
+        <motion.div 
+          className="flex-1 flex flex-col items-center justify-center px-4 py-16"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 1 }}
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.8, delay: 0.2 }}
+            className="mb-8"
+          >
             <button 
               onClick={togglePlay}
-              className="group relative transition-transform hover:scale-105 focus:outline-none rounded-lg"
+              className="group relative transition-transform hover:scale-105 focus:outline-none rounded-lg float-animation"
               disabled={isLoading || !currentTrack}
+              aria-label={isPlaying ? "Pause music" : "Play music"}
             >
               <img 
                 src="/neo_token_logo_flaukowski.png" 
-                alt="Music Portal Logo"
-                className={`w-48 h-48 object-contain ${isPlaying ? 'animate-pulse' : ''}`}
+                alt="Music Portal"
+                className={`w-40 h-40 md:w-56 md:h-56 object-contain pulse-glow ${isPlaying ? 'opacity-100' : 'opacity-80'}`}
               />
-              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                <div className="bg-background/80 backdrop-blur-sm p-4 rounded-full">
+              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                <div className="glass-morphism p-4 md:p-6 rounded-full">
                   {isPlaying ? (
-                    <VolumeX className="h-10 w-10 text-primary" />
+                    <VolumeX className="h-8 w-8 md:h-12 md:w-12 text-white" />
                   ) : (
-                    <Volume2 className="h-10 w-10 text-primary" />
+                    <Volume2 className="h-8 w-8 md:h-12 md:w-12 text-white" />
                   )}
                 </div>
               </div>
             </button>
+          </motion.div>
 
-            {/* Now Playing Display */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.4 }}
+            className="text-center space-y-3 mb-8"
+          >
             {isLoading ? (
-              <div className="flex items-center gap-2 text-muted-foreground">
+              <div className="flex items-center gap-2 text-white/60">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                <span>Loading music...</span>
+                <span className="text-sm md:text-base">Loading music...</span>
               </div>
             ) : currentTrack ? (
-              <div className="text-center space-y-2">
-                <h2 className="text-lg font-semibold">{currentTrack.title}</h2>
-                <p className="text-sm text-muted-foreground">{currentTrack.artist}</p>
-              </div>
+              <>
+                <h2 className="text-xl md:text-3xl font-bold text-white tracking-tight">
+                  {currentTrack.title}
+                </h2>
+                <p className="text-sm md:text-lg text-white/70">
+                  {currentTrack.artist}
+                </p>
+              </>
             ) : songsError ? (
-              <div className="text-destructive text-sm">
+              <div className="text-red-400 text-sm">
                 Failed to load music. Please try again later.
               </div>
             ) : null}
+          </motion.div>
 
-            {/* Connect Wallet Button */}
-            <div className="mt-4">
-              <WalletConnect />
-            </div>
-          </section>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.6 }}
+            className="glass-morphism rounded-2xl px-6 py-3"
+          >
+            <WalletConnect />
+          </motion.div>
 
-          {/* Discovery Feed Section */}
-          <section className="mt-8 pb-24">
-            <div className="flex items-center gap-2 mb-4">
-              <Music className="h-5 w-5" />
-              <h2 className="text-xl font-semibold">Discovery Feed</h2>
-            </div>
-            
-            <div className="grid gap-2 max-w-2xl mx-auto">
-              {isLoading ? (
-                <div className="flex items-center justify-center p-8">
-                  <Loader2 className="h-6 w-6 animate-spin mr-2" />
-                  <span>Loading recent tracks...</span>
+          <motion.button
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.8, delay: 0.8 }}
+            onClick={() => setShowDiscovery(!showDiscovery)}
+            className="mt-12 flex items-center gap-2 text-white/60 hover:text-white transition-colors group"
+            aria-label="Toggle discovery feed"
+          >
+            <Music className="h-4 w-4" />
+            <span className="text-sm font-medium">Discovery Feed</span>
+            {showDiscovery ? (
+              <ChevronUp className="h-4 w-4 group-hover:translate-y-[-2px] transition-transform" />
+            ) : (
+              <ChevronDown className="h-4 w-4 group-hover:translate-y-[2px] transition-transform" />
+            )}
+          </motion.button>
+        </motion.div>
+
+        <AnimatePresence>
+          {showDiscovery && (
+            <motion.div
+              initial={{ y: "100%", opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: "100%", opacity: 0 }}
+              transition={{ type: "spring", damping: 30, stiffness: 300 }}
+              className="relative"
+            >
+              <div className="glass-morphism rounded-t-3xl p-6 md:p-8 max-h-[60vh] overflow-y-auto">
+                <div className="max-w-2xl mx-auto">
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-2">
+                      <Music className="h-5 w-5 text-white" />
+                      <h2 className="text-xl font-semibold text-white">Recent Tracks</h2>
+                    </div>
+                    <button
+                      onClick={() => setShowDiscovery(false)}
+                      className="text-white/60 hover:text-white transition-colors"
+                      aria-label="Close discovery feed"
+                    >
+                      <ChevronDown className="h-5 w-5" />
+                    </button>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    {isLoading ? (
+                      <div className="flex items-center justify-center p-8">
+                        <Loader2 className="h-6 w-6 animate-spin mr-2 text-white/60" />
+                        <span className="text-white/60">Loading recent tracks...</span>
+                      </div>
+                    ) : recentSongs && recentSongs.length > 0 ? (
+                      recentSongs.map((song, index) => (
+                        <motion.div
+                          key={song.id}
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ duration: 0.4, delay: index * 0.05 }}
+                        >
+                          <SongCard
+                            song={song}
+                            onClick={() => handlePlaySong(song)}
+                            isPlaying={currentTrack?.id === song.id}
+                            variant="default"
+                          />
+                        </motion.div>
+                      ))
+                    ) : (
+                      <div className="text-center py-8 text-white/40">
+                        <p>No recent tracks available</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              ) : recentSongs && recentSongs.length > 0 ? (
-                recentSongs.map((song) => (
-                  <SongCard
-                    key={song.id}
-                    song={song}
-                    onClick={() => handlePlaySong(song)}
-                    isPlaying={currentTrack?.id === song.id}
-                    variant="default"
-                  />
-                ))
-              ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  <p>No recent tracks available</p>
-                </div>
-              )}
-            </div>
-          </section>
-        </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );

@@ -12,6 +12,90 @@
   }
 }
 
+/* Animated gradient background */
+@keyframes gradientShift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.animated-gradient {
+  background: linear-gradient(
+    -45deg,
+    hsl(250, 70%, 15%),
+    hsl(280, 60%, 20%),
+    hsl(220, 65%, 18%),
+    hsl(300, 55%, 22%)
+  );
+  background-size: 400% 400%;
+  animation: gradientShift 15s ease infinite;
+}
+
+/* Floating animation */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-20px);
+  }
+}
+
+.float-animation {
+  animation: float 6s ease-in-out infinite;
+}
+
+/* Pulsing glow */
+@keyframes pulseGlow {
+  0%, 100% {
+    filter: drop-shadow(0 0 20px hsla(250, 70%, 60%, 0.4))
+            drop-shadow(0 0 40px hsla(280, 60%, 50%, 0.2));
+  }
+  50% {
+    filter: drop-shadow(0 0 40px hsla(250, 70%, 60%, 0.6))
+            drop-shadow(0 0 80px hsla(280, 60%, 50%, 0.4));
+  }
+}
+
+.pulse-glow {
+  animation: pulseGlow 4s ease-in-out infinite;
+}
+
+/* Particle stars */
+@keyframes twinkle {
+  0%, 100% {
+    opacity: 0.3;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+}
+
+.particle {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  background: white;
+  border-radius: 50%;
+  animation: twinkle 3s ease-in-out infinite;
+}
+
+/* Glass morphism */
+.glass-morphism {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
 /* Dark theme for OpenStreetMap */
 .leaflet-container {
   @apply bg-background;
