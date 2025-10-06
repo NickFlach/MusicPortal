@@ -75,24 +75,18 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
         setIsPlaying(false);
         setIsLoading(false);
         setError('Error playing audio');
-      };
-
       audio.addEventListener('canplay', handleCanPlay);
       audio.addEventListener('error', handleError);
       audio.addEventListener('play', () => setIsPlaying(true));
       audio.addEventListener('pause', () => setIsPlaying(false));
-      audio.addEventListener('ended', async () => {
+      const handleEnded = async () => {
         setIsPlaying(false);
         if (audioRef.current?.src) {
           URL.revokeObjectURL(audioRef.current.src);
           audioRef.current.src = '';
         }
-      });
-
-      return () => {
-        audio.removeEventListener('canplay', handleCanPlay);
-        audio.removeEventListener('error', handleError);
-        audio.removeEventListener('play', () => setIsPlaying(true));
+        // Auto-advance to next track
+        await handleTrackEnd();
         audio.removeEventListener('pause', () => setIsPlaying(false));
         audio.removeEventListener('ended', () => setIsPlaying(false));
 
@@ -103,6 +97,41 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
       };
     }
   }, [isPlaying]);
+
+  // Auto-advance to next track when current ends
+  const handleTrackEnd = async () => {
+    if (!autoPlayEnabled || recentTracks.length === 0) return;
+    
+    // Find current track index
+    const currentIndex = recentTracks.findIndex(t => t.id === currentTrack?.id);
+    if (currentIndex === -1) {
+      // Current track not in recent tracks, play first real track
+      const nextTrack = recentTracks.find(t => t.ipfsHash && t.ipfsHash !== '');
+      if (nextTrack && playTrackRef.current) {
+        console.log('🎵 Auto-playing first real track:', nextTrack.title);
+        await playTrackRef.current(nextTrack);
+      }
+      return;
+    }
+    
+    // Find next track with valid IPFS hash (skip NULL_ISLAND)
+    let nextIndex = (currentIndex + 1) % recentTracks.length;
+    let attempts = 0;
+    const maxAttempts = recentTracks.length;
+    
+    while (attempts < maxAttempts) {
+      const nextTrack = recentTracks[nextIndex];
+      if (nextTrack && nextTrack.ipfsHash && nextTrack.ipfsHash !== '' && playTrackRef.current) {
+        console.log('🎵 Auto-advancing to:', nextTrack.title);
+        await playTrackRef.current(nextTrack);
+        return;
+      }
+      nextIndex = (nextIndex + 1) % recentTracks.length;
+      attempts++;
+    }
+    
+    console.log('⚠️ No playable tracks found in queue');
+  };
 
   // Track currently being loaded to prevent double-loading
   const loadingTrackRef = useRef<number | null>(null);
@@ -331,10 +360,12 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
         console.error('Error loading playlist:', error);
         setError('Failed to load playlist');
         return [];
-      }
     },
     staleTime: 30000
   });
+
+  // Store playTrack in ref for handleTrackEnd access
+  const playTrackRef = useRef(playTrack);
 
   useEffect(() => {
     const handleInteraction = async () => {
@@ -347,20 +378,6 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
       window.addEventListener('click', handleInteraction);
       window.addEventListener('touchstart', handleInteraction);
     }
-
-    return () => {
-      window.removeEventListener('click', handleInteraction);
-      window.removeEventListener('touchstart', handleInteraction);
-    };
-  }, [hasInteracted]);
-
-  return (
-    <MusicPlayerContext.Provider value={{
-      currentTrack,
-      isPlaying,
-      isLoading,
-      error,
-      togglePlay,
       playTrack,
       playlist,
       hasInteracted,
