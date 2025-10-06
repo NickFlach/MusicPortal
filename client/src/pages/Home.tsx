@@ -33,6 +33,8 @@ interface Song {
   uploadedBy: string | null;
   createdAt: string | null;
   votes: number | null;
+  loves?: number;
+  isLoved?: boolean;
 }
 
 export default function Home() {
@@ -372,18 +374,16 @@ export default function Home() {
                   {libraryLoading ? (
                     <div className="flex items-center gap-2">
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      <p className="text-muted-foreground">{t('app.loading')}</p>
-                    </div>
                   ) : libraryError ? (
                     <div className="text-destructive">
                       <p>Error loading library: {libraryError instanceof Error ? libraryError.message : 'Unknown error'}</p>
+                      <pre className="text-xs text-muted-foreground">{JSON.stringify(libraryError, null, 2)}</pre>
                     </div>
                   ) : librarySongs?.length === 0 ? (
                     <p className="text-muted-foreground">{t('app.noSongs')}</p>
                   ) : (
                     librarySongs?.map((librarySong) => {
                       const song = {
-                        id: librarySong.id,
                         title: librarySong.title,
                         artist: librarySong.artist,
                         ipfsHash: librarySong.ipfsHash || undefined,
@@ -391,7 +391,8 @@ export default function Home() {
                         createdAt: librarySong.createdAt,
                         votes: librarySong.votes,
                         loves: librarySong.loves,
-                        isLoved: librarySong.isLoved
+                        isLoved: librarySong.isLoved,
+                        audioFeatures: librarySong.audioFeatures
                       };
                       
                       return (
@@ -436,6 +437,9 @@ export default function Home() {
                     uploadedBy: null, // Not needed for display
                     createdAt: null, // Not needed for display
                     votes: 0, // Not needed for display
+                    loves: 0, // Not needed for display
+                    isLoved: false, // Not needed for display
+                    audioFeatures: null, // Not needed for display
                   };
 
                   return (
