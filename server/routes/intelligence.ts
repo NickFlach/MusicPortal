@@ -11,6 +11,7 @@
 
 import { Router } from 'express';
 import { musicIntelligence } from '../services/music-intelligence';
+import { fetchUnifiedMetrics } from '../services/consciousness-bridge';
 import { db } from '@db';
 import { sql } from 'drizzle-orm';
 
@@ -34,7 +35,7 @@ router.get('/features/:songId', async (req, res) => {
         message: 'This song has not been analyzed yet'
       });
     }
-    
+
     res.json(features);
   } catch (error) {
     console.error('Error fetching song features:', error);
@@ -266,6 +267,22 @@ router.get('/metrics', async (req, res) => {
       error: 'Failed to fetch intelligence metrics',
       details: error instanceof Error ? error.message : 'Unknown error'
     });
+  }
+});
+
+/**
+ * Proxy unified consciousness metrics from SpaceAgent for same-origin access
+ */
+router.get('/consciousness/unified', async (req, res) => {
+  try {
+    const metrics = await fetchUnifiedMetrics();
+    if (!metrics) {
+      return res.status(502).json({ error: 'Failed to fetch unified metrics' });
+    }
+    res.json(metrics);
+  } catch (error) {
+    console.error('Error fetching unified consciousness metrics:', error);
+    res.status(500).json({ error: 'Failed to fetch unified consciousness metrics' });
   }
 });
 

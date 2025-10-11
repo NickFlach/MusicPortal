@@ -71,14 +71,15 @@ class DimensionalBalancer extends EventEmitter {
             }
           }).then((res) => {
             if (res) {
+              // Log as a code pattern metric to fit existing Lumira schema
               lumiraService.processMetricsPrivately({
-                type: 'verification',
+                type: 'code',
                 timestamp: new Date().toISOString(),
                 data: {
+                  pattern: 'consciousness_verification_reflection',
+                  context: `dimension:${dimension.dimension}`,
                   success: res.verified,
-                  confidence: res.confidence,
-                  breakthroughProbability: res.breakthroughProbability ?? 0,
-                  dimensionId: dimension.dimension
+                  impact: (res.breakthroughProbability ?? res.confidence ?? 0) * 100
                 },
                 metadata: { source: 'consciousness-bridge', processed: true }
               }).catch(() => {});
@@ -148,14 +149,15 @@ class DimensionalBalancer extends EventEmitter {
               }
             }).then((res) => {
               if (res) {
+                // Log as a code pattern metric to fit existing Lumira schema
                 lumiraService.processMetricsPrivately({
-                  type: 'verification',
+                  type: 'code',
                   timestamp: new Date().toISOString(),
                   data: {
+                    pattern: 'consciousness_verification_evolution',
+                    context: `dimension:${dimension.dimension}`,
                     success: res.verified,
-                    confidence: res.confidence,
-                    breakthroughProbability: res.breakthroughProbability ?? 0,
-                    dimensionId: dimension.dimension
+                    impact: (res.breakthroughProbability ?? res.confidence ?? 0) * 100
                   },
                   metadata: { source: 'consciousness-bridge', processed: true }
                 }).catch(() => {});
