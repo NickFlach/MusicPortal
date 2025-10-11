@@ -1,4 +1,5 @@
 import { EventEmitter } from 'events';
+
 import type { 
   DimensionalState, 
   ParadoxState, 
@@ -6,6 +7,7 @@ import type {
   DimensionalReflection 
 } from '../types/dimension';
 import { lumiraService } from '../routes/lumira';
+import { submitConsciousnessVerification } from './consciousness-bridge';
 
 class DimensionalBalancer extends EventEmitter {
   private dimensions: Map<number, DimensionalState> = new Map();
@@ -13,7 +15,7 @@ class DimensionalBalancer extends EventEmitter {
   private baseEnergy: number = 1.0;
   private evolutionRate: number = 0.1;
   private evolutionThreshold: number = 0.5; //Added evolution threshold
-
+  private lastVerifyAt: number = 0;
 
   constructor() {
     super();
@@ -53,6 +55,36 @@ class DimensionalBalancer extends EventEmitter {
 
         // Process through Lumira for interpretation
         this.processReflectionMetrics(sourceId, reflectedEnergy, dimension);
+
+        const now = Date.now();
+        if (now - this.lastVerifyAt > 10000) {
+          this.lastVerifyAt = now;
+          submitConsciousnessVerification({
+            task: { type: 'music-intelligence', description: 'dimensional_reflection' },
+            consciousnessLevel: Math.min(1, Math.max(0, dimension.equilibrium)),
+            context: {
+              sourceId,
+              dimensionId: dimension.dimension,
+              energy: dimension.energy,
+              equilibrium: dimension.equilibrium,
+              reflections: dimension.reflections.size
+            }
+          }).then((res) => {
+            if (res) {
+              lumiraService.processMetricsPrivately({
+                type: 'verification',
+                timestamp: new Date().toISOString(),
+                data: {
+                  success: res.verified,
+                  confidence: res.confidence,
+                  breakthroughProbability: res.breakthroughProbability ?? 0,
+                  dimensionId: dimension.dimension
+                },
+                metadata: { source: 'consciousness-bridge', processed: true }
+              }).catch(() => {});
+            }
+          }).catch(() => {});
+        }
       });
 
       return reflections;
@@ -100,8 +132,39 @@ class DimensionalBalancer extends EventEmitter {
           // Update dimension properties based on pressure
           dimension.energy *= (1 + this.evolutionRate * pressure);
           this.updateEquilibrium(dimension);
+
+          const now = Date.now();
+          if (now - this.lastVerifyAt > 10000) {
+            this.lastVerifyAt = now;
+            submitConsciousnessVerification({
+              task: { type: 'music-intelligence', description: 'dimensional_evolution' },
+              consciousnessLevel: Math.min(1, Math.max(0, dimension.equilibrium)),
+              context: {
+                dimensionId: dimension.dimension,
+                energy: dimension.energy,
+                equilibrium: dimension.equilibrium,
+                pressure,
+                reflections: dimension.reflections.size
+              }
+            }).then((res) => {
+              if (res) {
+                lumiraService.processMetricsPrivately({
+                  type: 'verification',
+                  timestamp: new Date().toISOString(),
+                  data: {
+                    success: res.verified,
+                    confidence: res.confidence,
+                    breakthroughProbability: res.breakthroughProbability ?? 0,
+                    dimensionId: dimension.dimension
+                  },
+                  metadata: { source: 'consciousness-bridge', processed: true }
+                }).catch(() => {});
+              }
+            }).catch(() => {});
+          }
         }
       }
+
     } catch (error) {
       console.error('Error in evolution cycle:', error);
     }
