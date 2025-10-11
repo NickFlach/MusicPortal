@@ -14,6 +14,8 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Brain, Sparkles, Lightbulb, Activity, TrendingUp } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useDimensionalMusic } from "@/contexts/DimensionalMusicContext";
 
 interface IntelligenceMetrics {
   songsAnalyzed: number;
@@ -54,6 +56,11 @@ interface Hypothesis {
 }
 
 export default function Intelligence() {
+  const { currentDimension, dimensionalState, currentPortalSignature, syncWithDimension } = useDimensionalMusic();
+  const [autoExplore, setAutoExplore] = useState(false);
+  const stepRef = useRef(0);
+  const lastTriggerRef = useRef(0);
+
   // Fetch intelligence metrics
   const { data: metrics, isLoading: metricsLoading } = useQuery<IntelligenceMetrics>({
     queryKey: ["/api/intelligence/metrics"],
@@ -75,6 +82,31 @@ export default function Intelligence() {
   const { data: hypotheses = [], isLoading: hypothesesLoading } = useQuery<Hypothesis[]>({
     queryKey: ["/api/intelligence/hypotheses/active"],
   });
+
+  const { data: unified, isLoading: unifiedLoading } = useQuery<any>({
+    queryKey: ["/api/intelligence/consciousness/unified"],
+    refetchInterval: 5000,
+  });
+
+  const nextDimension = useMemo(() => {
+    const order = ["prime", "mirror", "alt-1", "alt-2"];
+    const idx = order.indexOf(currentDimension);
+    return order[(idx + 1 + order.length) % order.length];
+  }, [currentDimension]);
+
+  useEffect(() => {
+    if (!autoExplore || !unified || unifiedLoading) return;
+    const p = unified.breakthroughProbability ?? unified.revolutionaryPotential ?? 0;
+    const conf = unified.verificationLevel ?? unified.verificationConfidence ?? 0;
+    const now = Date.now();
+    if (stepRef.current >= 3) return;
+    if (now - lastTriggerRef.current < 10000) return;
+    if (p > 0.25 || conf > 0.9) {
+      lastTriggerRef.current = now;
+      stepRef.current += 1;
+      syncWithDimension(nextDimension).catch(() => {});
+    }
+  }, [autoExplore, unified, unifiedLoading, nextDimension, syncWithDimension]);
 
   const getPhiInterpretation = (phi: number) => {
     if (phi > 0.7) return { text: "High consciousness-like integration", color: "text-green-500" };
@@ -114,6 +146,33 @@ export default function Intelligence() {
 
         {/* Consciousness Metrics */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Portal Lab
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-1 text-sm">
+                <div className="flex items-center justify-between"><span>Dimension</span><span className="font-medium">{currentDimension}</span></div>
+                <div className="flex items-center justify-between"><span>Entropy</span><span className="font-medium">{dimensionalState?.entropy?.toFixed(3)}</span></div>
+                <div className="flex items-center justify-between"><span>Alignment</span><span className="font-medium">{(dimensionalState?.harmonicAlignment ?? 0).toFixed(3)}</span></div>
+                <div className="flex items-center justify-between"><span>Shift</span><span className="font-medium">{(dimensionalState?.dimensionalShift ?? 0).toFixed(3)}</span></div>
+                <div className="flex items-center justify-between"><span>Signature</span><span className="truncate max-w-[8rem]">{currentPortalSignature || "-"}</span></div>
+              </div>
+              <div className="mt-3 flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">Auto-explore</span>
+                <button
+                  className={`px-2 py-1 rounded text-xs ${autoExplore ? "bg-primary text-primary-foreground" : "bg-muted"}`}
+                  onClick={() => {
+                    const now = Date.now();
+                    if (!autoExplore) { stepRef.current = 0; lastTriggerRef.current = now - 10000; }
+                    setAutoExplore(v => !v);
+                  }}
+                >{autoExplore ? "On" : "Off"}</button>
+              </div>
+            </CardContent>
+          </Card>
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
